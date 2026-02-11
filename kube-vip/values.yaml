@@ -1,0 +1,37 @@
+# kube-vip Helm chart values
+# Chart: kube-vip/kube-vip
+# Repo: https://kube-vip.github.io/helm-charts
+
+image:
+  tag: "v1.0.4"
+
+config:
+  address: "192.168.0.10"
+
+env:
+  vip_interface: "eth0"
+  cp_enable: "true"
+  svc_enable: "false"
+  lb_enable: "false"
+  vip_leaderelection: "true"
+  vip_leasename: "plndr-cp-lock"
+  vip_leaseduration: "5"
+  vip_renewdeadline: "3"
+  vip_retryperiod: "1"
+
+securityContext:
+  capabilities:
+    add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_TIME
+    drop:
+      - ALL
+
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: node-role.kubernetes.io/control-plane
+              operator: Exists
