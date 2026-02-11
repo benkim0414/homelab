@@ -1,0 +1,6 @@
+# MetalLB Helm chart values
+# Chart: metallb/metallb
+# Repo: https://metallb.github.io/metallb
+#
+# Chart defaults are sufficient for the homelab.
+# IPAddressPool and L2Advertisement CRs are applied separately after install.
