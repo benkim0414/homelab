@@ -1,0 +1,58 @@
+# Immich Helm chart values
+# Chart: oci://ghcr.io/immich-app/immich-charts/immich
+# Version: 0.10.3 (appVersion v2.0.0)
+
+# -- Shared env vars (applied to all components)
+controllers:
+  main:
+    containers:
+      main:
+        env:
+          DB_HOSTNAME: immich-postgres
+          DB_PORT: "5432"
+          DB_USERNAME:
+            valueFrom:
+              secretKeyRef:
+                name: immich-db-credentials
+                key: POSTGRES_USER
+          DB_PASSWORD:
+            valueFrom:
+              secretKeyRef:
+                name: immich-db-credentials
+                key: POSTGRES_PASSWORD
+          DB_DATABASE_NAME:
+            valueFrom:
+              secretKeyRef:
+                name: immich-db-credentials
+                key: POSTGRES_DB
+          IMMICH_MACHINE_LEARNING_URL: "false"
+
+# -- Photo library storage (NFS)
+immich:
+  persistence:
+    library:
+      existingClaim: immich-library
+
+# -- Valkey (Redis-compatible) for job queue
+valkey:
+  enabled: true
+  controllers:
+    main:
+      containers:
+        main:
+          resources:
+            limits:
+              memory: 128Mi
+
+# -- Immich server
+server:
+  enabled: true
+  service:
+    main:
+      type: LoadBalancer
+      annotations:
+        metallb.universe.tf/loadBalancerIPs: "192.168.0.201"
+
+# -- Machine learning (disabled to conserve RAM)
+machine-learning:
+  enabled: false
