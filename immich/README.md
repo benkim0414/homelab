@@ -66,17 +66,20 @@ kubectl apply -f immich/namespace.yaml
 
 ### 2. Create database credentials
 
-Generate a password and update the secret:
+Secrets are managed with [Sealed Secrets](../sealed-secrets/). The encrypted `sealed-secret.yaml` is safe to commit — the controller decrypts it in-cluster.
 
 ```bash
-# Generate password
-openssl rand -base64 32
-
-# Edit secret.yaml — replace <GENERATED_PASSWORD> with the output above
-vi immich/secret.yaml
+# Generate a new password and create a SealedSecret
+kubectl create secret generic immich-db-credentials \
+  --namespace=immich \
+  --from-literal=POSTGRES_USER=immich \
+  --from-literal=POSTGRES_PASSWORD="$(openssl rand -base64 32)" \
+  --from-literal=POSTGRES_DB=immich \
+  --dry-run=client -o yaml \
+  | kubeseal --format yaml > immich/sealed-secret.yaml
 
 # Apply
-kubectl apply -f immich/secret.yaml
+kubectl apply -f immich/sealed-secret.yaml
 ```
 
 ### 3. Create NFS storage
@@ -149,7 +152,7 @@ helm upgrade immich oci://ghcr.io/immich-app/immich-charts/immich \
 helm uninstall immich -n immich
 kubectl delete -f immich/postgresql.yaml
 kubectl delete -f immich/nfs-pv-pvc.yaml
-kubectl delete -f immich/secret.yaml
+kubectl delete -f immich/sealed-secret.yaml
 kubectl delete -f immich/namespace.yaml
 ```
 

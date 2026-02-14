@@ -1,0 +1,13 @@
+# Sealed Secrets Helm chart values
+# Chart: sealed-secrets/sealed-secrets
+# Repo: https://bitnami-labs.github.io/sealed-secrets
+
+fullnameOverride: sealed-secrets-controller
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
