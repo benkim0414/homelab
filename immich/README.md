@@ -140,12 +140,22 @@ Access the web UI at **http://192.168.0.201:2283** and create your admin account
 
 ## Upgrade
 
+To upgrade the Immich app version, set `controllers.main.containers.main.image.tag` in `values.yaml` to the desired version, then run:
+
 ```bash
 helm upgrade immich oci://ghcr.io/immich-app/immich-charts/immich \
   --namespace immich \
   -f immich/values.yaml \
-  --version <new-version>
+  --version 0.10.3
 ```
+
+> **Tip:** Back up PostgreSQL before upgrading — some releases include database migrations.
+>
+> ```bash
+> kubectl exec -n immich immich-postgres-0 -- \
+>   pg_dump -U immich -d immich -Fc -f /tmp/immich-backup.dump
+> kubectl cp immich/immich-postgres-0:/tmp/immich-backup.dump ./immich-backup.dump
+> ```
 
 ## Uninstall
 
