@@ -1,0 +1,51 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits"
+  ],
+  "argocd": {
+    "fileMatch": ["argocd/.+\\.ya?ml$"]
+  },
+  "kubernetes": {
+    "fileMatch": ["immich/.+\\.ya?ml$"]
+  },
+  "customManagers": [
+    {
+      // Immich server image tag in Helm values (non-standard path)
+      "customType": "regex",
+      "fileMatch": ["^immich/values\\.yaml$"],
+      "matchStrings": [
+        "tag:\\s*(?<currentValue>v[\\d.]+)"
+      ],
+      "depNameTemplate": "ghcr.io/immich-app/immich-server",
+      "datasourceTemplate": "docker"
+    },
+    {
+      // kube-vip image tag in Helm values
+      "customType": "regex",
+      "fileMatch": ["^kube-vip/values\\.yaml$"],
+      "matchStrings": [
+        "tag:\\s*\"(?<currentValue>v[\\d.]+)\""
+      ],
+      "depNameTemplate": "ghcr.io/kube-vip/kube-vip",
+      "datasourceTemplate": "docker"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Group Immich packages together",
+      "matchPackagePatterns": ["immich"],
+      "groupName": "immich",
+      "prBodyNotes": [
+        "**Reminder:** Ensure the PostgreSQL backup CronJob has run recently before merging. Check with: `kubectl get jobs -n immich -l app=immich-pg-backup --sort-by=.status.startTime`"
+      ]
+    },
+    {
+      "description": "Group infrastructure packages, schedule monthly",
+      "matchPackagePatterns": ["metallb", "sealed-secrets", "kube-vip", "tailscale"],
+      "groupName": "infrastructure",
+      "schedule": ["before 6am on the first day of the month"]
+    }
+  ]
+}
