@@ -1,0 +1,34 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: immich
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    # Immich Helm chart from OCI registry
+    - repoURL: ghcr.io/immich-app/immich-charts
+      chart: immich
+      targetRevision: 0.10.3
+      helm:
+        valueFiles:
+          - $repo/immich/values.yaml
+    # Git repo for values file and raw manifests
+    - repoURL: https://github.com/benkim0414/homelab.git
+      targetRevision: HEAD
+      ref: repo
+    # Raw manifests (namespace, PostgreSQL, NFS, sealed secret, etc.)
+    - repoURL: https://github.com/benkim0414/homelab.git
+      targetRevision: HEAD
+      path: immich
+      directory:
+        include: '{namespace.yaml,postgresql.yaml,nfs-pv-pvc.yaml,sealed-secret.yaml,tailscale-ingress.yaml,pg-backup-cronjob.yaml}'
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: immich
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,124 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: infrastructure
+  namespace: argocd
+spec:
+  description: Cluster infrastructure components
+  sourceRepos:
+    - '*'
+  destinations:
+    - namespace: '*'
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: metallb
+  namespace: argocd
+spec:
+  project: infrastructure
+  sources:
+    - repoURL: https://metallb.github.io/metallb
+      chart: metallb
+      targetRevision: '*'
+      helm:
+        valueFiles:
+          - $repo/metallb/values.yaml
+    - repoURL: https://github.com/benkim0414/homelab.git
+      targetRevision: HEAD
+      ref: repo
+    # MetalLB CRDs (IPAddressPool, L2Advertisement)
+    - repoURL: https://github.com/benkim0414/homelab.git
+      targetRevision: HEAD
+      path: metallb
+      directory:
+        include: '{ipaddresspool.yaml,l2advertisement.yaml}'
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: metallb-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sealed-secrets
+  namespace: argocd
+spec:
+  project: infrastructure
+  sources:
+    - repoURL: https://bitnami-labs.github.io/sealed-secrets
+      chart: sealed-secrets
+      targetRevision: '*'
+      helm:
+        valueFiles:
+          - $repo/sealed-secrets/values.yaml
+    - repoURL: https://github.com/benkim0414/homelab.git
+      targetRevision: HEAD
+      ref: repo
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-vip
+  namespace: argocd
+spec:
+  project: infrastructure
+  sources:
+    - repoURL: https://kube-vip.github.io/helm-charts
+      chart: kube-vip
+      targetRevision: '*'
+      helm:
+        valueFiles:
+          - $repo/kube-vip/values.yaml
+    - repoURL: https://github.com/benkim0414/homelab.git
+      targetRevision: HEAD
+      ref: repo
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      selfHeal: true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tailscale
+  namespace: argocd
+spec:
+  project: infrastructure
+  sources:
+    - repoURL: https://pkgs.tailscale.com/helmcharts
+      chart: tailscale-operator
+      targetRevision: '*'
+      helm:
+        valueFiles:
+          - $repo/tailscale/values.yaml
+    - repoURL: https://github.com/benkim0414/homelab.git
+      targetRevision: HEAD
+      ref: repo
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: tailscale
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
