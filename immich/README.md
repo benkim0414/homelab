@@ -27,6 +27,7 @@ Self-hosted photo management deployed on the K3s Raspberry Pi 5 cluster using th
   └───────────────┘
 
 External IP: 192.168.0.201:2283 (MetalLB)
+Tailscale:   https://immich.<tailnet>.ts.net (auto TLS)
 ```
 
 | Component   | Storage        | Why                                        |
@@ -158,9 +159,52 @@ kubectl delete -f immich/namespace.yaml
 
 > **Note:** The NFS data on the NAS and the local-path PVC on the worker node are retained (`persistentVolumeReclaimPolicy: Retain`). Delete them manually if no longer needed.
 
+## Tailscale Access
+
+Immich is also exposed over the [Tailscale](https://tailscale.com/) tailnet via the Tailscale Kubernetes operator, providing HTTPS access from any device on the tailnet.
+
+### How it works
+
+The Tailscale operator watches the `immich-tailscale` Ingress (`ingressClassName: tailscale`) and creates a proxy Pod that:
+1. Joins the tailnet as a device named `immich`
+2. Obtains a LetsEncrypt TLS certificate automatically
+3. Forwards traffic to the `immich-server` ClusterIP service
+
+LAN access via MetalLB (`192.168.0.201:2283`) continues to work unchanged.
+
+### Prerequisites
+
+1. **Tailscale operator** installed in the `tailscale` namespace (see [`../tailscale/`](../tailscale/))
+2. **MagicDNS** and **HTTPS Certificates** enabled in the [Tailscale admin console](https://login.tailscale.com/admin/dns)
+
+### Deploy
+
+```bash
+kubectl apply -f immich/tailscale-ingress.yaml
+```
+
+### Verify
+
+```bash
+# Ingress proxy Pod created
+kubectl get pods -n tailscale -l tailscale.com/parent-resource=immich-tailscale
+
+# Ingress shows address
+kubectl get ingress -n immich immich-tailscale
+
+# HTTPS access from a tailnet device
+curl https://immich.<tailnet>.ts.net/api/server/ping
+# Expected: {"res":"pong"}
+```
+
+### Remove
+
+```bash
+kubectl delete -f immich/tailscale-ingress.yaml
+```
+
 ## Future Enhancements
 
 - **Enable ML**: Set `machine-learning.enabled: true` in values.yaml and `helm upgrade`. Consider adding resource limits.
-- **Ingress**: Add a Traefik IngressRoute for HTTPS access with a domain name.
 - **Backups**: Schedule PostgreSQL `pg_dump` via a CronJob. NAS photos are protected by ZFS snapshots.
 - **External OAuth**: Configure OIDC for SSO authentication.
