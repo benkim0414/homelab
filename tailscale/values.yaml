@@ -1,0 +1,14 @@
+# Tailscale Kubernetes Operator Helm chart values
+# Chart: tailscale/tailscale-operator
+# Repo: https://pkgs.tailscale.com/helmcharts
+#
+# OAuth credentials are passed via --set-string at install time
+# (not committed to Git).
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
