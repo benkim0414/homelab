@@ -1,0 +1,68 @@
+# Grafana Alloy Helm chart values
+# Chart: https://grafana.github.io/helm-charts
+# DaemonSet log collector, replaces deprecated Promtail
+
+alloy:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+
+  mounts:
+    varlog: true
+
+  configMap:
+    content: |
+      // Discover all pods on the node
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+
+      // Extract useful labels from discovered pods
+      discovery.relabel "pods" {
+        targets = discovery.kubernetes.pods.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          target_label  = "container"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_node_name"]
+          target_label  = "node"
+        }
+        // Drop pods that are not running
+        rule {
+          source_labels = ["__meta_kubernetes_pod_phase"]
+          regex         = "Pending|Succeeded|Failed|Completed"
+          action        = "drop"
+        }
+      }
+
+      // Tail log files from /var/log/pods
+      loki.source.kubernetes "pods" {
+        targets    = discovery.relabel.pods.output
+        forward_to = [loki.process.cri.receiver]
+      }
+
+      // Parse CRI log format
+      loki.process "cri" {
+        stage.cri {}
+        forward_to = [loki.write.default.receiver]
+      }
+
+      // Push logs to Loki
+      loki.write "default" {
+        endpoint {
+          url = "http://loki-gateway.monitoring.svc.cluster.local:80/loki/api/v1/push"
+        }
+      }

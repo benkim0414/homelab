@@ -8,7 +8,7 @@
     "fileMatch": ["argocd/.+\\.ya?ml$"]
   },
   "kubernetes": {
-    "fileMatch": ["immich/.+\\.ya?ml$"]
+    "fileMatch": ["immich/.+\\.ya?ml$", "monitoring/.+\\.ya?ml$"]
   },
   "customManagers": [
     {
@@ -45,6 +45,12 @@
       "description": "Group infrastructure packages, schedule monthly",
       "matchPackagePatterns": ["metallb", "sealed-secrets", "kube-vip", "tailscale"],
       "groupName": "infrastructure",
+      "schedule": ["before 6am on the first day of the month"]
+    },
+    {
+      "description": "Group monitoring packages, schedule monthly",
+      "matchPackagePatterns": ["kube-prometheus-stack", "loki", "alloy"],
+      "groupName": "monitoring",
       "schedule": ["before 6am on the first day of the month"]
     }
   ]

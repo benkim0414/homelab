@@ -1,0 +1,93 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    # Helm chart
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      targetRevision: '*'
+      helm:
+        valueFiles:
+          - $repo/monitoring/kube-prometheus-stack-values.yaml
+    # Git repo for values file reference
+    - repoURL: https://github.com/benkim0414/homelab.git
+      targetRevision: HEAD
+      ref: repo
+    # Raw manifests (Tailscale ingress)
+    - repoURL: https://github.com/benkim0414/homelab.git
+      targetRevision: HEAD
+      path: monitoring
+      directory:
+        include: '{tailscale-ingress.yaml}'
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    # Helm chart
+    - repoURL: https://grafana.github.io/helm-charts
+      chart: loki
+      targetRevision: '*'
+      helm:
+        valueFiles:
+          - $repo/monitoring/loki-values.yaml
+    # Git repo for values file reference
+    - repoURL: https://github.com/benkim0414/homelab.git
+      targetRevision: HEAD
+      ref: repo
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: alloy
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    # Helm chart
+    - repoURL: https://grafana.github.io/helm-charts
+      chart: alloy
+      targetRevision: '*'
+      helm:
+        valueFiles:
+          - $repo/monitoring/alloy-values.yaml
+    # Git repo for values file reference
+    - repoURL: https://github.com/benkim0414/homelab.git
+      targetRevision: HEAD
+      ref: repo
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
