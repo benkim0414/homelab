@@ -34,6 +34,12 @@ spec:
       jsonPointers:
         - /data/admin-password
         - /data/admin-user
+    # Deployment checksum/secret annotation drifts with the secret
+    - group: apps
+      kind: Deployment
+      name: kube-prometheus-stack-grafana
+      jsonPointers:
+        - /spec/template/metadata/annotations/checksum~1secret
   syncPolicy:
     automated:
       prune: true
