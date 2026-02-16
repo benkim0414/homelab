@@ -6,6 +6,11 @@ global:
   logging:
     level: warn
 
+# -- Serve HTTP (Tailscale ingress handles TLS termination)
+configs:
+  params:
+    server.insecure: true
+
 # -- Controller
 controller:
   resources:
