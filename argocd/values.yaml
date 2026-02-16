@@ -33,14 +33,14 @@ server:
     annotations:
       metallb.universe.tf/loadBalancerIPs: "192.168.0.202"
 
-# -- Repo server
+# -- Repo server (512Mi needed for kube-prometheus-stack chart rendering)
 repoServer:
   resources:
     requests:
       cpu: 50m
-      memory: 128Mi
-    limits:
       memory: 256Mi
+    limits:
+      memory: 512Mi
 
 # -- Redis
 redis:
