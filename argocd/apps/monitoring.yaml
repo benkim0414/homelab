@@ -26,6 +26,14 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
+  ignoreDifferences:
+    # Grafana admin secret is generated once; ignore drift to prevent perpetual OutOfSync
+    - group: ""
+      kind: Secret
+      name: kube-prometheus-stack-grafana
+      jsonPointers:
+        - /data/admin-password
+        - /data/admin-user
   syncPolicy:
     automated:
       prune: true
@@ -33,6 +41,7 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      - RespectIgnoreDifferences=true
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
