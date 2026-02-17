@@ -1,0 +1,33 @@
+service:
+  type: LoadBalancer
+  port: 8123
+  annotations:
+    metallb.universe.tf/loadBalancerIPs: "192.168.0.204"
+
+persistence:
+  enabled: true
+  storageClass: local-path
+  size: 5Gi
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 512Mi
+
+configuration:
+  enabled: true
+  forceInit: false
+  trusted_proxies:
+    - 10.42.0.0/16
+    - 10.43.0.0/16
+
+hostNetwork: false
+
+addons:
+  codeserver:
+    enabled: false
+
+serviceMonitor:
+  enabled: true

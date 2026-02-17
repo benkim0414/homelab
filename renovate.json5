@@ -8,7 +8,7 @@
     "fileMatch": ["argocd/.+\\.ya?ml$"]
   },
   "kubernetes": {
-    "fileMatch": ["immich/.+\\.ya?ml$", "monitoring/.+\\.ya?ml$"]
+    "fileMatch": ["immich/.+\\.ya?ml$", "monitoring/.+\\.ya?ml$", "home-assistant/.+\\.ya?ml$"]
   },
   "customManagers": [
     {
@@ -51,6 +51,12 @@
       "description": "Group monitoring packages, schedule monthly",
       "matchPackagePatterns": ["kube-prometheus-stack", "loki", "alloy"],
       "groupName": "monitoring",
+      "schedule": ["before 6am on the first day of the month"]
+    },
+    {
+      "description": "Group Home Assistant packages, schedule monthly",
+      "matchPackagePatterns": ["home-assistant"],
+      "groupName": "home-assistant",
       "schedule": ["before 6am on the first day of the month"]
     }
   ]
