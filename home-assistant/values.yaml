@@ -48,3 +48,6 @@ addons:
 
 serviceMonitor:
   enabled: true
+  bearerToken:
+    secretName: home-assistant-prometheus-token
+    secretKey: token

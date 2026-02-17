@@ -22,7 +22,7 @@ spec:
       targetRevision: HEAD
       path: home-assistant
       directory:
-        include: '{tailscale-ingress.yaml}'
+        include: '{tailscale-ingress.yaml,sealed-secret.yaml}'
   destination:
     server: https://kubernetes.default.svc
     namespace: home-assistant
