@@ -19,5 +19,6 @@ adminToken:
   existingSecret: vaultwarden-secret
   existingSecretKey: ADMIN_TOKEN
 
-signupsAllowed: false
+signupsAllowed: true
+signupsVerify: false
 showPassHint: "false"
