@@ -22,8 +22,7 @@ All apps use a 3-source pattern:
 because the chart version must match the `immich-server` image tag in
 `values.yaml`.
 
-See `argocd/apps/immich.yaml` for the canonical pinned-version example and
-`argocd/apps/monitoring.yaml` for the `targetRevision: '*'` example.
+See `argocd/apps/immich.yaml` for the canonical pinned-version example.
 
 ## ArgoCD Is Self-Managed
 
@@ -45,8 +44,7 @@ helm install argocd argo/argo-cd -n argocd --create-namespace -f argocd/values.y
 kubectl apply -f argocd/apps.yaml
 ```
 
-ArgoCD syncs `argocd/apps/` and creates all child Applications automatically
-(infrastructure, argocd, traefik, immich, monitoring, home-assistant).
+ArgoCD syncs `argocd/apps/` and creates all child Applications automatically.
 Monitor progress with `kubectl get applications -n argocd`.
 
 ## Sealed Secrets Workflow
@@ -64,7 +62,7 @@ kubectl create secret generic <name> -n <namespace> \
 ```
 
 The master key backup lives at `sealed-secrets/sealed-secrets-master-keys.yaml`
-(gitignored). Regenerate it after cluster operations with:
+(gitignored). Regenerate it with:
 
 ```bash
 kubectl get secrets -n kube-system \
@@ -77,10 +75,8 @@ after a cluster rebuild.
 
 ## Tailscale Operator
 
-The Tailscale operator is managed by ArgoCD (defined in `argocd/apps/infrastructure.yaml`).
 OAuth credentials are **not** in `tailscale/values.yaml` — they are passed via
-`--set-string` at initial install time (see `tailscale/README.md`). After the
-initial bootstrap, ArgoCD manages the chart through the Application.
+`--set-string` at initial install time (see `tailscale/README.md`).
 
 To expose a service via Tailscale, commit a `tailscale-ingress.yaml` in the app
 directory and add it to the ArgoCD Application's `include:` glob.
@@ -94,8 +90,7 @@ password) cause perpetual OutOfSync. Fix pattern:
    `checksum/secret` annotation.
 2. Add `RespectIgnoreDifferences=true` to `syncOptions`.
 
-See `argocd/apps/monitoring.yaml` (`kube-prometheus-stack` Application) for the
-canonical example.
+See `argocd/apps/monitoring.yaml` for the canonical example.
 
 ## Renovate Conventions
 
@@ -113,8 +108,7 @@ canonical example.
 1. Create `<app>/` with `values.yaml` and raw manifests.
 2. Add `argocd/apps/<app>.yaml` using the 3-source pattern.
 3. If secrets are needed, create `<app>/sealed-secret.yaml` via kubeseal.
-4. Apply the Application: `kubectl apply -f argocd/apps/<app>.yaml`
-5. ArgoCD syncs automatically. Monitor with `kubectl get applications -n argocd`.
+4. Commit and merge to `main` — the root `apps` Application picks it up automatically.
 
 ## Cluster Access
 
@@ -131,10 +125,8 @@ All work happens on feature branches via PRs.
 ```
 <type>/<app>-<description>
 
-Examples:
 feat/immich-add-s3-backup
 fix/monitoring-fix-alertmanager-config
-chore/home-assistant-bump-chart
 ```
 
 ### Parallel Work with Git Worktrees
@@ -143,42 +135,17 @@ When running multiple Claude Code agents in parallel, use worktrees so each
 agent has an isolated working directory without interfering with each other:
 
 ```bash
-# Create a worktree for a task (run from repo root)
 git worktree add ../homelab-<task> -b <type>/<app>-<description>
-
-# Example: two agents working in parallel
-git worktree add ../homelab-immich-backup feat/immich-add-s3-backup
-git worktree add ../homelab-ha-config fix/home-assistant-fix-config
-
-# Open a Claude Code session in each worktree (separate terminals)
-cd ../homelab-immich-backup && claude
-cd ../homelab-ha-config && claude
-
-# List active worktrees
 git worktree list
-
-# Clean up after PR is merged
-git worktree remove ../homelab-immich-backup
-git branch -d feat/immich-add-s3-backup
+git worktree remove ../homelab-<task> && git branch -d <type>/<app>-<description>
 ```
 
 ### Commit and PR Format
 
-Use semantic commits (`feat:`, `fix:`, `chore:`, `docs:`). Scope with the app
-name:
+Use semantic commits scoped to the app name:
 
 ```
 feat(immich): add S3 backup configuration
 fix(monitoring): correct alertmanager webhook URL
 chore(home-assistant): bump chart to 0.5.1
 ```
-
-Open a PR from the feature branch → `main`. ArgoCD picks up changes as soon as
-the PR is merged.
-
-### Low-Conflict Areas
-
-Most changes in this repo are isolated to a single app directory, making
-parallel work low-risk. The main shared files that could conflict are:
-- `argocd/apps/*.yaml` — if two agents are each adding a new Application
-- `renovate.json5` — if adding new package rules
