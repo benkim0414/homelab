@@ -25,14 +25,29 @@ because the chart version must match the `immich-server` image tag in
 See `argocd/apps/immich.yaml` for the canonical pinned-version example and
 `argocd/apps/monitoring.yaml` for the `targetRevision: '*'` example.
 
-## ArgoCD Is Not Self-Managed
+## ArgoCD Is Self-Managed
 
-ArgoCD itself is installed via `helm install`/`helm upgrade`, not via an
-Application manifest. There is no `argocd/apps/argocd.yaml`. Upgrade with:
+ArgoCD manages itself via `argocd/apps/argocd.yaml` (3-source pattern).
+Chart upgrades go through the normal GitOps flow — merge to `main`, ArgoCD
+self-syncs. The Tailscale Ingress for ArgoCD (`argocd/tailscale-ingress.yaml`)
+is also managed by this Application.
+
+## Bootstrapping a Fresh Cluster
+
+After running k3s-ansible to bring up the K3s nodes:
 
 ```bash
-helm upgrade argocd argo/argo-cd -n argocd -f argocd/values.yaml
+# 1. Install ArgoCD (one-time manual step)
+helm repo add argo https://argoproj.github.io/argo-helm
+helm install argocd argo/argo-cd -n argocd --create-namespace -f argocd/values.yaml
+
+# 2. Apply the root "App of Apps" — ArgoCD takes over everything else
+kubectl apply -f argocd/apps.yaml
 ```
+
+ArgoCD syncs `argocd/apps/` and creates all child Applications automatically
+(infrastructure, argocd, traefik, immich, monitoring, home-assistant).
+Monitor progress with `kubectl get applications -n argocd`.
 
 ## Sealed Secrets Workflow
 

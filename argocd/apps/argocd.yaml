@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd
+  namespace: argocd
+spec:
+  project: infrastructure
+  sources:
+    - repoURL: https://argoproj.github.io/argo-helm
+      chart: argo-cd
+      targetRevision: '*'
+      helm:
+        valueFiles:
+          - $repo/argocd/values.yaml
+    - repoURL: https://github.com/benkim0414/homelab.git
+      targetRevision: HEAD
+      ref: repo
+    - repoURL: https://github.com/benkim0414/homelab.git
+      targetRevision: HEAD
+      path: argocd
+      directory:
+        include: '{tailscale-ingress.yaml}'
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

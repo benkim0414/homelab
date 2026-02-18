@@ -43,7 +43,7 @@
     },
     {
       "description": "Group infrastructure packages, schedule monthly",
-      "matchPackagePatterns": ["metallb", "sealed-secrets", "kube-vip", "tailscale"],
+      "matchPackagePatterns": ["metallb", "sealed-secrets", "kube-vip", "tailscale", "argo-cd"],
       "groupName": "infrastructure",
       "schedule": ["before 6am on the first day of the month"]
     },
