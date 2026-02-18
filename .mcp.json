@@ -3,6 +3,14 @@
     "kubernetes": {
       "command": "npx",
       "args": ["-y", "kubernetes-mcp-server@latest"]
+    },
+    "grafana": {
+      "command": "mcp-grafana",
+      "args": [],
+      "env": {
+        "GRAFANA_URL": "http://192.168.0.203",
+        "GRAFANA_SERVICE_ACCOUNT_TOKEN": "$GRAFANA_SERVICE_ACCOUNT_TOKEN"
+      }
     }
   }
 }

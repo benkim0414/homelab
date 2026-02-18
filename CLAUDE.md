@@ -115,6 +115,12 @@ See `argocd/apps/monitoring.yaml` for the canonical example.
 The Kubernetes MCP server is configured in `.mcp.json`. Claude can query the
 cluster directly via the `mcp__kubernetes__*` tools without running kubectl.
 
+The Grafana MCP server is also configured in `.mcp.json`. Claude can query
+metrics (PromQL), logs (LogQL), and dashboards via `mcp__grafana__*` tools.
+Grafana is at `http://192.168.0.203`. The service account token is read from
+the `GRAFANA_SERVICE_ACCOUNT_TOKEN` environment variable — export it before
+starting Claude Code.
+
 ## Git Workflow for Parallel AI Agents
 
 ArgoCD tracks the `main` branch — changes only go live after merging to main.
