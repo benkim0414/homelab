@@ -140,6 +140,17 @@ git worktree list
 git worktree remove ../homelab-<task> && git branch -d <type>/<app>-<description>
 ```
 
+### Committing Changes
+
+After completing any set of file edits, always commit before moving on:
+
+- **Atomic commits** — one logical change per commit. Don't bundle unrelated
+  edits (e.g., a values change and a manifest fix) into a single commit.
+- Stage only the files for that change (`git add <file>...`), never `git add -A`.
+- Write a conventional commit message scoped to the app (see format below).
+- Commit on the current feature branch — never directly to `main`.
+- Verify with `git status` that the working tree is clean after committing.
+
 ### Commit and PR Format
 
 Use semantic commits scoped to the app name:
