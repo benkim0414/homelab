@@ -1,6 +1,8 @@
 image:
   tag: "latest"
 
+domain: "https://vaultwarden.tailbd291c.ts.net"
+
 storage:
   data:
     name: vaultwarden-data
