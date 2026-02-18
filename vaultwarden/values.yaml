@@ -1,0 +1,19 @@
+image:
+  tag: "latest"
+
+storage:
+  data:
+    size: 2Gi
+    class: local-path
+
+service:
+  type: LoadBalancer
+  annotations:
+    metallb.universe.tf/loadBalancerIPs: "192.168.0.205"
+
+adminToken:
+  existingSecret: vaultwarden-secret
+  existingSecretKey: ADMIN_TOKEN
+
+signupsAllowed: false
+showPassHint: "false"
