@@ -3,8 +3,10 @@ image:
 
 storage:
   data:
+    name: vaultwarden-data
     size: 2Gi
     class: local-path
+    accessMode: ReadWriteOnce
 
 service:
   type: LoadBalancer
