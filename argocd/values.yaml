@@ -10,6 +10,8 @@ global:
 configs:
   params:
     server.insecure: true
+  cm:
+    accounts.admin: apiKey, login
 
 # -- Controller
 controller:
