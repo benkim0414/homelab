@@ -6,7 +6,7 @@ defaultSettings:
   # 2 replicas — enough for redundancy on a 4-node cluster
   defaultReplicaCount: 2
   # NFS backup target on NAS
-  backupTarget: nfs://192.168.0.40:/k3s-storage/longhorn-backups
+  backupTarget: nfs://192.168.0.40:/export/longhorn-backups
   # Default 12% is too high for 4-core ARM64
   guaranteedInstanceManagerCPU: 5
   # Default 25% wastes too much on 256-500GB disks
