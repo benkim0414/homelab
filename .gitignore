@@ -1,3 +1,2 @@
 sealed-secrets/sealed-secrets-master-keys.yaml
-k3s-ansible/inventory.yml
 immich-backup.dump
