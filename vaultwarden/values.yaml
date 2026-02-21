@@ -7,7 +7,7 @@ storage:
   data:
     name: vaultwarden-data
     size: 2Gi
-    class: local-path
+    class: longhorn
     accessMode: ReadWriteOnce
 
 service:
