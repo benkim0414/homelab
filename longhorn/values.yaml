@@ -18,6 +18,10 @@ persistence:
   defaultClass: true
   defaultClassReplicaCount: 2
 
+# Disable pre-upgrade job — required when installing via ArgoCD (chart docs)
+preUpgradeChecker:
+  jobEnabled: false
+
 # Schedule on all nodes including control-plane
 longhornManager:
   tolerations:

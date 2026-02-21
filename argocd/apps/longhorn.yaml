@@ -10,7 +10,6 @@ spec:
       chart: longhorn
       targetRevision: '*'
       helm:
-        skipHooks: true
         valueFiles:
           - $repo/longhorn/values.yaml
     - repoURL: https://github.com/benkim0414/homelab.git
