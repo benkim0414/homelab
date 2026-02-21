@@ -31,7 +31,7 @@ singleBinary:
       memory: 512Mi
   persistence:
     enabled: true
-    storageClass: local-path
+    storageClass: longhorn
     size: 10Gi
 
 # --- Disable scalable-mode components ---

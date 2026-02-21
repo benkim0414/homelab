@@ -1,0 +1,44 @@
+# Longhorn Helm chart values
+# Chart: https://charts.longhorn.io
+# Distributed block storage tuned for RPi5 cluster (4 nodes)
+
+defaultSettings:
+  # 2 replicas — enough for redundancy on a 4-node cluster
+  defaultReplicaCount: 2
+  # NFS backup target on NAS
+  backupTarget: nfs://192.168.0.40:/export/longhorn-backups
+  # Default 12% is too high for 4-core ARM64
+  guaranteedInstanceManagerCPU: 5
+  # Default 25% wastes too much on 256-500GB disks
+  storageMinimalAvailablePercentage: 15
+  # Disabled — ArgoCD tracks the latest chart via targetRevision: '*'
+  upgradeChecker: false
+
+persistence:
+  defaultClass: true
+  defaultClassReplicaCount: 2
+
+# Schedule on all nodes including control-plane
+longhornManager:
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
+
+longhornDriver:
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
+
+longhornUI:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 64Mi
+
+ingress:
+  enabled: false
