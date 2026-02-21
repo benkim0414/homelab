@@ -68,7 +68,7 @@ spec:
     - metadata:
         name: data
       spec:
-        storageClassName: local-path
+        storageClassName: longhorn
         accessModes:
           - ReadWriteOnce
         resources:
