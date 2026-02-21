@@ -11,7 +11,7 @@ defaultSettings:
   guaranteedInstanceManagerCPU: 5
   # Default 25% wastes too much on 256-500GB disks
   storageMinimalAvailablePercentage: 15
-  # Managed by Renovate
+  # Disabled — ArgoCD tracks the latest chart via targetRevision: '*'
   upgradeChecker: false
 
 persistence:
