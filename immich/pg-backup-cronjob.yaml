@@ -51,6 +51,5 @@ spec:
                   mountPath: /backups
           volumes:
             - name: backups
-              nfs:
-                server: 192.168.0.40
-                path: /k3s-storage/immich/backups
+              persistentVolumeClaim:
+                claimName: immich-backups
