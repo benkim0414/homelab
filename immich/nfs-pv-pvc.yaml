@@ -36,3 +36,40 @@ spec:
   resources:
     requests:
       storage: 200Gi
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: immich-backups-nfs-pv
+spec:
+  capacity:
+    storage: 50Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  claimRef:
+    namespace: immich
+    name: immich-backups
+  mountOptions:
+    - hard
+    - nfsvers=4.1
+    - noatime
+  nfs:
+    server: 192.168.0.40
+    path: "/k3s-storage/immich/backups"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: immich-backups
+  namespace: immich
+spec:
+  storageClassName: ""
+  volumeName: immich-backups-nfs-pv
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 50Gi
