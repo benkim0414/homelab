@@ -6,3 +6,7 @@ metadata:
 spec:
   ipAddressPools:
     - homelab-pool
+    - immich-pool
+    - argocd-pool
+    - home-assistant-pool
+    - vaultwarden-pool
