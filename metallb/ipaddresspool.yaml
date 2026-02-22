@@ -6,3 +6,43 @@ metadata:
 spec:
   addresses:
     - 192.168.0.200-192.168.0.250
+---
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: immich-pool
+  namespace: metallb-system
+spec:
+  addresses:
+    - 192.168.0.201/32
+  autoAssign: false
+---
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: argocd-pool
+  namespace: metallb-system
+spec:
+  addresses:
+    - 192.168.0.202/32
+  autoAssign: false
+---
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: home-assistant-pool
+  namespace: metallb-system
+spec:
+  addresses:
+    - 192.168.0.204/32
+  autoAssign: false
+---
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: vaultwarden-pool
+  namespace: metallb-system
+spec:
+  addresses:
+    - 192.168.0.205/32
+  autoAssign: false

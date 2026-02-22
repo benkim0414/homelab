@@ -2,7 +2,7 @@ service:
   type: LoadBalancer
   port: 8123
   annotations:
-    metallb.universe.tf/loadBalancerIPs: "192.168.0.204"
+    metallb.universe.tf/address-pool: home-assistant-pool
 
 persistence:
   enabled: true

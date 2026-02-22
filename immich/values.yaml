@@ -53,7 +53,7 @@ server:
     main:
       type: LoadBalancer
       annotations:
-        metallb.universe.tf/loadBalancerIPs: "192.168.0.201"
+        metallb.universe.tf/address-pool: immich-pool
 
 # -- Machine learning (disabled to conserve RAM)
 machine-learning:

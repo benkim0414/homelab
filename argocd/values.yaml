@@ -33,7 +33,7 @@ server:
   service:
     type: LoadBalancer
     annotations:
-      metallb.universe.tf/loadBalancerIPs: "192.168.0.202"
+      metallb.universe.tf/address-pool: argocd-pool
 
 # -- Repo server (512Mi needed for kube-prometheus-stack chart rendering)
 repoServer:
