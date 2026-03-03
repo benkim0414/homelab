@@ -41,6 +41,16 @@ configuration:
 
 hostNetwork: false
 
+startupProbe:
+  httpGet:
+    scheme: HTTP
+    path: /
+    port: http
+  periodSeconds: 10
+  timeoutSeconds: 2
+  successThreshold: 1
+  failureThreshold: 30  # 30 × 10s = 5 min max startup window
+
 addons:
   codeserver:
     enabled: false
