@@ -22,7 +22,7 @@ spec:
       targetRevision: HEAD
       path: monitoring
       directory:
-        include: '{tailscale-ingress.yaml}'
+        include: '{tailscale-ingress.yaml,prometheus-rules.yaml}'
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
