@@ -24,7 +24,8 @@ spec:
         - operator: Exists
       containers:
         - name: cleanup
-          image: bitnami/kubectl:1.31.12
+          # alpine/k8s:1.31.12 — matches the cluster k3s version; arm64 digest pinned.
+          image: alpine/k8s:1.31.12@sha256:41f69e1c1503943873ed31a93fb04ecfc29de62ac54ef2d73e94b9c40be4dfca
           securityContext:
             privileged: true
             readOnlyRootFilesystem: true
