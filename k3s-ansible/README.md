@@ -198,6 +198,13 @@ ssh pi@192.168.0.13 sudo systemctl restart k3s
 ssh pi@192.168.0.14 sudo systemctl restart k3s
 ```
 
+The same thresholds are applied to the worker node (`.12`) via `agent_config_yaml`.
+After running the playbook, restart the agent to pick up the new config:
+
+```bash
+ssh pi@192.168.0.12 sudo systemctl restart k3s-agent
+```
+
 ### 9. Verify
 
 ```bash
