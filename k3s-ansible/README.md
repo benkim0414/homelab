@@ -162,7 +162,7 @@ kubectl apply -f ~/workspace/homelab/traefik/helmchartconfig.yaml
 kubectl -n kube-system rollout status deployment traefik --timeout=120s
 ```
 
-### 8. Label nodes
+### 8. Label nodes and apply .14 taint
 
 ```bash
 kubectl label node rpi5-8gb-crucial-p3-plus-500gb storage-tier=nvme-fast
@@ -170,6 +170,22 @@ kubectl label node rpi5-8gb-samsung-980-500gb storage-tier=nvme-fast
 kubectl label node rpi5-8gb-rpi-256gb storage-tier=nvme-medium
 kubectl label node rpi5-8gb-crucial-bx500-500gb storage-tier=sata
 ```
+
+Node `.14` (`rpi5-8gb-rpi-256gb`) has a `NoSchedule` taint to prevent Deployments
+and StatefulSets from scheduling there. It is managed via `host_vars/192.168.0.14.yml`
+(persisted through k3s-ansible re-runs), but must also be applied manually after a fresh
+cluster deploy before ArgoCD syncs workloads:
+
+```bash
+kubectl taint node rpi5-8gb-rpi-256gb node-role.kubernetes.io/control-plane:NoSchedule
+kubectl drain rpi5-8gb-rpi-256gb --ignore-daemonsets --delete-emptydir-data
+```
+
+**Why:** `.14` is the smallest node (256 GB NVMe, "nvme-medium"). Running etcd I/O and
+workload containerization I/O on the same drive caused repeated kubelet crashes, which
+led to force-deleted pods, stale Flannel IPAM leases, and full IPAM exhaustion. DaemonSets
+with `tolerations: [{operator: Exists}]` still run on `.14` (kube-vip, MetalLB,
+Alloy, node-exporter, Longhorn manager/driver, flannel-ipam-cleanup).
 
 ### 9. Verify
 
