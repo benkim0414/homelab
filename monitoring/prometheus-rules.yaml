@@ -144,3 +144,31 @@ spec:
               in a Degraded health state for over 5 minutes. Investigate the failing resources
               in the ArgoCD UI or with `kubectl get events -n <namespace>`.
             runbook: "https://github.com/benkim0414/homelab/blob/main/MEMORY.md#argocd-gotchas"
+
+    - name: cni
+      rules:
+        - alert: FlannelIPAMExhaustion
+          expr: >
+            count(increase(kube_event_count{reason="FailedCreatePodSandBox",type="Warning"}[5m]) > 0) > 3
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Flannel IPAM exhaustion likely on node {{ $labels.source_host }}"
+            description: |-
+              More than 3 distinct FailedCreatePodSandBox events in 5 minutes on {{ $labels.source_host }}.
+              This is the primary symptom of Flannel IPAM exhaustion: all IPs in a node's /24 subnet
+              are held by stale lease files from force-deleted or Unknown pods. Lease files survive
+              reboots — a node reboot alone will NOT fix this.
+
+              Runbook:
+              1. Find the affected node from recent events:
+                 kubectl get events -A --field-selector reason=FailedCreatePodSandBox
+              2. Find currently active Flannel IPs on the node (non-hostNetwork Running pods):
+                 kubectl get pods -A --field-selector spec.nodeName=<node>,status.phase=Running -o wide
+              3. Deploy a hostNetwork privileged cleanup pod (hostNetwork bypasses IPAM):
+                 kubectl run ipam-cleanup -n kube-system --restart=Never --overrides='{"spec":{"nodeName":"<node>","hostNetwork":true,"tolerations":[{"operator":"Exists"}],"containers":[{"name":"c","image":"busybox","command":["sleep","300"],"securityContext":{"privileged":true},"volumeMounts":[{"name":"h","mountPath":"/host"}]}],"volumes":[{"name":"h","hostPath":{"path":"/"}}]}}'
+              4. Delete stale leases, keeping only active IPs:
+                 kubectl exec -n kube-system ipam-cleanup -- find /host/var/lib/cni/networks/cbr0 -maxdepth 1 -name '10.42.*.*' ! -name '<ip1>' ! -name '<ip2>' -delete
+              5. Pods will schedule immediately. Delete the cleanup pod when done:
+                 kubectl delete pod -n kube-system ipam-cleanup
