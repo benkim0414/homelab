@@ -149,7 +149,7 @@ spec:
       rules:
         - alert: FlannelIPAMExhaustion
           expr: >
-            increase(kube_event_count{reason="FailedCreatePodSandBox",type="Warning"}[5m]) > 3
+            count(increase(kube_event_count{reason="FailedCreatePodSandBox",type="Warning"}[5m]) > 0) > 3
           for: 2m
           labels:
             severity: critical
