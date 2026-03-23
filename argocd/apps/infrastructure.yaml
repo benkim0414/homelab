@@ -99,6 +99,25 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
+  name: flannel-ipam-cleanup
+  namespace: argocd
+spec:
+  project: infrastructure
+  sources:
+    - repoURL: https://github.com/benkim0414/homelab.git
+      targetRevision: HEAD
+      path: flannel-ipam-cleanup
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
   name: tailscale
   namespace: argocd
 spec:

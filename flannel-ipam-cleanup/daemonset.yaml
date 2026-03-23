@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: flannel-ipam-cleanup
+  namespace: kube-system
+  labels:
+    app: flannel-ipam-cleanup
+spec:
+  selector:
+    matchLabels:
+      app: flannel-ipam-cleanup
+  template:
+    metadata:
+      labels:
+        app: flannel-ipam-cleanup
+    spec:
+      serviceAccountName: flannel-ipam-cleanup
+      # hostNetwork bypasses Flannel IPAM entirely — this pod can be
+      # scheduled even when the node's /24 subnet is 100% exhausted.
+      hostNetwork: true
+      priorityClassName: system-node-critical
+      tolerations:
+        # Run on ALL nodes including tainted control-plane nodes.
+        - operator: Exists
+      containers:
+        - name: cleanup
+          image: bitnami/kubectl:1.31.12
+          securityContext:
+            privileged: true
+            readOnlyRootFilesystem: true
+          env:
+            - name: MY_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: cni-networks
+              mountPath: /host/var/lib/cni/networks
+          resources:
+            requests:
+              cpu: 5m
+              memory: 24Mi
+            limits:
+              memory: 48Mi
+          command: ["/bin/sh"]
+          args:
+            - -c
+            - |
+              set -eu
+              CNI_DIR="/host/var/lib/cni/networks/cbr0"
+              while true; do
+                if [ -d "${CNI_DIR}" ]; then
+                  # Pass 1: zero-byte lease files are always stale — delete
+                  # immediately without an API call (fast path).
+                  find "${CNI_DIR}" -maxdepth 1 -name '10.42.*.*' -size 0 \
+                    -delete 2>/dev/null && true
+
+                  # Pass 2: compare non-empty leases against Running pod IPs
+                  # on this node. Removes leases left by force-deleted pods
+                  # whose CNI DEL hook was never called.
+                  ACTIVE=$(kubectl get pods -A \
+                    --field-selector \
+                    "spec.nodeName=${MY_NODE_NAME},status.phase=Running" \
+                    -o jsonpath='{.items[*].status.podIP}' 2>/dev/null \
+                    || true)
+                  for f in "${CNI_DIR}"/10.42.*.*; do
+                    [ -f "${f}" ] || continue
+                    IP=$(basename "${f}")
+                    stale=true
+                    for active_ip in ${ACTIVE}; do
+                      [ "${active_ip}" = "${IP}" ] && stale=false && break
+                    done
+                    if [ "${stale}" = "true" ]; then
+                      echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+removing stale Flannel lease ${IP} on ${MY_NODE_NAME}"
+                      rm -f "${f}"
+                    fi
+                  done
+                fi
+                sleep 1800
+              done
+      volumes:
+        - name: cni-networks
+          hostPath:
+            path: /var/lib/cni/networks
