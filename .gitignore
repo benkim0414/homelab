@@ -3,3 +3,6 @@ immich-backup.dump
 
 # Claude Code local settings (machine-specific overrides)
 .claude/settings.local.json
+
+# Session memory buffer (local-only, not for version control)
+.remember/
