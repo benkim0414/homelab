@@ -20,7 +20,7 @@ spec:
             description: >
               Node {{ $labels.node }} has been in a NotReady state for more than 2 minutes.
               Check kubelet logs and node events for the root cause.
-            runbook: "https://github.com/benkim0414/homelab/blob/main/MEMORY.md#architecture"
+            runbook: "https://github.com/benkim0414/homelab/blob/main/k3s-ansible/README.md#troubleshooting"
 
         - alert: NodeMemoryPressure
           expr: kube_node_status_condition{condition="MemoryPressure",status="true"} == 1
@@ -32,7 +32,7 @@ spec:
             description: >
               Node {{ $labels.node }} has been reporting MemoryPressure for more than 5 minutes.
               Pod evictions may have started. Check `kubectl describe node {{ $labels.node }}`.
-            runbook: "https://github.com/benkim0414/homelab/blob/main/MEMORY.md#containerd-gotchas"
+            runbook: "https://github.com/benkim0414/homelab/blob/main/k3s-ansible/README.md#troubleshooting"
 
         - alert: NodeDiskPressure
           expr: kube_node_status_condition{condition="DiskPressure",status="true"} == 1
@@ -44,7 +44,7 @@ spec:
             description: >
               Node {{ $labels.node }} has been reporting DiskPressure for more than 5 minutes.
               Check disk usage with `df -h` on the node.
-            runbook: "https://github.com/benkim0414/homelab/blob/main/MEMORY.md#architecture"
+            runbook: "https://github.com/benkim0414/homelab/blob/main/k3s-ansible/README.md#troubleshooting"
 
         - alert: NodeHighMemoryUsage
           expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 0.90
@@ -57,7 +57,7 @@ spec:
               Node {{ $labels.instance }} has used more than 90% of available memory for
               over 10 minutes. Current usage: {{ $value | humanizePercentage }}.
               Review running workloads and resource limits.
-            runbook: "https://github.com/benkim0414/homelab/blob/main/MEMORY.md#containerd-gotchas"
+            runbook: "https://github.com/benkim0414/homelab/blob/main/k3s-ansible/README.md#troubleshooting"
 
     - name: pod
       rules:
@@ -72,7 +72,7 @@ spec:
               Container {{ $labels.container }} (pod {{ $labels.pod }}, namespace {{ $labels.namespace }})
               has restarted more than 5 times in the last 15 minutes.
               Check logs: `kubectl logs -n {{ $labels.namespace }} {{ $labels.pod }} -c {{ $labels.container }} --previous`
-            runbook: "https://github.com/benkim0414/homelab/blob/main/MEMORY.md#containerd-gotchas"
+            runbook: "https://github.com/benkim0414/homelab/blob/main/k3s-ansible/README.md#troubleshooting"
 
         - alert: PodPending
           expr: kube_pod_status_phase{phase="Pending"} == 1
@@ -85,7 +85,7 @@ spec:
               Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} has been stuck in
               Pending phase for over 15 minutes. Check node resources, taints/tolerations,
               and PVC binding: `kubectl describe pod -n {{ $labels.namespace }} {{ $labels.pod }}`
-            runbook: "https://github.com/benkim0414/homelab/blob/main/MEMORY.md#argocd-gotchas"
+            runbook: "https://github.com/benkim0414/homelab/blob/main/CLAUDE.md"
 
     - name: storage
       rules:
@@ -100,7 +100,7 @@ spec:
               PersistentVolumeClaim {{ $labels.persistentvolumeclaim }} in namespace
               {{ $labels.namespace }} has been in phase {{ $labels.phase }} for over 5 minutes.
               Check available PVs and storage class: `kubectl describe pvc -n {{ $labels.namespace }} {{ $labels.persistentvolumeclaim }}`
-            runbook: "https://github.com/benkim0414/homelab/blob/main/MEMORY.md#architecture"
+            runbook: "https://github.com/benkim0414/homelab/blob/main/k3s-ansible/README.md#architecture"
 
         - alert: NodeDiskLow
           expr: >
@@ -115,7 +115,7 @@ spec:
               Node {{ $labels.instance }} has less than 15% free disk space on /.
               Current available: {{ $value | humanizePercentage }}.
               Clean up unused images with `crictl rmi --prune` or containerd snapshots.
-            runbook: "https://github.com/benkim0414/homelab/blob/main/MEMORY.md#containerd-gotchas"
+            runbook: "https://github.com/benkim0414/homelab/blob/main/k3s-ansible/README.md#troubleshooting"
 
     - name: argocd
       rules:
@@ -130,7 +130,7 @@ spec:
               ArgoCD application {{ $labels.name }} in project {{ $labels.project }} has been
               OutOfSync for over 10 minutes. This may indicate a manual change bypassing GitOps
               or a sync failure. Check the ArgoCD UI or run /cluster-health.
-            runbook: "https://github.com/benkim0414/homelab/blob/main/MEMORY.md#argocd-gotchas"
+            runbook: "https://github.com/benkim0414/homelab/blob/main/CLAUDE.md"
 
         - alert: ArgoCDAppDegraded
           expr: argocd_app_info{health_status="Degraded"} == 1
@@ -143,7 +143,7 @@ spec:
               ArgoCD application {{ $labels.name }} in project {{ $labels.project }} has been
               in a Degraded health state for over 5 minutes. Investigate the failing resources
               in the ArgoCD UI or with `kubectl get events -n <namespace>`.
-            runbook: "https://github.com/benkim0414/homelab/blob/main/MEMORY.md#argocd-gotchas"
+            runbook: "https://github.com/benkim0414/homelab/blob/main/CLAUDE.md"
 
     - name: cni
       rules:
@@ -192,7 +192,7 @@ spec:
               — investigate before it leads to Flannel IPAM exhaustion.
               Check: kubectl describe node {{ $labels.node }}
               Top memory: kubectl top pods -A --sort-by=memory
-            runbook: "https://github.com/benkim0414/homelab/blob/main/MEMORY.md#containerd-gotchas"
+            runbook: "https://github.com/benkim0414/homelab/blob/main/k3s-ansible/README.md#troubleshooting"
 
         - alert: NodeHighMemoryUsageWarning
           expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 0.85
@@ -207,4 +207,4 @@ spec:
               512Mi free (~93.75% on 8 GB nodes). Investigate before NodeHighMemoryUsage
               (90%) fires and kubelet starts force-evicting pods.
               Check: kubectl top pods -A --sort-by=memory
-            runbook: "https://github.com/benkim0414/homelab/blob/main/MEMORY.md#containerd-gotchas"
+            runbook: "https://github.com/benkim0414/homelab/blob/main/k3s-ansible/README.md#troubleshooting"
