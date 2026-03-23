@@ -172,3 +172,39 @@ spec:
                  kubectl exec -n kube-system ipam-cleanup -- find /host/var/lib/cni/networks/cbr0 -maxdepth 1 -name '10.42.*.*' ! -name '<ip1>' ! -name '<ip2>' -delete
               5. Pods will schedule immediately. Delete the cleanup pod when done:
                  kubectl delete pod -n kube-system ipam-cleanup
+
+    - name: node-stability
+      rules:
+        - alert: NodeContainerRestartStorm
+          expr: >
+            count by (node) (
+              (rate(kube_pod_container_status_restarts_total[5m]) * 300 > 0)
+                * on(namespace, pod) group_left(node) kube_pod_info
+            ) > 5
+          for: 3m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Node {{ $labels.node }} has {{ $value }} containers restarting"
+            description: >
+              More than 5 containers on node {{ $labels.node }} have restarted at least
+              once in the last 5 minutes. This is an early signal for kubelet instability
+              — investigate before it leads to Flannel IPAM exhaustion.
+              Check: kubectl describe node {{ $labels.node }}
+              Top memory: kubectl top pods -A --sort-by=memory
+            runbook: "https://github.com/benkim0414/homelab/blob/main/MEMORY.md#containerd-gotchas"
+
+        - alert: NodeHighMemoryUsageWarning
+          expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 0.85
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Node {{ $labels.instance }} memory usage above 85%"
+            description: >
+              Node {{ $labels.instance }} has been above 85% memory for 5 minutes.
+              Current: {{ $value | humanizePercentage }}. Kubelet soft eviction begins at
+              512Mi free (~93.75% on 8 GB nodes). Investigate before NodeHighMemoryUsage
+              (90%) fires and kubelet starts force-evicting pods.
+              Check: kubectl top pods -A --sort-by=memory
+            runbook: "https://github.com/benkim0414/homelab/blob/main/MEMORY.md#containerd-gotchas"
