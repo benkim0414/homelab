@@ -1,2 +1,5 @@
 sealed-secrets/sealed-secrets-master-keys.yaml
 immich-backup.dump
+
+# Claude Code local settings (machine-specific overrides)
+.claude/settings.local.json
