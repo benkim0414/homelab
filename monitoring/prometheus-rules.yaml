@@ -154,7 +154,7 @@ spec:
           labels:
             severity: critical
           annotations:
-            summary: "Pod sandbox failures in {{ $labels.namespace }} — possible Flannel IPAM exhaustion"
+            summary: "Flannel IPAM exhaustion likely on node {{ $labels.source_host }}"
             description: >
               More than 3 FailedCreatePodSandBox events in 5 minutes in namespace {{ $labels.namespace }}.
               This is the primary symptom of Flannel IPAM exhaustion: all IPs in a node's /24 subnet
