@@ -85,7 +85,7 @@ spec:
               Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} has been stuck in
               Pending phase for over 15 minutes. Check node resources, taints/tolerations,
               and PVC binding: `kubectl describe pod -n {{ $labels.namespace }} {{ $labels.pod }}`
-            runbook: "https://github.com/benkim0414/homelab/blob/main/CLAUDE.md"
+            runbook: "https://github.com/benkim0414/homelab/blob/main/k3s-ansible/README.md#troubleshooting"
 
     - name: storage
       rules:
@@ -130,7 +130,7 @@ spec:
               ArgoCD application {{ $labels.name }} in project {{ $labels.project }} has been
               OutOfSync for over 10 minutes. This may indicate a manual change bypassing GitOps
               or a sync failure. Check the ArgoCD UI or run /cluster-health.
-            runbook: "https://github.com/benkim0414/homelab/blob/main/CLAUDE.md"
+            runbook: "https://github.com/benkim0414/homelab/blob/main/k3s-ansible/README.md#troubleshooting"
 
         - alert: ArgoCDAppDegraded
           expr: argocd_app_info{health_status="Degraded"} == 1
@@ -143,7 +143,7 @@ spec:
               ArgoCD application {{ $labels.name }} in project {{ $labels.project }} has been
               in a Degraded health state for over 5 minutes. Investigate the failing resources
               in the ArgoCD UI or with `kubectl get events -n <namespace>`.
-            runbook: "https://github.com/benkim0414/homelab/blob/main/CLAUDE.md"
+            runbook: "https://github.com/benkim0414/homelab/blob/main/k3s-ansible/README.md#troubleshooting"
 
     - name: cni
       rules:
