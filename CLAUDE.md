@@ -121,48 +121,22 @@ Grafana is at `http://192.168.0.203`. The service account token is read from
 the `GRAFANA_SERVICE_ACCOUNT_TOKEN` environment variable — export it before
 starting Claude Code.
 
-## Git Workflow for Parallel AI Agents
+## Parallel Work with Git Worktrees
 
-ArgoCD tracks the `main` branch — changes only go live after merging to main.
-All work happens on feature branches via PRs.
-
-### Branch Naming
-
-```
-<type>/<app>-<description>
-
-feat/immich-add-s3-backup
-fix/monitoring-fix-alertmanager-config
-```
-
-### Parallel Work with Git Worktrees
-
-When running multiple Claude Code agents in parallel, use worktrees so each
-agent has an isolated working directory without interfering with each other:
+ArgoCD tracks `main` — all work happens on feature branches via PRs. For
+parallel Claude agents, use worktrees so each has an isolated working directory:
 
 ```bash
 git worktree add ../homelab-<task> -b <type>/<app>-<description>
-git worktree list
 git worktree remove ../homelab-<task> && git branch -d <type>/<app>-<description>
 ```
 
-### Committing Changes
+## Cluster Gotchas
 
-After completing any set of file edits, always commit before moving on:
+Hard-won lessons from operating this cluster are recorded in the auto-memory
+system at `~/.claude/projects/-home-benkim0414-workspace-homelab/memory/MEMORY.md`.
+Always check "Key Learnings" there before touching: k3s nodes, containerd,
+Flannel/CNI, Sealed Secrets, or ArgoCD sync operations.
 
-- **Atomic commits** — one logical change per commit. Don't bundle unrelated
-  edits (e.g., a values change and a manifest fix) into a single commit.
-- Stage only the files for that change (`git add <file>...`), never `git add -A`.
-- Write a conventional commit message scoped to the app (see format below).
-- Commit on the current feature branch — never directly to `main`.
-- Verify with `git status` that the working tree is clean after committing.
-
-### Commit and PR Format
-
-Use semantic commits scoped to the app name:
-
-```
-feat(immich): add S3 backup configuration
-fix(monitoring): correct alertmanager webhook URL
-chore(home-assistant): bump chart to 0.5.1
-```
+When a new gotcha is discovered: record it in memory AND propose a rule here
+if the same mistake is likely to recur.
