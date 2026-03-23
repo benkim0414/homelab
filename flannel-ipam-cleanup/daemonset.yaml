@@ -5,14 +5,19 @@ metadata:
   namespace: kube-system
   labels:
     app: flannel-ipam-cleanup
+    component: ipam-cleanup
+    version: v1
 spec:
   selector:
     matchLabels:
       app: flannel-ipam-cleanup
+      component: ipam-cleanup
   template:
     metadata:
       labels:
         app: flannel-ipam-cleanup
+        component: ipam-cleanup
+        version: v1
     spec:
       serviceAccountName: flannel-ipam-cleanup
       # hostNetwork bypasses Flannel IPAM entirely — this pod can be
@@ -42,6 +47,7 @@ spec:
               cpu: 5m
               memory: 24Mi
             limits:
+              cpu: 50m
               memory: 48Mi
           command: ["/bin/sh"]
           args:
