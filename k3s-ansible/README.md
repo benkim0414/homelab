@@ -187,6 +187,17 @@ led to force-deleted pods, stale Flannel IPAM leases, and full IPAM exhaustion. 
 with `tolerations: [{operator: Exists}]` still run on `.14` (kube-vip, MetalLB,
 Alloy, node-exporter, Longhorn manager/driver, flannel-ipam-cleanup).
 
+The kubelet eviction thresholds in `inventory.yml` (`eviction-hard`, `eviction-soft`,
+`kube-reserved`) are written to `/etc/rancher/k3s/config.yaml` on each server node by
+the k3s-ansible playbook, but do **not** take effect until k3s is restarted. After
+running the playbook, restart k3s one node at a time to preserve etcd quorum:
+
+```bash
+ssh pi@192.168.0.11 sudo systemctl restart k3s
+ssh pi@192.168.0.13 sudo systemctl restart k3s
+ssh pi@192.168.0.14 sudo systemctl restart k3s
+```
+
 ### 9. Verify
 
 ```bash
