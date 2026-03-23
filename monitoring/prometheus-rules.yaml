@@ -155,8 +155,8 @@ spec:
             severity: critical
           annotations:
             summary: "Flannel IPAM exhaustion likely on node {{ $labels.source_host }}"
-            description: >
-              More than 3 FailedCreatePodSandBox events in 5 minutes in namespace {{ $labels.namespace }}.
+            description: |-
+              More than 3 distinct FailedCreatePodSandBox events in 5 minutes on {{ $labels.source_host }}.
               This is the primary symptom of Flannel IPAM exhaustion: all IPs in a node's /24 subnet
               are held by stale lease files from force-deleted or Unknown pods. Lease files survive
               reboots — a node reboot alone will NOT fix this.
