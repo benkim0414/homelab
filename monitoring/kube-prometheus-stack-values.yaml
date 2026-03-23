@@ -75,6 +75,11 @@ alertmanager:
 
 # --- node-exporter (DaemonSet, one per node) ---
 nodeExporter:
+  # Allow node-exporter to reschedule on .14 after the control-plane NoSchedule taint
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
   resources:
     requests:
       cpu: 10m
