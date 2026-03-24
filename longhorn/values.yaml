@@ -13,6 +13,10 @@ defaultSettings:
   storageMinimalAvailablePercentage: 15
   # Disabled — ArgoCD tracks the latest chart via targetRevision: '*'
   upgradeChecker: false
+  # Only create default disks on nodes explicitly labeled for storage.
+  # Prevents .14's storage device from being used for volume replicas,
+  # reducing I/O contention with etcd on that node.
+  createDefaultDiskLabeledNodes: true
 
 persistence:
   defaultClass: true
