@@ -1,0 +1,7 @@
+---
+# Per-node overrides for rpi5-8gb-crucial-p3-plus-500gb (.11)
+#
+# Label as a Longhorn storage node (NVMe SSD). Required when
+# createDefaultDiskLabeledNodes is enabled — without this label k3s would
+# not re-create the default disk after a cluster rebuild.
+extra_server_args: "--node-label node.longhorn.io/create-default-disk=true"
