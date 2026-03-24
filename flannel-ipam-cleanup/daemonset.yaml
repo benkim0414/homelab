@@ -78,8 +78,7 @@ spec:
                       [ "${active_ip}" = "${IP}" ] && stale=false && break
                     done
                     if [ "${stale}" = "true" ]; then
-                      echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) \
-removing stale Flannel lease ${IP} on ${MY_NODE_NAME}"
+                      echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) removing stale Flannel lease ${IP} on ${MY_NODE_NAME}"
                       rm -f "${f}"
                     fi
                   done
