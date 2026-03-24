@@ -15,9 +15,9 @@ env:
   lb_enable: "false"
   vip_leaderelection: "true"
   vip_leasename: "plndr-cp-lock"
-  vip_leaseduration: "5"
-  vip_renewdeadline: "3"
-  vip_retryperiod: "1"
+  vip_leaseduration: "15"
+  vip_renewdeadline: "10"
+  vip_retryperiod: "2"
 
 securityContext:
   capabilities:
