@@ -26,18 +26,25 @@ persistence:
 preUpgradeChecker:
   jobEnabled: false
 
-# Schedule on all nodes including control-plane
+# Run only on nodes that participate in Longhorn storage.
+# .14 has no storage label and its frequent longhorn-manager crashes
+# corrupt containerd state, cascading into CreateContainerError on
+# co-located DaemonSets (traefik, alloy, kube-vip).
 longhornManager:
   tolerations:
     - key: node-role.kubernetes.io/control-plane
       operator: Exists
       effect: NoSchedule
+  nodeSelector:
+    node.longhorn.io/create-default-disk: "true"
 
 longhornDriver:
   tolerations:
     - key: node-role.kubernetes.io/control-plane
       operator: Exists
       effect: NoSchedule
+  nodeSelector:
+    node.longhorn.io/create-default-disk: "true"
 
 longhornUI:
   replicas: 1
