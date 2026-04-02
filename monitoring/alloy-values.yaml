@@ -10,6 +10,12 @@ controller:
       effect: NoSchedule
 
 alloy:
+  # Alloy tails logs from every pod on its node, opening one API
+  # connection per pod.  On busy nodes this triggers client-side
+  # throttling and the default 1 s readiness timeout expires, causing
+  # the pod to stay NotReady indefinitely despite functioning normally.
+  timeoutSeconds: 5
+
   resources:
     requests:
       cpu: 10m
