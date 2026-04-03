@@ -115,12 +115,14 @@ See `argocd/apps/monitoring.yaml` for the canonical example.
 The Kubernetes MCP server is configured in `.mcp.json`. Claude can query the
 cluster directly via the `mcp__kubernetes__*` tools without running kubectl.
 
-The Grafana and ArgoCD MCP servers are also configured in `.mcp.json`. Their
-tokens are injected from Vaultwarden via mise (`scripts/env-secrets.sh`).
-When you `cd` into this repo, mise automatically sources the script, which
-unlocks Bitwarden if needed and exports the tokens. No manual `export` step
-required — just ensure `bw` is installed and your vault master password is
-accessible.
+The Grafana MCP server is also configured in `.mcp.json`. Claude can query
+metrics (PromQL), logs (LogQL), and dashboards via `mcp__grafana__*` tools.
+The ArgoCD MCP server enables application management via `mcp__argocd__*`
+tools. Both servers' tokens are injected from Vaultwarden via mise
+(`scripts/env-secrets.sh`). When you `cd` into this repo, mise automatically
+sources the script, which unlocks Bitwarden if needed and exports the tokens.
+No manual `export` step required — just ensure `bw` is installed and your
+vault master password is accessible.
 
 ## Parallel Work with Git Worktrees
 
