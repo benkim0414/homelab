@@ -12,6 +12,15 @@ configs:
     server.insecure: true
   cm:
     accounts.admin: apiKey, login
+    accounts.argocd-mcp: apiKey
+  rbac:
+    policy.csv: |
+      p, role:readonly, applications, get, */*, allow
+      p, role:readonly, clusters, get, *, allow
+      p, role:readonly, repositories, get, *, allow
+      p, role:readonly, logs, get, */*, allow
+      p, role:readonly, projects, get, *, allow
+      g, argocd-mcp, role:readonly
 
 # -- Controller
 controller:
