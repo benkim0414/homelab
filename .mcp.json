@@ -5,19 +5,17 @@
       "args": ["-y", "kubernetes-mcp-server@latest"]
     },
     "grafana": {
-      "command": "mcp-grafana",
-      "args": [],
+      "command": "uvx",
+      "args": ["mcp-grafana"],
       "env": {
-        "GRAFANA_URL": "http://192.168.0.203",
-        "GRAFANA_TOKEN": "$GRAFANA_TOKEN"
+        "GRAFANA_URL": "http://192.168.0.203"
       }
     },
     "argocd": {
       "command": "npx",
       "args": ["-y", "argocd-mcp@latest", "stdio"],
       "env": {
-        "ARGOCD_BASE_URL": "http://192.168.0.202",
-        "ARGOCD_API_TOKEN": "$ARGOCD_API_TOKEN"
+        "ARGOCD_BASE_URL": "http://192.168.0.202"
       }
     }
   }
