@@ -1,0 +1,7 @@
+[env]
+GRAFANA_URL = "http://192.168.0.203"
+ARGOCD_BASE_URL = "http://192.168.0.202"
+
+# Secrets sourced from Vaultwarden via Bitwarden CLI.
+# On first cd into this directory, you'll be prompted to unlock the vault.
+_.source = "./scripts/env-secrets.sh"
