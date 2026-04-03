@@ -117,9 +117,12 @@ cluster directly via the `mcp__kubernetes__*` tools without running kubectl.
 
 The Grafana MCP server is also configured in `.mcp.json`. Claude can query
 metrics (PromQL), logs (LogQL), and dashboards via `mcp__grafana__*` tools.
-Grafana is at `http://192.168.0.203`. The service account token is read from
-the `GRAFANA_SERVICE_ACCOUNT_TOKEN` environment variable — export it before
-starting Claude Code.
+The ArgoCD MCP server enables application management via `mcp__argocd__*`
+tools. Both servers' tokens are injected from Vaultwarden via mise
+(`scripts/env-secrets.sh`). When you `cd` into this repo, mise automatically
+sources the script, which unlocks Bitwarden if needed and exports the tokens.
+No manual `export` step required — just ensure `bw` is installed and your
+vault master password is accessible.
 
 ## Parallel Work with Git Worktrees
 
