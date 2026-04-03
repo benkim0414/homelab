@@ -6,3 +6,6 @@ immich-backup.dump
 
 # Session memory buffer (local-only, not for version control)
 .remember/
+
+# mise local overrides (machine-specific)
+.mise.local.toml
