@@ -8,14 +8,16 @@
       "command": "uvx",
       "args": ["mcp-grafana"],
       "env": {
-        "GRAFANA_URL": "http://192.168.0.203"
+        "GRAFANA_URL": "http://192.168.0.203",
+        "GRAFANA_SERVICE_ACCOUNT_TOKEN": "${GRAFANA_SERVICE_ACCOUNT_TOKEN}"
       }
     },
     "argocd": {
       "command": "npx",
       "args": ["-y", "argocd-mcp@latest", "stdio"],
       "env": {
-        "ARGOCD_BASE_URL": "http://192.168.0.202"
+        "ARGOCD_BASE_URL": "http://192.168.0.202",
+        "ARGOCD_API_TOKEN": "${ARGOCD_API_TOKEN}"
       }
     }
   }
