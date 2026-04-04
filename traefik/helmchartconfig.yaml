@@ -15,14 +15,3 @@ spec:
       websecure:
         port: 8443
         exposedPort: 443
-    # Avoid .14 — its I/O constraints cause frequent container crashes
-    # and containerd state corruption, leading to CreateContainerError.
-    affinity:
-      nodeAffinity:
-        requiredDuringSchedulingIgnoredDuringExecution:
-          nodeSelectorTerms:
-            - matchExpressions:
-                - key: kubernetes.io/hostname
-                  operator: NotIn
-                  values:
-                    - rpi5-8gb-rpi-256gb

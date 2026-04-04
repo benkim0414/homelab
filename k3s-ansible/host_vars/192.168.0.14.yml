@@ -1,0 +1,10 @@
+---
+# Per-node overrides for rpi5-8gb-rpi-256gb (.14)
+#
+# Re-added as agent (worker) — no etcd, no Longhorn storage.
+# When .14 was a server, etcd WAL fsyncs on the 256GB RPi NVMe caused
+# chronic kubelet crashes and Flannel IPAM exhaustion. As an agent,
+# only workload I/O runs on this drive.
+#
+# Longhorn label intentionally omitted — monitor stability for 7 days
+# before considering node.longhorn.io/create-default-disk=true.
