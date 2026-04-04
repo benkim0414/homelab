@@ -1,7 +1,10 @@
 ---
 # Per-node overrides for rpi5-8gb-crucial-bx500-500gb (.12)
 #
-# Label as a Longhorn storage node (NVMe SSD). Required when
+# Promoted from agent to server to replace the unstable .14 node and
+# maintain a 3-node etcd quorum with all reliable hardware.
+#
+# Label as a Longhorn storage node (SATA SSD). Required when
 # createDefaultDiskLabeledNodes is enabled — without this label k3s would
 # not re-create the default disk after a cluster rebuild.
-extra_agent_args: "--node-label node.longhorn.io/create-default-disk=true"
+extra_server_args: "--node-label node.longhorn.io/create-default-disk=true"
