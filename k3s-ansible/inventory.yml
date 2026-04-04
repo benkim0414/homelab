@@ -4,11 +4,8 @@ k3s_cluster:
     server:
       hosts:
         192.168.0.11:    # rpi5-8gb-crucial-p3-plus-500gb (bootstrap leader)
-        192.168.0.13:    # rpi5-8gb-samsung-980-500gb
-        192.168.0.14:    # rpi5-8gb-rpi-256gb
-    agent:
-      hosts:
         192.168.0.12:    # rpi5-8gb-crucial-bx500-500gb
+        192.168.0.13:    # rpi5-8gb-samsung-980-500gb
 
   # Required Vars
   vars:
@@ -44,8 +41,8 @@ k3s_cluster:
       tls-san:
         - 192.168.0.10
         - 192.168.0.11
+        - 192.168.0.12
         - 192.168.0.13
-        - 192.168.0.14
       disable:
         - servicelb
         - local-storage
@@ -58,16 +55,8 @@ k3s_cluster:
         - "eviction-soft=memory.available<512Mi"
         - "eviction-soft-grace-period=memory.available=2m"
         - "eviction-hard=memory.available<256Mi"
-    agent_config_yaml: |
-      kubelet-arg:
-        # Reserve memory for k3s system processes so the scheduler avoids
-        # overpacking memory-constrained worker nodes.
-        - "kube-reserved=memory=512Mi,cpu=200m"
-        # Evict workload pods gracefully before the kernel OOM killer can
-        # target the kubelet process itself.
-        - "eviction-soft=memory.available<512Mi"
-        - "eviction-soft-grace-period=memory.available=2m"
-        - "eviction-hard=memory.available<256Mi"
+    # No agent nodes — all nodes are servers in this 3-node cluster.
+    # agent_config_yaml: |
     #   See https://docs.k3s.io/installation/configuration#configuration-file
     # registries_config_yaml:  |
     #   Containerd can be configured to connect to private registries and use them to pull images as needed by the kubelet.
