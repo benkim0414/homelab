@@ -1,0 +1,75 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nextcloud-data-nfs-pv
+spec:
+  capacity:
+    storage: 500Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  claimRef:
+    namespace: nextcloud
+    name: nextcloud-data
+  mountOptions:
+    - hard
+    - nfsvers=4.1
+    - noatime
+    - rsize=1048576
+    - wsize=1048576
+  nfs:
+    server: 192.168.0.40
+    path: "/k3s-storage/nextcloud/data"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nextcloud-data
+  namespace: nextcloud
+spec:
+  storageClassName: ""
+  volumeName: nextcloud-data-nfs-pv
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 500Gi
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nextcloud-backups-nfs-pv
+spec:
+  capacity:
+    storage: 50Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  claimRef:
+    namespace: nextcloud
+    name: nextcloud-backups
+  mountOptions:
+    - hard
+    - nfsvers=4.1
+    - noatime
+  nfs:
+    server: 192.168.0.40
+    path: "/k3s-storage/nextcloud/backups"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nextcloud-backups
+  namespace: nextcloud
+spec:
+  storageClassName: ""
+  volumeName: nextcloud-backups-nfs-pv
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 50Gi

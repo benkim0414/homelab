@@ -1,0 +1,60 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: nextcloud-pg-backup
+  namespace: nextcloud
+  labels:
+    app: nextcloud-pg-backup
+spec:
+  schedule: "30 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    metadata:
+      labels:
+        app: nextcloud-pg-backup
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: pg-backup
+              image: postgres:16-bookworm
+              command:
+                - /bin/bash
+                - -c
+                - |
+                  set -euo pipefail
+                  TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+                  BACKUP_FILE="/backups/nextcloud-${TIMESTAMP}.dump"
+                  echo "Starting backup: ${BACKUP_FILE}"
+                  pg_dump -h nextcloud-postgres -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc -f "$BACKUP_FILE"
+                  echo "Backup complete: $(du -h "$BACKUP_FILE" | cut -f1)"
+                  echo "Cleaning up old backups..."
+                  ls -1t /backups/nextcloud-*.dump 2>/dev/null | tail -n +8 | xargs -r rm -v
+                  echo "Current backups:"
+                  ls -lh /backups/nextcloud-*.dump
+              env:
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: nextcloud-credentials
+                      key: POSTGRES_PASSWORD
+                - name: POSTGRES_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: nextcloud-credentials
+                      key: POSTGRES_USER
+                - name: POSTGRES_DB
+                  valueFrom:
+                    secretKeyRef:
+                      name: nextcloud-credentials
+                      key: POSTGRES_DB
+              volumeMounts:
+                - name: backups
+                  mountPath: /backups
+          volumes:
+            - name: backups
+              persistentVolumeClaim:
+                claimName: nextcloud-backups
