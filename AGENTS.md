@@ -118,11 +118,14 @@ Use `argocd/apps/monitoring.yaml` as the canonical example.
 
 ## Cluster Access and Local Environment
 
-Cluster integrations are defined in `.mcp.json`:
+For Codex, cluster integrations are defined in `.codex/config.toml`:
 
 - `kubernetes` for cluster resource access
 - `grafana` for metrics, logs, dashboards, and alerts
 - `argocd` for application state and operations
+
+The older `.mcp.json` file remains for Claude tooling; Codex reads the
+project-local `.codex/config.toml`.
 
 Environment variables and secrets bootstrap are defined in `.mise.toml`.
 `scripts/env-secrets.sh` resolves local secrets into `.env.local`. Run
