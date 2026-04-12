@@ -1,0 +1,24 @@
+[features]
+codex_hooks = true
+
+[mcp_servers.kubernetes]
+command = "npx"
+args = ["-y", "kubernetes-mcp-server@latest"]
+disabled_tools = ["pods_delete", "resources_delete"]
+
+[mcp_servers.grafana]
+command = "uvx"
+args = ["mcp-grafana"]
+env_vars = ["GRAFANA_SERVICE_ACCOUNT_TOKEN"]
+
+[mcp_servers.grafana.env]
+GRAFANA_URL = "http://192.168.0.203"
+
+[mcp_servers.argocd]
+command = "npx"
+args = ["-y", "argocd-mcp@latest", "stdio"]
+env_vars = ["ARGOCD_API_TOKEN"]
+disabled_tools = ["delete_application"]
+
+[mcp_servers.argocd.env]
+ARGOCD_BASE_URL = "http://192.168.0.202"
