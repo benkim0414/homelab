@@ -80,24 +80,12 @@ externalRedis:
   host: nextcloud-redis
   port: "6379"
 
-## Disable bundled Redis subchart
-redis:
-  enabled: false
-
-## Disable bundled MariaDB subchart
-mariadb:
-  enabled: false
-
 ## Persistence
-## persistence mounts at /var/www/html (app files + data when nextcloudData disabled)
-## persistence.nextcloudData mounts at /var/www/html/data (user data)
-## Both point to NFS so data survives pod rescheduling across nodes
+## Mounts at /var/www/html (app files and user data at /var/www/html/data).
+## Single NFS PVC covers the full tree -- no separate nextcloudData mount needed.
 persistence:
   enabled: true
   existingClaim: nextcloud-data
-  nextcloudData:
-    enabled: true
-    existingClaim: nextcloud-data
 
 ## Service -- MetalLB auto-assign pool (192.168.0.206-250)
 service:

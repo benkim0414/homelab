@@ -17,10 +17,22 @@ spec:
       containers:
         - name: postgres
           image: postgres:16-bookworm
-          envFrom:
-            - secretRef:
-                name: nextcloud-credentials
           env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: nextcloud-credentials
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nextcloud-credentials
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: nextcloud-credentials
+                  key: POSTGRES_DB
             - name: POSTGRES_INITDB_ARGS
               value: "--data-checksums"
             - name: PGDATA
@@ -36,11 +48,9 @@ spec:
           livenessProbe:
             exec:
               command:
-                - pg_isready
-                - -U
-                - nextcloud
-                - -d
-                - nextcloud
+                - /bin/sh
+                - -c
+                - pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
@@ -48,11 +58,9 @@ spec:
           readinessProbe:
             exec:
               command:
-                - pg_isready
-                - -U
-                - nextcloud
-                - -d
-                - nextcloud
+                - /bin/sh
+                - -c
+                - pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
             initialDelaySeconds: 5
             periodSeconds: 10
             timeoutSeconds: 5
