@@ -155,5 +155,9 @@ git worktree remove ../homelab-<task> && git branch -d <type>/<app>-<description
 - This file is the Codex-facing onboarding doc for the repo.
 - `CLAUDE.md` remains the Claude-facing sibling doc and may include
   Claude-runtime-specific details such as hooks and local memory paths.
-- Do not mirror `.claude/commands` or `.claude/hooks` into Codex-specific files
-  unless there is a concrete Codex runtime consumer for them.
+- Repo-scoped Codex skills live under `.agents/skills/`.
+- Use `$cluster-health` for a structured operational health check and
+  `$security-audit` for the security review workflow. These skills mirror the
+  intent of the existing Claude command docs in `.claude/commands/`.
+- Do not mirror `.claude/hooks` into Codex-specific files unless there is a
+  concrete Codex runtime consumer for them.
