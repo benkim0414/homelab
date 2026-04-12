@@ -124,9 +124,6 @@ For Codex, cluster integrations are defined in `.codex/config.toml`:
 - `grafana` for metrics, logs, dashboards, and alerts
 - `argocd` for application state and operations
 
-The older `.mcp.json` file remains for Claude tooling; Codex reads the
-project-local `.codex/config.toml`.
-
 Environment variables and secrets bootstrap are defined in `.mise.toml`.
 `scripts/env-secrets.sh` resolves local secrets into `.env.local`. Run
 `mise run secrets` after first clone or after rotating credentials.
