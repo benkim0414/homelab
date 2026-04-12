@@ -10,6 +10,11 @@ image:
 nextcloud:
   # Tailscale MagicDNS hostname -- becomes nextcloud.<tailnet>.ts.net
   host: nextcloud
+  # All domains the app must accept -- short name for in-cluster, FQDN for apps/browsers
+  trustedDomains:
+    - nextcloud
+    - nextcloud.tailbd291c.ts.net
+    - 192.168.0.206
   existingSecret:
     enabled: true
     secretName: nextcloud-credentials
