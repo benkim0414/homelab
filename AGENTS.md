@@ -138,6 +138,16 @@ git worktree add ../homelab-<task> -b <type>/<app>-<description>
 git worktree remove ../homelab-<task> && git branch -d <type>/<app>-<description>
 ```
 
+## Cluster Gotchas
+
+Hard-won lessons from operating this cluster are recorded in the local memory
+file at `~/.claude/projects/-home-benkim0414-workspace-homelab/memory/MEMORY.md`.
+Check the "Key Learnings" there before touching k3s nodes, containerd,
+Flannel/CNI, Sealed Secrets, or ArgoCD sync operations.
+
+When a new gotcha is discovered, record it in memory and update these repo
+rules if the same mistake is likely to recur.
+
 ## GitOps Safety Rules
 
 - Prefer Git changes over manual `kubectl edit`, `kubectl patch`, or ad-hoc
