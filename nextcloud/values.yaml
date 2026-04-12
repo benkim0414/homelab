@@ -1,0 +1,130 @@
+## NextCloud Helm values
+## Chart: nextcloud/nextcloud (https://nextcloud.github.io/helm/)
+## Chart version is pinned in argocd/apps/nextcloud.yaml
+
+image:
+  flavor: apache
+  # No tag override -- chart default tracks appVersion (v33.0.2 at chart 9.0.5)
+  pullPolicy: IfNotPresent
+
+nextcloud:
+  # Tailscale MagicDNS hostname -- becomes nextcloud.<tailnet>.ts.net
+  host: nextcloud
+  existingSecret:
+    enabled: true
+    secretName: nextcloud-credentials
+    usernameKey: nextcloud-username
+    passwordKey: nextcloud-password
+
+  ## PHP configuration
+  ## Injected into /usr/local/etc/php/conf.d (apache flavor)
+  phpConfigs:
+    uploadLimit.ini: |
+      upload_max_filesize = 16G
+      post_max_size = 16G
+      memory_limit = 512M
+      max_execution_time = 3600
+      max_input_time = 3600
+    opcache.ini: |
+      opcache.enable=1
+      opcache.interned_strings_buffer=16
+      opcache.max_accelerated_files=10000
+      opcache.memory_consumption=128
+      opcache.save_comments=1
+      opcache.revalidate_freq=60
+
+  ## NextCloud config files -- merged into config/
+  configs:
+    proxy.config.php: |-
+      <?php
+      $CONFIG = array (
+        'trusted_proxies' => array(
+          0 => '10.42.0.0/16',
+          1 => '10.43.0.0/16',
+        ),
+        'overwriteprotocol' => 'https',
+        'default_phone_region' => 'AU',
+      );
+    cache.config.php: |-
+      <?php
+      $CONFIG = array (
+        'memcache.local' => '\OC\Memcache\APCu',
+        'memcache.distributed' => '\OC\Memcache\Redis',
+        'memcache.locking' => '\OC\Memcache\Redis',
+        'redis' => array(
+          'host' => 'nextcloud-redis',
+          'port' => 6379,
+        ),
+      );
+
+## Disable SQLite/internal DB -- using standalone PostgreSQL StatefulSet
+internalDatabase:
+  enabled: false
+
+## External PostgreSQL (nextcloud/postgresql.yaml StatefulSet)
+externalDatabase:
+  enabled: true
+  type: postgresql
+  host: nextcloud-postgres
+  database: nextcloud
+  existingSecret:
+    enabled: true
+    secretName: nextcloud-credentials
+    usernameKey: POSTGRES_USER
+    passwordKey: POSTGRES_PASSWORD
+
+## External Redis (nextcloud/redis.yaml Deployment)
+## No auth -- cluster-internal only
+externalRedis:
+  enabled: true
+  host: nextcloud-redis
+  port: "6379"
+
+## Persistence
+## Mounts at /var/www/html (app files and user data at /var/www/html/data).
+## Single NFS PVC covers the full tree -- no separate nextcloudData mount needed.
+persistence:
+  enabled: true
+  existingClaim: nextcloud-data
+
+## Service -- MetalLB auto-assign pool (192.168.0.206-250)
+service:
+  type: LoadBalancer
+  port: 8080
+
+## Resources tuned for RPi5 8GB nodes
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+## Generous startup probe -- NextCloud first-run initialization is slow on ARM64
+startupProbe:
+  enabled: true
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 60
+
+livenessProbe:
+  enabled: true
+  initialDelaySeconds: 30
+  periodSeconds: 15
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  enabled: true
+  initialDelaySeconds: 30
+  periodSeconds: 15
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+## Background cron job via sidecar (runs crond as root alongside nextcloud)
+## type: sidecar runs /cron.sh every 5 minutes -- more reliable than web-based cron
+cronjob:
+  enabled: true
+  type: sidecar
