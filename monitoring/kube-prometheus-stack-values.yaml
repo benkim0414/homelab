@@ -40,6 +40,12 @@ grafana:
   service:
     type: LoadBalancer
     loadBalancerIP: 192.168.0.203
+  persistence:
+    enabled: true
+    storageClassName: longhorn
+    accessModes:
+      - ReadWriteOnce
+    size: 2Gi
   resources:
     requests:
       cpu: 50m
