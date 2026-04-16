@@ -27,7 +27,7 @@ Run a structured cluster health check using MCP tools. Execute each step in orde
 
 ### 6. Recent errors (last 15 minutes)
 - Call `mcp__grafana__query_loki_logs` with:
-  - query: `{namespace=~".+"} | json | level="error"`
+  - logql: `{namespace=~".+"} | json | level="error"`
   - time range: last 15 minutes
 - Summarize error volume by namespace. Show the top 5 most frequent error messages.
 
