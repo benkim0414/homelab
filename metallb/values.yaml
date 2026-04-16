@@ -2,5 +2,15 @@
 # Chart: metallb/metallb
 # Repo: https://metallb.github.io/metallb
 #
-# Chart defaults are sufficient for the homelab.
 # IPAddressPool and L2Advertisement CRs are applied separately after install.
+
+speaker:
+  livenessProbe:
+    enabled: true
+    # Default timeoutSeconds=1 is too tight for ARM/Pi hardware; frr accumulated
+    # 297 restarts before being caught. 5s gives the FRR process time to respond.
+    timeoutSeconds: 5
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    failureThreshold: 3
+    successThreshold: 1
