@@ -1,0 +1,97 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: immich-offsite-backup
+  namespace: immich
+  labels:
+    app: immich-offsite-backup
+    component: offsite-backup
+spec:
+  # Run at 03:00 AEST / 04:00 AEDT (17:00 UTC), after pg_dump at 03:00 UTC (13:00 AEST)
+  schedule: "0 17 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      # 8 hours: initial 105GB upload may take several hours
+      activeDeadlineSeconds: 28800
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: rclone
+              image: rclone/rclone:1.73.4
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -eu
+
+                  echo "=== Immich offsite backup started ==="
+                  date
+
+                  echo "--- Syncing photo library ---"
+                  rclone copy /data s3:"${S3_BUCKET}"/immich/library \
+                    --transfers=4 \
+                    --checkers=4 \
+                    --s3-upload-concurrency=4 \
+                    --no-update-modtime \
+                    --stats=60s
+
+                  echo "--- Syncing database dumps ---"
+                  rclone copy /backups s3:"${S3_BUCKET}"/immich/dbdumps \
+                    --transfers=4 \
+                    --checkers=4 \
+                    --no-update-modtime \
+                    --stats=60s \
+                    --verbose
+
+                  echo "=== Immich offsite backup complete ==="
+                  date
+              env:
+                - name: RCLONE_CONFIG_S3_TYPE
+                  value: s3
+                - name: RCLONE_CONFIG_S3_PROVIDER
+                  value: AWS
+                - name: RCLONE_CONFIG_S3_STORAGE_CLASS
+                  value: DEEP_ARCHIVE
+                - name: RCLONE_CONFIG_S3_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: s3-backup-credentials
+                      key: AWS_ACCESS_KEY_ID
+                - name: RCLONE_CONFIG_S3_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: s3-backup-credentials
+                      key: AWS_SECRET_ACCESS_KEY
+                - name: RCLONE_CONFIG_S3_REGION
+                  valueFrom:
+                    secretKeyRef:
+                      name: s3-backup-credentials
+                      key: S3_REGION
+                - name: S3_BUCKET
+                  valueFrom:
+                    secretKeyRef:
+                      name: s3-backup-credentials
+                      key: S3_BUCKET
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  memory: 256Mi
+              volumeMounts:
+                - name: library
+                  mountPath: /data
+                  readOnly: true
+                - name: backups
+                  mountPath: /backups
+                  readOnly: true
+          volumes:
+            - name: library
+              persistentVolumeClaim:
+                claimName: immich-library
+            - name: backups
+              persistentVolumeClaim:
+                claimName: immich-backups

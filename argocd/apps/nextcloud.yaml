@@ -22,7 +22,7 @@ spec:
       targetRevision: HEAD
       path: nextcloud
       directory:
-        include: '{namespace.yaml,postgresql.yaml,redis.yaml,nfs-pv-pvc.yaml,sealed-secret.yaml,tailscale-ingress.yaml,pg-backup-cronjob.yaml}'
+        include: '{namespace.yaml,postgresql.yaml,redis.yaml,nfs-pv-pvc.yaml,sealed-secret.yaml,s3-sealed-secret.yaml,tailscale-ingress.yaml,pg-backup-cronjob.yaml,offsite-backup-cronjob.yaml}'
   destination:
     server: https://kubernetes.default.svc
     namespace: nextcloud
