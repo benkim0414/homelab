@@ -1,0 +1,97 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: nextcloud-offsite-backup
+  namespace: nextcloud
+  labels:
+    app: nextcloud-offsite-backup
+    component: offsite-backup
+spec:
+  # Run at 05:00 daily, after pg_dump at 03:30 and after immich backup starts at 04:00
+  schedule: "0 5 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      # 8 hours: allows for large initial uploads
+      activeDeadlineSeconds: 28800
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: rclone
+              image: rclone/rclone:1.73.4
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -eu
+
+                  echo "=== Nextcloud offsite backup started ==="
+                  date
+
+                  echo "--- Syncing data directory ---"
+                  rclone copy /data s3:"${S3_BUCKET}"/nextcloud/data \
+                    --transfers=4 \
+                    --checkers=4 \
+                    --s3-upload-concurrency=4 \
+                    --no-update-modtime \
+                    --stats=60s
+
+                  echo "--- Syncing database dumps ---"
+                  rclone copy /backups s3:"${S3_BUCKET}"/nextcloud/dbdumps \
+                    --transfers=4 \
+                    --checkers=4 \
+                    --no-update-modtime \
+                    --stats=60s \
+                    --verbose
+
+                  echo "=== Nextcloud offsite backup complete ==="
+                  date
+              env:
+                - name: RCLONE_CONFIG_S3_TYPE
+                  value: s3
+                - name: RCLONE_CONFIG_S3_PROVIDER
+                  value: AWS
+                - name: RCLONE_CONFIG_S3_STORAGE_CLASS
+                  value: DEEP_ARCHIVE
+                - name: RCLONE_CONFIG_S3_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: s3-backup-credentials
+                      key: AWS_ACCESS_KEY_ID
+                - name: RCLONE_CONFIG_S3_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: s3-backup-credentials
+                      key: AWS_SECRET_ACCESS_KEY
+                - name: RCLONE_CONFIG_S3_REGION
+                  valueFrom:
+                    secretKeyRef:
+                      name: s3-backup-credentials
+                      key: S3_REGION
+                - name: S3_BUCKET
+                  valueFrom:
+                    secretKeyRef:
+                      name: s3-backup-credentials
+                      key: S3_BUCKET
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  memory: 256Mi
+              volumeMounts:
+                - name: data
+                  mountPath: /data
+                  readOnly: true
+                - name: backups
+                  mountPath: /backups
+                  readOnly: true
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: nextcloud-data
+            - name: backups
+              persistentVolumeClaim:
+                claimName: nextcloud-backups

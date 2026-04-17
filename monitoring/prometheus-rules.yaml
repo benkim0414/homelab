@@ -173,6 +173,36 @@ spec:
               5. Pods will schedule immediately. Delete the cleanup pod when done:
                  kubectl delete pod -n kube-system ipam-cleanup
 
+    - name: offsite-backup
+      rules:
+        - alert: OffsiteBackupFailed
+          expr: kube_job_status_failed{job_name=~".*offsite-backup.*"} > 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Offsite backup job {{ $labels.job_name }} failed"
+            description: >
+              Offsite backup job {{ $labels.job_name }} in namespace {{ $labels.namespace }}
+              has failed. Check pod logs:
+              kubectl logs -n {{ $labels.namespace }} -l job-name={{ $labels.job_name }}
+
+        - alert: OffsiteBackupMissing
+          expr: >
+            (time() - kube_cronjob_status_last_successful_time{cronjob=~".*offsite-backup.*"} > 172800)
+            or
+            (absent(kube_cronjob_status_last_successful_time{cronjob=~".*offsite-backup.*"}) == 1)
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: "Offsite backup {{ $labels.cronjob }} hasn't succeeded in 48 hours"
+            description: >
+              CronJob {{ $labels.cronjob }} in namespace {{ $labels.namespace }} has not
+              completed successfully in over 48 hours. Check for suspended state, failed jobs,
+              or scheduling issues:
+              kubectl describe cronjob -n {{ $labels.namespace }} {{ $labels.cronjob }}
+
     - name: node-stability
       rules:
         - alert: NodeContainerRestartStorm

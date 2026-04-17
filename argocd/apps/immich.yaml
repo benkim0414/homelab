@@ -22,7 +22,7 @@ spec:
       targetRevision: HEAD
       path: immich
       directory:
-        include: '{namespace.yaml,postgresql.yaml,nfs-pv-pvc.yaml,sealed-secret.yaml,tailscale-ingress.yaml,pg-backup-cronjob.yaml}'
+        include: '{namespace.yaml,postgresql.yaml,nfs-pv-pvc.yaml,sealed-secret.yaml,s3-sealed-secret.yaml,tailscale-ingress.yaml,pg-backup-cronjob.yaml,offsite-backup-cronjob.yaml}'
   destination:
     server: https://kubernetes.default.svc
     namespace: immich
