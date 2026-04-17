@@ -199,8 +199,9 @@ spec:
             summary: "Offsite backup {{ $labels.cronjob }} hasn't succeeded in 48 hours"
             description: >
               CronJob {{ $labels.cronjob }} in namespace {{ $labels.namespace }} has not
-              completed successfully in over 48 hours. Check for suspended state, failed jobs,
-              or scheduling issues:
+              completed successfully in over 48 hours. If labels are empty, no offsite
+              backup has ever completed (check both immich and nextcloud namespaces).
+              kubectl get cronjobs -A -l component=offsite-backup
               kubectl describe cronjob -n {{ $labels.namespace }} {{ $labels.cronjob }}
 
     - name: node-stability

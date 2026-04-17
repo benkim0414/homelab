@@ -7,8 +7,8 @@ metadata:
     app: nextcloud-offsite-backup
     component: offsite-backup
 spec:
-  # Run at 05:00 daily, after pg_dump at 03:30 and after immich backup starts at 04:00
-  schedule: "0 5 * * *"
+  # Run at 04:00 AEST / 05:00 AEDT (18:00 UTC), after pg_dump at 03:30 UTC (13:30 AEST)
+  schedule: "0 18 * * *"
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3

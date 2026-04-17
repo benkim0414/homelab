@@ -7,8 +7,8 @@ metadata:
     app: immich-offsite-backup
     component: offsite-backup
 spec:
-  # Run at 04:00 daily, after pg_dump at 03:00
-  schedule: "0 4 * * *"
+  # Run at 03:00 AEST / 04:00 AEDT (17:00 UTC), after pg_dump at 03:00 UTC (13:00 AEST)
+  schedule: "0 17 * * *"
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3
