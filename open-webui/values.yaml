@@ -1,0 +1,48 @@
+# Open WebUI Helm values.
+# Chart: open-webui (https://helm.openwebui.com/)
+#
+# Backend: Hermes Agent OpenAI-compatible API on the Framework Desktop,
+# reached via the in-namespace Tailscale egress Service (hermes-egress.yaml).
+
+# Pin the Service/Deployment name so the Tailscale Ingress backend and the
+# default Service from the chart agree.
+fullnameOverride: open-webui
+
+# SQLite backend can't tolerate concurrent writers.
+replicaCount: 1
+
+# All inference goes to Hermes; no in-cluster model runners or extras.
+ollama:
+  enabled: false
+pipelines:
+  enabled: false
+# Single replica means no need for shared session state, so we drop the
+# bundled Redis Deployment by disabling websocket support entirely. Chat
+# response streaming still works (Open WebUI falls back to SSE), but
+# websocket-only features (multi-tab live updates, async-task progress
+# bars) won't.
+websocket:
+  enabled: false
+
+# OpenAI-compatible upstream. With pipelines disabled, the chart emits a
+# singular OPENAI_API_BASE_URL + OPENAI_API_KEY (sourced from the secret below).
+openaiBaseApiUrl: "http://hermes-egress.open-webui.svc.cluster.local:8642/v1"
+openaiApiKeyExistingSecret: open-webui-credentials
+openaiApiKeyExistingSecretKey: OPENAI_API_KEY
+
+# Persistent home for sessions, uploads, and SQLite DB.
+persistence:
+  enabled: true
+  size: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  storageClass: longhorn
+
+# Reach via the separate Tailscale Ingress (tailscale-ingress.yaml), not the
+# chart's built-in ingress.
+ingress:
+  enabled: false
+
+service:
+  type: ClusterIP
+  port: 80

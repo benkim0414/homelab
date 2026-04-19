@@ -1,0 +1,18 @@
+# Tailscale egress proxy to the Framework Desktop (tailnet name "fd").
+# The Tailscale operator watches the tailnet-fqdn annotation, provisions a
+# proxy StatefulSet in the tailscale namespace, and rewrites this Service's
+# externalName to the proxy's in-cluster DNS. Pods reach Hermes via:
+#   http://hermes-egress.open-webui.svc.cluster.local:8642
+apiVersion: v1
+kind: Service
+metadata:
+  name: hermes-egress
+  namespace: open-webui
+  annotations:
+    tailscale.com/tailnet-fqdn: fd.tailbd291c.ts.net
+spec:
+  type: ExternalName
+  externalName: placeholder
+  ports:
+    - port: 8642
+      protocol: TCP
