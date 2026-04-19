@@ -1,8 +1,11 @@
 # Open WebUI Helm values.
 # Chart: open-webui (https://helm.openwebui.com/)
 #
-# Backend: lemonade OpenAI-compatible server on the Framework Desktop,
-# reached via the in-namespace Tailscale egress Service (hermes-egress.yaml).
+# Backend: hermes-gateway (OpenAI-compatible API server) on the Framework
+# Desktop, which proxies inference to lemonade. Going through hermes — not
+# direct to lemonade:11435 — is what unlocks agent tools (file, terminal,
+# MCP servers, etc.) in WebUI chats. Reached via the in-namespace
+# Tailscale egress Service (hermes-egress.yaml).
 
 # Pin the Service/Deployment name so the Tailscale Ingress backend and the
 # default Service from the chart agree.
@@ -11,7 +14,7 @@ fullnameOverride: open-webui
 # SQLite backend can't tolerate concurrent writers.
 replicaCount: 1
 
-# All inference goes to lemonade; no in-cluster model runners or extras.
+# All inference goes through hermes → lemonade; no in-cluster model runners.
 ollama:
   enabled: false
 pipelines:
@@ -26,7 +29,7 @@ websocket:
 
 # OpenAI-compatible upstream. With pipelines disabled, the chart emits a
 # singular OPENAI_API_BASE_URL + OPENAI_API_KEY (sourced from the secret below).
-openaiBaseApiUrl: "http://hermes-egress.open-webui.svc.cluster.local:11435/v1"
+openaiBaseApiUrl: "http://hermes-egress.open-webui.svc.cluster.local:8642/v1"
 openaiApiKeyExistingSecret: open-webui-credentials
 openaiApiKeyExistingSecretKey: OPENAI_API_KEY
 
