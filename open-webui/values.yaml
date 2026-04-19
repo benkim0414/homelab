@@ -1,7 +1,7 @@
 # Open WebUI Helm values.
 # Chart: open-webui (https://helm.openwebui.com/)
 #
-# Backend: Hermes Agent OpenAI-compatible API on the Framework Desktop,
+# Backend: lemonade OpenAI-compatible server on the Framework Desktop,
 # reached via the in-namespace Tailscale egress Service (hermes-egress.yaml).
 
 # Pin the Service/Deployment name so the Tailscale Ingress backend and the
