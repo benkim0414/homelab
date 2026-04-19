@@ -23,9 +23,20 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: open-webui
+  # The Tailscale operator rewrites hermes-egress.spec.externalName from
+  # "placeholder" to the proxy's in-cluster DNS once it provisions the egress
+  # proxy. Without this, ArgoCD selfHeal would keep reverting it.
+  ignoreDifferences:
+    - group: ""
+      kind: Service
+      name: hermes-egress
+      namespace: open-webui
+      jsonPointers:
+        - /spec/externalName
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - RespectIgnoreDifferences=true
