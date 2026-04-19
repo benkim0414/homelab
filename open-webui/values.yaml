@@ -16,8 +16,11 @@ ollama:
   enabled: false
 pipelines:
   enabled: false
-# Single replica means no need for shared session state. Disabling websocket
-# also drops the bundled Redis Deployment. (Streaming works without it.)
+# Single replica means no need for shared session state, so we drop the
+# bundled Redis Deployment by disabling websocket support entirely. Chat
+# response streaming still works (Open WebUI falls back to SSE), but
+# websocket-only features (multi-tab live updates, async-task progress
+# bars) won't.
 websocket:
   enabled: false
 

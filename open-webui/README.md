@@ -39,21 +39,28 @@ Tailnet device (browser)
 
 ### 1. On the Framework Desktop (Hermes side)
 
-Generate a bearer token and capture the Tailscale IP:
+Generate a bearer token and write it into `~/.hermes/.env`:
 
 ```bash
-~/workspace/hermes/setup/apply-hermes-config.sh
+KEY=$(openssl rand -hex 32)
+printf 'API_SERVER_KEY=%s\n' "$KEY" >> ~/.hermes/.env
 ```
 
-Paste the output snippet into `~/.hermes/.env`. **Then add this CORS origin
-to that file** (append comma-separated if `API_SERVER_CORS_ORIGINS` is
-already set):
+(If `API_SERVER_KEY=` already exists in the file, replace the line instead
+of appending.)
+
+Then add this CORS origin to the same file (append comma-separated if
+`API_SERVER_CORS_ORIGINS` is already set):
 
 ```
 API_SERVER_CORS_ORIGINS=https://open-webui.tailbd291c.ts.net
 ```
 
-Restart `hermes-gateway` so the new key + CORS take effect.
+Restart `hermes-gateway` so the new key + CORS take effect:
+
+```bash
+sudo systemctl restart hermes-gateway
+```
 
 ### 2. On this machine — seal the bearer
 
@@ -78,8 +85,13 @@ sync via `argocd app sync open-webui` or the UI if needed.
 
 To rotate the bearer:
 
-1. Re-run `apply-hermes-config.sh` on the Framework, paste the new value,
-   restart `hermes-gateway`.
+1. On the Framework, generate a new key and replace the `API_SERVER_KEY=`
+   line in `~/.hermes/.env`, then restart `hermes-gateway`:
+   ```bash
+   KEY=$(openssl rand -hex 32)
+   sed -i "s|^API_SERVER_KEY=.*|API_SERVER_KEY=$KEY|" ~/.hermes/.env
+   sudo systemctl restart hermes-gateway
+   ```
 2. Re-run the kubeseal command above with the new key, overwrite
    `open-webui/sealed-secret.yaml`, commit.
 3. ArgoCD picks up the new SealedSecret; the controller decrypts and

@@ -16,4 +16,3 @@ spec:
   ports:
     - port: 8642
       protocol: TCP
-      targetPort: 8642
