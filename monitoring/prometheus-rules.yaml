@@ -200,7 +200,7 @@ spec:
             description: >
               CronJob {{ $labels.cronjob }} in namespace {{ $labels.namespace }} has not
               completed successfully in over 48 hours. If labels are empty, no offsite
-              backup has ever completed (check both immich and nextcloud namespaces).
+              backup has ever completed (check the immich namespace).
               kubectl get cronjobs -A -l component=offsite-backup
               kubectl describe cronjob -n {{ $labels.namespace }} {{ $labels.cronjob }}
 
