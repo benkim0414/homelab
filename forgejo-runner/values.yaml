@@ -1,0 +1,66 @@
+image:
+  repository: code.forgejo.org/forgejo/runner
+  tag: "6.5.0"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+forgejo:
+  instanceURL: http://forgejo-http.forgejo.svc.cluster.local:3000
+  existingSecret: forgejo-runner-token
+  existingSecretKey: token
+
+runner:
+  config:
+    create: true
+    content: |
+      log:
+        level: info
+      runner:
+        capacity: 2
+        timeout: 3h
+        labels:
+          - "self-hosted:docker://node:20-bookworm"
+          - "ubuntu-latest:docker://node:20-bookworm"
+          - "ubuntu-22.04:docker://node:20-bookworm"
+      cache:
+        enabled: true
+        dir: "/data/cache"
+      container:
+        network: bridge
+        privileged: false
+        force_pull: false
+
+persistence:
+  enabled: true
+  size: 10Gi
+  storageClass: longhorn
+  accessModes:
+    - ReadWriteOnce
+
+dind:
+  enabled: true
+  image:
+    repository: docker
+    tag: "26-dind"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    memory: 512Mi
+
+securityContext:
+  privileged: true
+
+startupProbe:
+  enabled: true
+  failureThreshold: 60
+  periodSeconds: 10

@@ -1,0 +1,139 @@
+image:
+  rootless: true
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+strategy:
+  type: Recreate
+
+# v14+ removed bundled subcharts; explicitly disable them to prevent chart errors.
+postgresql:
+  enabled: false
+postgresql-ha:
+  enabled: false
+valkey:
+  enabled: false
+valkey-cluster:
+  enabled: false
+
+persistence:
+  enabled: true
+  create: true
+  size: 20Gi
+  storageClass: longhorn
+  accessModes:
+    - ReadWriteOnce
+
+service:
+  http:
+    type: ClusterIP
+    port: 3000
+  ssh:
+    type: ClusterIP
+    port: 22
+
+ingress:
+  enabled: false
+
+gitea:
+  admin:
+    existingSecret: forgejo-admin
+    # keepUpdated rotates the password on every render — use initialOnlyNoReset instead.
+    passwordMode: initialOnlyNoReset
+
+  config:
+    APP_NAME: "Forgejo"
+
+    server:
+      DOMAIN: forgejo.tailbd291c.ts.net
+      ROOT_URL: https://forgejo.tailbd291c.ts.net/
+      SSH_DOMAIN: forgejo-ssh.tailbd291c.ts.net
+      SSH_PORT: 22
+      SSH_LISTEN_PORT: 2222
+      START_SSH_SERVER: true
+      LANDING_PAGE: login
+      DISABLE_SSH: false
+      OFFLINE_MODE: true
+
+    database:
+      DB_TYPE: sqlite3
+      PATH: /data/gitea/gitea.db
+      SQLITE_JOURNAL_MODE: WAL
+      LOG_SQL: false
+
+    cache:
+      ADAPTER: memory
+      INTERVAL: 60
+
+    queue:
+      TYPE: level
+
+    session:
+      PROVIDER: file
+
+    service:
+      DISABLE_REGISTRATION: true
+      REQUIRE_SIGNIN_VIEW: true
+      DEFAULT_ALLOW_CREATE_ORGANIZATION: true
+
+    repository:
+      DEFAULT_PRIVATE: private
+      DEFAULT_PUSH_CREATE_PRIVATE: true
+
+    security:
+      INSTALL_LOCK: true
+      MIN_PASSWORD_LENGTH: 12
+
+    actions:
+      ENABLED: true
+
+    log:
+      MODE: console
+      LEVEL: info
+
+    metrics:
+      ENABLED: false
+
+  # Pre-seed app secrets to prevent the chart init job from regenerating them on
+  # every render, which would invalidate existing sessions and 2FA codes.
+  additionalConfigFromEnvs:
+    - name: FORGEJO__SECURITY__SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: forgejo-app-secrets
+          key: SECRET_KEY
+    - name: FORGEJO__SECURITY__INTERNAL_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: forgejo-app-secrets
+          key: INTERNAL_TOKEN
+    - name: FORGEJO__OAUTH2__JWT_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: forgejo-app-secrets
+          key: JWT_SECRET
+    - name: FORGEJO__SERVER__LFS_JWT_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: forgejo-app-secrets
+          key: LFS_JWT_SECRET
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 768Mi
+
+startupProbe:
+  enabled: true
+  failureThreshold: 60
+  periodSeconds: 10
+
+readinessProbe:
+  enabled: true
+livenessProbe:
+  enabled: true
+
+extraVolumeMounts: []
+extraVolumes: []

@@ -8,7 +8,7 @@
     "fileMatch": ["argocd/.+\\.ya?ml$"]
   },
   "kubernetes": {
-    "fileMatch": ["immich/.+\\.ya?ml$", "monitoring/.+\\.ya?ml$", "home-assistant/.+\\.ya?ml$", "vaultwarden/.+\\.ya?ml$"]
+    "fileMatch": ["forgejo/.+\\.ya?ml$", "forgejo-runner/.+\\.ya?ml$", "immich/.+\\.ya?ml$", "monitoring/.+\\.ya?ml$", "home-assistant/.+\\.ya?ml$", "vaultwarden/.+\\.ya?ml$"]
   },
   "customManagers": [
     {
@@ -30,9 +30,27 @@
       ],
       "depNameTemplate": "ghcr.io/kube-vip/kube-vip",
       "datasourceTemplate": "docker"
+    },
+    {
+      // forgejo dump CronJob image — pin to same version as deployed Forgejo
+      "customType": "regex",
+      "fileMatch": ["^forgejo/forgejo-dump-cronjob\\.yaml$"],
+      "matchStrings": [
+        "image:\\s+codeberg\\.org/forgejo/forgejo:(?<currentValue>[\\d.]+)"
+      ],
+      "depNameTemplate": "codeberg.org/forgejo/forgejo",
+      "datasourceTemplate": "docker"
     }
   ],
   "packageRules": [
+    {
+      "description": "Group Forgejo packages, schedule monthly",
+      "matchPaths": ["forgejo/**", "forgejo-runner/**", "argocd/apps/forgejo.yaml", "argocd/apps/forgejo-runner.yaml"],
+      "groupName": "forgejo",
+      "schedule": ["before 6am on the first day of the month"],
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "forgejo"
+    },
     {
       "description": "Group Immich packages together",
       "matchPackagePatterns": ["immich"],
