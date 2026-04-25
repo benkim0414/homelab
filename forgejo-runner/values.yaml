@@ -1,3 +1,5 @@
+knownLastVersion: true
+
 image:
   repository: code.forgejo.org/forgejo/runner
   tag: "6.5.0"
