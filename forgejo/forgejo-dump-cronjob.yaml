@@ -59,7 +59,7 @@ spec:
           volumes:
             - name: data
               persistentVolumeClaim:
-                claimName: forgejo-shared-storage
+                claimName: gitea-shared-storage
             - name: backup
               persistentVolumeClaim:
                 claimName: forgejo-backups
