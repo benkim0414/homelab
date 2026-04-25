@@ -1,7 +1,7 @@
 knownLastVersion: true
 
 image:
-  repository: code.forgejo.org/forgejo/runner
+  repository: forgejo/runner
   tag: "6.5.0"
   pullPolicy: IfNotPresent
 
