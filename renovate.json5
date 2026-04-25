@@ -30,6 +30,16 @@
       ],
       "depNameTemplate": "ghcr.io/kube-vip/kube-vip",
       "datasourceTemplate": "docker"
+    },
+    {
+      // forgejo dump CronJob image — pin to same version as deployed Forgejo
+      "customType": "regex",
+      "fileMatch": ["^forgejo/forgejo-dump-cronjob\\.yaml$"],
+      "matchStrings": [
+        "image:\\s+codeberg\\.org/forgejo/forgejo:(?<currentValue>[\\d.]+)"
+      ],
+      "depNameTemplate": "codeberg.org/forgejo/forgejo",
+      "datasourceTemplate": "docker"
     }
   ],
   "packageRules": [

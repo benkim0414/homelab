@@ -18,10 +18,10 @@ spec:
         valueFiles:
           - $repo/forgejo/values.yaml
     - repoURL: https://github.com/benkim0414/homelab.git
-      targetRevision: main
+      targetRevision: HEAD
       ref: repo
     - repoURL: https://github.com/benkim0414/homelab.git
-      targetRevision: main
+      targetRevision: HEAD
       path: forgejo
       directory:
         include: '{namespace.yaml,sealed-secret.yaml,tailscale-ingress.yaml,tailscale-ssh-service.yaml,nfs-pv-pvc.yaml,forgejo-dump-cronjob.yaml}'

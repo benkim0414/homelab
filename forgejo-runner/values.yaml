@@ -27,7 +27,7 @@ runner:
         enabled: true
         dir: "/data/cache"
       container:
-        network: host
+        network: bridge
         privileged: false
         force_pull: false
 
