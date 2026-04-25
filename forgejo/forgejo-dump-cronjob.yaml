@@ -1,0 +1,65 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: forgejo-dump
+  namespace: forgejo
+spec:
+  schedule: "30 3 * * 0"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          restartPolicy: OnFailure
+          # Co-locate with the forgejo pod to mount the same RWO data PVC.
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - labelSelector:
+                    matchLabels:
+                      app.kubernetes.io/name: forgejo
+                      app.kubernetes.io/instance: forgejo
+                  topologyKey: kubernetes.io/hostname
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+          containers:
+            - name: dump
+              image: codeberg.org/forgejo/forgejo:11
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -euo pipefail
+                  TS=$(date -u +%Y%m%dT%H%M%SZ)
+                  cd /tmp
+                  forgejo dump \
+                    --config /data/gitea/conf/app.ini \
+                    --type tar.zst \
+                    --file "/backup/forgejo-${TS}.tar.zst"
+                  echo "Dump complete: forgejo-${TS}.tar.zst"
+                  ls -la /backup/ | grep '^-'
+                  ls -1t /backup/forgejo-*.tar.zst | tail -n +9 | xargs -r rm -v
+              volumeMounts:
+                - name: data
+                  mountPath: /data
+                - name: backup
+                  mountPath: /backup
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  memory: 1Gi
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: forgejo-shared-storage
+            - name: backup
+              persistentVolumeClaim:
+                claimName: forgejo-backups

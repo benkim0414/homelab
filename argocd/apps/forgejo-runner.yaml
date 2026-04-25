@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: forgejo-runner
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  destination:
+    name: in-cluster
+    namespace: forgejo-runner
+  sources:
+    - repoURL: codeberg.org/wrenix/helm-charts
+      chart: forgejo-runner
+      targetRevision: '*'
+      helm:
+        valueFiles:
+          - $repo/forgejo-runner/values.yaml
+    - repoURL: https://github.com/benkim0414/homelab.git
+      targetRevision: main
+      ref: repo
+    - repoURL: https://github.com/benkim0414/homelab.git
+      targetRevision: main
+      path: forgejo-runner
+      directory:
+        include: '{namespace.yaml,sealed-secret.yaml}'
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
