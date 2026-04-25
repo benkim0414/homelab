@@ -36,6 +36,7 @@ spec:
                 - -c
                 - |
                   set -euo pipefail
+                  mkdir -p /data/git/gitea-repositories
                   TS=$(date -u +%Y%m%dT%H%M%SZ)
                   cd /tmp
                   forgejo dump \
