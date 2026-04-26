@@ -7,15 +7,11 @@ image:
 
 replicaCount: 1
 
-forgejo:
-  instanceURL: http://forgejo-http.forgejo.svc.cluster.local:3000
-  existingSecret: forgejo-runner-token
-  existingSecretKey: token
-
 runner:
   config:
     create: true
-    content: |
+    existingInitSecret: forgejo-runner-token
+    file:
       log:
         level: info
       runner:
