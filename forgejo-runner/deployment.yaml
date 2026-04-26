@@ -24,10 +24,10 @@ spec:
             - -c
             - |
               mkdir -p /data/cache
-              touch /data/.runner
+              [ -s /data/.runner ] || rm -f /data/.runner
               chown -R 1001:1001 /data
-              chmod 775 /data/.runner /data/cache
-              chmod g+s /data/.runner /data/cache
+              chmod 775 /data /data/cache
+              chmod g+s /data /data/cache
           securityContext:
             runAsUser: 0
           volumeMounts:
