@@ -1,6 +1,7 @@
 knownLastVersion: true
 
 image:
+  registry: codeberg.org
   repository: forgejo/runner
   tag: "6.5.0"
   pullPolicy: IfNotPresent
