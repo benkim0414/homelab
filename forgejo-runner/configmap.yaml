@@ -12,10 +12,6 @@ data:
       file: /data/.runner
       capacity: 2
       timeout: 3h
-      labels:
-        - "self-hosted:docker://node:20-bookworm"
-        - "ubuntu-latest:docker://node:20-bookworm"
-        - "ubuntu-22.04:docker://node:20-bookworm"
     cache:
       enabled: true
       dir: /data/cache
