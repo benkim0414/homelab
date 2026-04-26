@@ -10,21 +10,12 @@ spec:
   destination:
     name: in-cluster
     namespace: forgejo-runner
-  sources:
-    - repoURL: codeberg.org/wrenix/helm-charts
-      chart: forgejo-runner
-      targetRevision: '*'
-      helm:
-        valueFiles:
-          - $repo/forgejo-runner/values.yaml
-    - repoURL: https://github.com/benkim0414/homelab.git
-      targetRevision: HEAD
-      ref: repo
-    - repoURL: https://github.com/benkim0414/homelab.git
-      targetRevision: HEAD
-      path: forgejo-runner
-      directory:
-        include: '{namespace.yaml,sealed-secret.yaml}'
+  source:
+    repoURL: https://github.com/benkim0414/homelab.git
+    targetRevision: HEAD
+    path: forgejo-runner
+    directory:
+      include: '{namespace.yaml,sealed-secret.yaml,configmap.yaml,pvc.yaml,deployment.yaml}'
   syncPolicy:
     automated:
       prune: true
