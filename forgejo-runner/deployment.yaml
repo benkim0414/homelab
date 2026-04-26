@@ -1,0 +1,113 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: forgejo-runner
+  namespace: forgejo-runner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: forgejo-runner
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: forgejo-runner
+    spec:
+      initContainers:
+        - name: init-data
+          image: busybox:stable
+          command:
+            - /bin/sh
+            - -c
+            - |
+              mkdir -p /data/cache
+              touch /data/.runner
+              chown -R 1001:1001 /data
+              chmod 775 /data/.runner /data/cache
+              chmod g+s /data/.runner /data/cache
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: data
+              mountPath: /data
+        - name: init-register
+          image: data.forgejo.org/forgejo/runner:12.9.0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              if [ -s /data/.runner ]; then
+                echo "Runner already registered, skipping"
+                exit 0
+              fi
+              /bin/forgejo-runner register \
+                --no-interactive \
+                --instance "$CONFIG_INSTANCE" \
+                --token "$CONFIG_TOKEN" \
+                --name "$CONFIG_NAME" \
+                --labels "self-hosted:docker://node:20-bookworm,ubuntu-latest:docker://node:20-bookworm,ubuntu-22.04:docker://node:20-bookworm" \
+                -c /config/config.yml
+          envFrom:
+            - secretRef:
+                name: forgejo-runner-token
+          securityContext:
+            runAsUser: 1001
+            runAsGroup: 1001
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: config
+              mountPath: /config
+      containers:
+        - name: runner
+          image: data.forgejo.org/forgejo/runner:12.9.0
+          command:
+            - /bin/forgejo-runner
+            - daemon
+            - -c
+            - /config/config.yml
+          securityContext:
+            runAsUser: 1001
+            runAsGroup: 1001
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: config
+              mountPath: /config
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+        - name: dind
+          image: docker:26-dind
+          args:
+            - dockerd
+            - -H
+            - tcp://0.0.0.0:2375
+            - --tls=false
+          env:
+            - name: DOCKER_TLS_CERTDIR
+              value: ""
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: docker-storage
+              mountPath: /var/lib/docker
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: forgejo-runner-data
+        - name: config
+          configMap:
+            name: forgejo-runner-config
+        - name: docker-storage
+          emptyDir: {}
