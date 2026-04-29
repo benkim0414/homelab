@@ -69,10 +69,10 @@ echo "Wrote honcho-sealed-secret.yaml"
 
 # ── Mint a long-lived JWT for the Hermes agent ───────────────────────────────
 HERMES_JWT=$(JWT_SECRET="${JWT_SECRET}" python3 -c "
-import os, time, jwt
+import os, jwt
 secret = os.environ['JWT_SECRET']
 token = jwt.encode(
-    {'sub': 'hermes', 'aud': 'honcho', 'exp': int(time.time()) + 10 * 365 * 86400},
+    {'sub': 'hermes', 'w': 'hermes'},
     secret,
     algorithm='HS256',
 )
