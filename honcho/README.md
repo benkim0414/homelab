@@ -75,7 +75,7 @@ echo 'HONCHO_API_KEY=<token from hermes-jwt.txt>' >> ~/.hermes/.env
 # Backup existing honcho config if present
 cp ~/.hermes/honcho.json ~/.hermes/honcho.json.bak 2>/dev/null || true
 
-# Run the setup wizard (answers: workspace=hermes, peerId=ben, aiPeer=hermes)
+# Run the setup wizard (answers: workspace=hermes, peerId=benkim0414, aiPeer=hermes)
 hermes honcho setup
 
 # Confirm connection
