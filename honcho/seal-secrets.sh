@@ -44,7 +44,8 @@ kubectl create secret generic honcho-postgres-credentials \
   --from-literal=POSTGRES_DB=honcho \
   -o yaml \
 | kubeseal \
-    --controller-namespace sealed-secrets \
+    --controller-name sealed-secrets-controller \
+    --controller-namespace kube-system \
     --format yaml \
 > "${SCRIPT_DIR}/postgres-sealed-secret.yaml"
 
@@ -59,7 +60,8 @@ kubectl create secret generic honcho-secrets \
   --from-literal=LLM_GEMINI_API_KEY="${GEMINI_API_KEY}" \
   -o yaml \
 | kubeseal \
-    --controller-namespace sealed-secrets \
+    --controller-name sealed-secrets-controller \
+    --controller-namespace kube-system \
     --format yaml \
 > "${SCRIPT_DIR}/honcho-sealed-secret.yaml"
 
