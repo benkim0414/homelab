@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: honcho
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://github.com/benkim0414/homelab.git
+      targetRevision: HEAD
+      path: honcho
+      directory:
+        include: '{namespace.yaml,postgres-sealed-secret.yaml,honcho-sealed-secret.yaml,honcho-config.yaml,postgresql.yaml,redis.yaml,honcho-api-deployment.yaml,honcho-deriver-deployment.yaml,tailscale-ingress.yaml,pg-backup-pvc.yaml,pg-backup-cronjob.yaml}'
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: honcho
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

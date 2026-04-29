@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: honcho-deriver
+  namespace: honcho
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: honcho-deriver
+  template:
+    metadata:
+      labels:
+        app: honcho-deriver
+    spec:
+      containers:
+        - name: deriver
+          # same image as API — arm64 digest pinned from ghcr.io/plastic-labs/honcho:latest
+          image: ghcr.io/plastic-labs/honcho@sha256:f144f135d46a78123d14adbca61ba04cd2d3ee0b67596a2494a095fa5013068b
+          command: ["/app/.venv/bin/python", "-m", "src.deriver"]
+          envFrom:
+            - configMapRef:
+                name: honcho-config
+            - secretRef:
+                name: honcho-secrets
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: honcho-postgres-credentials
+                  key: POSTGRES_PASSWORD
+            - name: DB_CONNECTION_URI
+              value: "postgresql+psycopg://honcho:$(POSTGRES_PASSWORD)@honcho-postgres:5432/honcho"
+          resources:
+            requests:
+              cpu: 200m
+              memory: 384Mi
+            limits:
+              cpu: 1500m
+              memory: 768Mi

@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: honcho-redis
+  namespace: honcho
+spec:
+  serviceName: honcho-redis
+  replicas: 1
+  selector:
+    matchLabels:
+      app: honcho-redis
+  template:
+    metadata:
+      labels:
+        app: honcho-redis
+    spec:
+      containers:
+        - name: redis
+          # arm64 digest pinned from redis:8.2-alpine
+          image: redis:8.2-alpine@sha256:d2db5150a0c0e600ce8ce58e524a660bbcce1c24047cad7d6269172481a79ded
+          args:
+            - --appendonly
+            - "yes"
+            - --maxmemory
+            - 256mb
+            - --maxmemory-policy
+            - allkeys-lru
+          ports:
+            - containerPort: 6379
+              name: redis
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 384Mi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          readinessProbe:
+            tcpSocket:
+              port: redis
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: redis
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        storageClassName: longhorn
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: honcho-redis
+  namespace: honcho
+spec:
+  type: ClusterIP
+  selector:
+    app: honcho-redis
+  ports:
+    - port: 6379
+      targetPort: redis
+      protocol: TCP
