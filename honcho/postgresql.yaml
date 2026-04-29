@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: honcho-postgres
+  namespace: honcho
+spec:
+  serviceName: honcho-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: honcho-postgres
+  template:
+    metadata:
+      labels:
+        app: honcho-postgres
+    spec:
+      containers:
+        - name: postgres
+          # arm64 digest pinned from pgvector/pgvector:pg15
+          image: pgvector/pgvector:pg15@sha256:cbe9500d4e8d8202c1c151e2d0f19b5748002f604de0e41c106e28da1314c51f
+          envFrom:
+            - secretRef:
+                name: honcho-postgres-credentials
+          env:
+            - name: POSTGRES_INITDB_ARGS
+              value: "--data-checksums"
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          ports:
+            - containerPort: 5432
+              name: postgres
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 1500m
+              memory: 1536Mi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: dshm
+              mountPath: /dev/shm
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - honcho
+                - -d
+                - honcho
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - honcho
+                - -d
+                - honcho
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 128Mi
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        storageClassName: longhorn
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 20Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: honcho-postgres
+  namespace: honcho
+spec:
+  type: ClusterIP
+  selector:
+    app: honcho-postgres
+  ports:
+    - port: 5432
+      targetPort: postgres
+      protocol: TCP

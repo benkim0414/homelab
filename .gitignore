@@ -1,6 +1,9 @@
 sealed-secrets/sealed-secrets-master-keys.yaml
 immich-backup.dump
 
+# Honcho JWT (contains a long-lived bearer token — never commit)
+honcho/hermes-jwt.txt
+
 # Claude Code local settings (machine-specific overrides)
 .claude/settings.local.json
 

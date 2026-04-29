@@ -1,0 +1,64 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: honcho-pg-backup
+  namespace: honcho
+  labels:
+    app: honcho-pg-backup
+spec:
+  # 03:15 daily — offset from immich's 03:00 to avoid burst IO overlap
+  schedule: "15 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    metadata:
+      labels:
+        app: honcho-pg-backup
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: pg-backup
+              # same image as postgres StatefulSet — ensures pg_dump protocol match
+              image: pgvector/pgvector:pg15@sha256:cbe9500d4e8d8202c1c151e2d0f19b5748002f604de0e41c106e28da1314c51f
+              command:
+                - /bin/bash
+                - -c
+                - |
+                  set -euo pipefail
+                  TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+                  BACKUP_FILE="/backups/honcho-${TIMESTAMP}.dump"
+                  echo "Starting backup: ${BACKUP_FILE}"
+                  pg_dump -h honcho-postgres -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc -f "$BACKUP_FILE"
+                  echo "Backup complete: $(du -h "$BACKUP_FILE" | cut -f1)"
+
+                  # Retain only the last 7 backups
+                  echo "Cleaning up old backups..."
+                  ls -1t /backups/honcho-*.dump 2>/dev/null | tail -n +8 | xargs -r rm -v
+                  echo "Current backups:"
+                  ls -lh /backups/honcho-*.dump
+              envFrom:
+                - secretRef:
+                    name: honcho-postgres-credentials
+              env:
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: honcho-postgres-credentials
+                      key: POSTGRES_PASSWORD
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+              volumeMounts:
+                - name: backups
+                  mountPath: /backups
+          volumes:
+            - name: backups
+              persistentVolumeClaim:
+                claimName: honcho-backups

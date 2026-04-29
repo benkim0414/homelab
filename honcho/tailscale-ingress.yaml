@@ -1,0 +1,15 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: honcho-tailscale
+  namespace: honcho
+spec:
+  defaultBackend:
+    service:
+      name: honcho-api
+      port:
+        number: 8000
+  ingressClassName: tailscale
+  tls:
+    - hosts:
+        - honcho
