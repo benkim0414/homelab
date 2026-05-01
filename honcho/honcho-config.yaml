@@ -51,16 +51,16 @@ data:
   DIALECTIC_LEVELS__minimal__MODEL_CONFIG__MODEL: llama-3.3-70b-versatile
   DIALECTIC_LEVELS__minimal__MODEL_CONFIG__OVERRIDES__BASE_URL: https://api.groq.com/openai/v1
   DIALECTIC_LEVELS__minimal__TOOL_CHOICE: auto
-  # 'low' tier (the only one hermes uses) is on Groq llama-3.1-8b-instant:
+  # 'low' tier (the only one hermes uses) is on Groq llama-4-scout-17b-16e-instruct:
   # honcho's dialectic system prompt + tool schemas total ~12k input tokens,
-  # which exceeds Groq's free-tier 12k TPM cap on llama-3.3-70b-versatile.
-  # llama-3.1-8b-instant has a 30k TPM free-tier cap on the same Groq key,
-  # giving 2.5x headroom. Gemini 2.0 Flash was tried first but our
-  # LLM_GEMINI_API_KEY belongs to a billing-enabled GCP project, which makes
-  # free-tier quota zero (the key still works for text-embedding-004 because
-  # that uses a separate quota pool).
+  # which exceeds Groq's free-tier TPM caps on llama-3.3-70b (12k TPM, fails
+  # by ~19 tokens) and llama-3.1-8b (6k TPM, fails by half). llama-4-scout
+  # has a 30k TPM free-tier cap and supports tool calls. Gemini 2.0 Flash
+  # was tried first but our LLM_GEMINI_API_KEY belongs to a billing-enabled
+  # GCP project, which makes free-tier quota zero (the key still works for
+  # text-embedding-004 because that uses a separate quota pool).
   DIALECTIC_LEVELS__low__MODEL_CONFIG__TRANSPORT: openai
-  DIALECTIC_LEVELS__low__MODEL_CONFIG__MODEL: llama-3.1-8b-instant
+  DIALECTIC_LEVELS__low__MODEL_CONFIG__MODEL: meta-llama/llama-4-scout-17b-16e-instruct
   DIALECTIC_LEVELS__low__MODEL_CONFIG__OVERRIDES__BASE_URL: https://api.groq.com/openai/v1
   DIALECTIC_LEVELS__low__TOOL_CHOICE: auto
   DIALECTIC_LEVELS__medium__MODEL_CONFIG__TRANSPORT: openai
