@@ -1,7 +1,22 @@
 {
   "version": "1.0",
   "policy": {
-    "denyList": [
+    "denyList": [],
+    "elicitList": [
+      "aws iam delete-access-key",
+      "aws iam delete-group",
+      "aws iam delete-group-policy",
+      "aws iam delete-login-profile",
+      "aws iam delete-policy",
+      "aws iam delete-policy-version",
+      "aws iam delete-role",
+      "aws iam delete-role-policy",
+      "aws iam delete-user",
+      "aws iam delete-user-policy",
+      "aws iam detach-group-policy",
+      "aws iam detach-role-policy",
+      "aws iam detach-user-policy",
+      "aws iam remove-user-from-group",
       "aws s3 rm",
       "aws s3 mv",
       "aws s3 sync",
@@ -27,7 +42,6 @@
       "aws s3api put-bucket-policy",
       "aws s3api put-bucket-lifecycle-configuration",
       "aws s3api put-public-access-block"
-    ],
-    "elicitList": []
+    ]
   }
 }

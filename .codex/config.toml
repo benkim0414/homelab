@@ -39,7 +39,7 @@ disabled_tools = [
 ]
 
 [mcp_servers.aws_iam.env]
-AWS_PROFILE = "homelab"
+AWS_PROFILE = "default"
 AWS_REGION = "ap-southeast-2"
 FASTMCP_LOG_LEVEL = "ERROR"
 
@@ -48,7 +48,7 @@ command = "uvx"
 args = ["awslabs.aws-api-mcp-server@latest"]
 
 [mcp_servers.aws_s3.env]
-AWS_PROFILE = "homelab"
-AWS_API_MCP_PROFILE_NAME = "homelab"
+AWS_PROFILE = "default"
+AWS_API_MCP_PROFILE_NAME = "default"
 AWS_REGION = "ap-southeast-2"
 AWS_API_MCP_ALLOW_UNRESTRICTED_LOCAL_FILE_ACCESS = "workdir"
