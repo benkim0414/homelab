@@ -10,10 +10,8 @@ controller:
       effect: NoSchedule
 
 alloy:
-  # Alloy tails logs from every pod on its node, opening one API
-  # connection per pod.  On busy nodes this triggers client-side
-  # throttling and the default 1 s readiness timeout expires, causing
-  # the pod to stay NotReady indefinitely despite functioning normally.
+  # Startup can still block on discovery and log tail setup on busy nodes, so
+  # keep the readiness timeout above the chart default of 1 second.
   timeoutSeconds: 5
 
   resources:
@@ -31,9 +29,14 @@ alloy:
       // Discover all pods on the node
       discovery.kubernetes "pods" {
         role = "pod"
+
+        selectors {
+          role  = "pod"
+          field = "spec.nodeName=" + coalesce(sys.env("K8S_NODE_NAME"), constants.hostname)
+        }
       }
 
-      // Extract useful labels from discovered pods
+      // Extract useful labels and local log paths from discovered pods
       discovery.relabel "pods" {
         targets = discovery.kubernetes.pods.targets
 
@@ -53,6 +56,12 @@ alloy:
           source_labels = ["__meta_kubernetes_pod_node_name"]
           target_label  = "node"
         }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
+          target_label  = "__path__"
+          separator     = "/"
+          replacement   = "/var/log/pods/*$1/*.log"
+        }
         // Drop pods that are not running
         rule {
           source_labels = ["__meta_kubernetes_pod_phase"]
@@ -61,8 +70,8 @@ alloy:
         }
       }
 
-      // Tail log files from /var/log/pods
-      loki.source.kubernetes "pods" {
+      // Tail local pod log files from /var/log/pods
+      loki.source.file "pods" {
         targets    = discovery.relabel.pods.output
         forward_to = [loki.process.cri.receiver]
       }

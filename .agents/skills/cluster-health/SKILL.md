@@ -41,6 +41,9 @@ order, then produce a final report.
 ### 5. Active alerts
 
 - Call `mcp__grafana__list_alert_groups`.
+- If Grafana OnCall is unavailable or returns a settings/API error, call
+  `mcp__grafana__alerting_manage_rules` with `operation=list` and
+  `states=["firing"]` as the fallback.
 - List any alert group that has firing alerts. Include alert name, severity,
   and labels.
 
