@@ -1,0 +1,33 @@
+{
+  "version": "1.0",
+  "policy": {
+    "denyList": [
+      "aws s3 rm",
+      "aws s3 mv",
+      "aws s3 sync",
+      "aws s3 rb",
+      "aws s3api abort-multipart-upload",
+      "aws s3api delete-bucket",
+      "aws s3api delete-bucket-analytics-configuration",
+      "aws s3api delete-bucket-cors",
+      "aws s3api delete-bucket-encryption",
+      "aws s3api delete-bucket-intelligent-tiering-configuration",
+      "aws s3api delete-bucket-inventory-configuration",
+      "aws s3api delete-bucket-lifecycle",
+      "aws s3api delete-bucket-metrics-configuration",
+      "aws s3api delete-bucket-ownership-controls",
+      "aws s3api delete-bucket-policy",
+      "aws s3api delete-public-access-block",
+      "aws s3api delete-bucket-replication",
+      "aws s3api delete-bucket-tagging",
+      "aws s3api delete-bucket-website",
+      "aws s3api delete-object",
+      "aws s3api delete-object-tagging",
+      "aws s3api delete-objects",
+      "aws s3api put-bucket-policy",
+      "aws s3api put-bucket-lifecycle-configuration",
+      "aws s3api put-public-access-block"
+    ],
+    "elicitList": []
+  }
+}

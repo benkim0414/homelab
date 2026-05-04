@@ -123,10 +123,17 @@ For Codex, cluster integrations are defined in `.codex/config.toml`:
 - `kubernetes` for cluster resource access
 - `grafana` for metrics, logs, dashboards, and alerts
 - `argocd` for application state and operations
+- `aws_iam` for AWS IAM inspection and non-destructive administration
+- `aws_s3` for regular S3/S3API operations through AWS API MCP
 
 Environment variables and secrets bootstrap are defined in `.mise.toml`.
 `scripts/env-secrets.sh` resolves local secrets into `.env.local`. Run
 `mise run secrets` after first clone or after rotating credentials.
+
+AWS MCP uses the local `homelab` AWS profile instead of repo-managed secrets.
+Before using `aws_s3`, install the AWS API MCP security policy from
+`docs/mcp/aws-api-mcp-security-policy.json`; it blocks common destructive S3
+commands while leaving IAM permissions as the primary boundary.
 
 ## Worktree and Parallel Changes
 
