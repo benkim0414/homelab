@@ -130,10 +130,13 @@ Environment variables and secrets bootstrap are defined in `.mise.toml`.
 `scripts/env-secrets.sh` resolves local secrets into `.env.local`. Run
 `mise run secrets` after first clone or after rotating credentials.
 
-AWS MCP uses the local `homelab` AWS profile instead of repo-managed secrets.
+AWS MCP uses the local `default` AWS profile instead of repo-managed secrets.
 Before using `aws_s3`, install the AWS API MCP security policy from
-`docs/mcp/aws-api-mcp-security-policy.json`; it blocks common destructive S3
-commands while leaving IAM permissions as the primary boundary.
+`docs/mcp/aws-api-mcp-security-policy.json`; it asks for approval before common
+destructive AWS CLI commands while leaving IAM permissions as the primary
+boundary.
+For direct MCP tools that cannot prompt per operation, keep destructive tools
+disabled and use a command-based workflow when review-before-approval is needed.
 
 ## Worktree and Parallel Changes
 

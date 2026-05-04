@@ -14,7 +14,7 @@ Tables, not normal S3 buckets and objects.
 Both servers use the local AWS profile:
 
 ```bash
-AWS_PROFILE=homelab
+AWS_PROFILE=default
 AWS_REGION=ap-southeast-2
 ```
 
@@ -23,13 +23,14 @@ with the AWS CLI or your local credential provider.
 
 ## Destructive Operation Guard
 
-The Codex IAM MCP entry enables IAM writes with `--allow-write`, then disables
-destructive IAM tools in `.codex/config.toml` where Codex can disable individual
-MCP tools. The Claude-style `.mcp.json` IAM entry stays read-only because that
-config does not provide a per-tool deny mechanism.
+The Codex IAM MCP entry enables IAM writes with `--allow-write`, then keeps
+destructive IAM tools disabled in `.codex/config.toml` because Codex can disable
+individual MCP tools but does not provide a project-level per-tool prompt mode
+for direct MCP tools. Use AWS API MCP command paths when a destructive IAM
+operation needs review and approval before execution.
 
-AWS API MCP exposes a generic `call_aws` tool, so S3 destructive command
-blocking is handled by the AWS API MCP security policy.
+AWS API MCP exposes a generic `call_aws` tool, so destructive S3/S3API and IAM
+command approval is handled by the AWS API MCP security policy.
 
 Install the tracked policy locally:
 
@@ -38,10 +39,11 @@ mkdir -p ~/.aws/aws-api-mcp
 cp docs/mcp/aws-api-mcp-security-policy.json ~/.aws/aws-api-mcp/mcp-security-policy.json
 ```
 
-The policy blocks common destructive S3 and S3API commands while allowing
-non-destructive reads and non-delete writes. AWS API MCP policy matching is
-exact command-name matching, not wildcard or argument-aware matching, so AWS IAM
-permissions on the `homelab` profile remain the primary enforcement boundary.
+The policy puts common destructive S3, S3API, and IAM commands in `elicitList`,
+which allows the command only after an explicit approval prompt in clients that
+support MCP elicitation. AWS API MCP policy matching is exact command-name
+matching, not wildcard or argument-aware matching, so AWS IAM permissions on the
+`default` profile remain the primary enforcement boundary.
 
 ## Local File Access
 
