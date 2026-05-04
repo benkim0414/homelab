@@ -16,30 +16,32 @@ data:
   EMBED_MESSAGES: "true"
   EMBEDDING_VECTOR_DIMENSIONS: "768"
 
-  # ── Embeddings: Gemini text-embedding-004 ───────────────────────────────────
+  # ── Embeddings: Gemini embedding-2 ──────────────────────────────────────────
   # LLM_GEMINI_API_KEY is injected from honcho-secrets.
+  # Keep output at 768 dimensions to match the existing pgvector schema.
   EMBEDDING_MODEL_CONFIG__TRANSPORT: gemini
-  EMBEDDING_MODEL_CONFIG__MODEL: text-embedding-004
+  EMBEDDING_MODEL_CONFIG__MODEL: gemini-embedding-2
 
-  # ── Deriver: Groq llama-3.3-70b-versatile via openai transport ──────────────
+  # ── Deriver: Groq llama-4-scout via openai transport ────────────────────────
   # LLM_OPENAI_API_KEY is injected from honcho-secrets and holds the Groq key.
-  # DERIVER_MAX_INPUT_TOKENS is capped to stay under Groq's 6K TPM limit.
+  # Honcho sends json_schema response_format for structured deriver outputs;
+  # llama-4-scout is accepted by Groq for that path while llama-3.3-70b is not.
   DERIVER_ENABLED: "true"
   DERIVER_WORKERS: "1"
   DERIVER_MAX_INPUT_TOKENS: "4096"
   DERIVER_POLLING_SLEEP_INTERVAL_SECONDS: "1.0"
   DERIVER_MODEL_CONFIG__TRANSPORT: openai
-  DERIVER_MODEL_CONFIG__MODEL: llama-3.3-70b-versatile
+  DERIVER_MODEL_CONFIG__MODEL: meta-llama/llama-4-scout-17b-16e-instruct
   DERIVER_MODEL_CONFIG__OVERRIDES__BASE_URL: https://api.groq.com/openai/v1
 
   # ── Summary ─────────────────────────────────────────────────────────────────
   SUMMARY_MODEL_CONFIG__TRANSPORT: openai
-  SUMMARY_MODEL_CONFIG__MODEL: llama-3.3-70b-versatile
+  SUMMARY_MODEL_CONFIG__MODEL: meta-llama/llama-4-scout-17b-16e-instruct
   SUMMARY_MODEL_CONFIG__OVERRIDES__BASE_URL: https://api.groq.com/openai/v1
 
   # ── Dream deduction ─────────────────────────────────────────────────────────
   DREAM_DEDUCTION_MODEL_CONFIG__TRANSPORT: openai
-  DREAM_DEDUCTION_MODEL_CONFIG__MODEL: llama-3.3-70b-versatile
+  DREAM_DEDUCTION_MODEL_CONFIG__MODEL: meta-llama/llama-4-scout-17b-16e-instruct
   DREAM_DEDUCTION_MODEL_CONFIG__OVERRIDES__BASE_URL: https://api.groq.com/openai/v1
 
   # ── Dialectic levels (all five tiers point at Groq) ─────────────────────────
@@ -48,30 +50,24 @@ data:
   # changed this default but is unreleased; override here until we bump the
   # image past commit 94ade07.
   DIALECTIC_LEVELS__minimal__MODEL_CONFIG__TRANSPORT: openai
-  DIALECTIC_LEVELS__minimal__MODEL_CONFIG__MODEL: llama-3.3-70b-versatile
+  DIALECTIC_LEVELS__minimal__MODEL_CONFIG__MODEL: meta-llama/llama-4-scout-17b-16e-instruct
   DIALECTIC_LEVELS__minimal__MODEL_CONFIG__OVERRIDES__BASE_URL: https://api.groq.com/openai/v1
   DIALECTIC_LEVELS__minimal__TOOL_CHOICE: auto
-  # 'low' tier (the only one hermes uses) is on Groq llama-4-scout-17b-16e-instruct:
-  # honcho's dialectic system prompt + tool schemas total ~12k input tokens,
-  # which exceeds Groq's free-tier TPM caps on llama-3.3-70b (12k TPM, fails
-  # by ~19 tokens) and llama-3.1-8b (6k TPM, fails by half). llama-4-scout
-  # has a 30k TPM free-tier cap and supports tool calls. Gemini 2.0 Flash
-  # was tried first but our LLM_GEMINI_API_KEY belongs to a billing-enabled
-  # GCP project, which makes free-tier quota zero (the key still works for
-  # text-embedding-004 because that uses a separate quota pool).
+  # 'low' tier is the one Hermes uses; keep every tier on the same Groq model
+  # that supports tool calls and Honcho's structured output path.
   DIALECTIC_LEVELS__low__MODEL_CONFIG__TRANSPORT: openai
   DIALECTIC_LEVELS__low__MODEL_CONFIG__MODEL: meta-llama/llama-4-scout-17b-16e-instruct
   DIALECTIC_LEVELS__low__MODEL_CONFIG__OVERRIDES__BASE_URL: https://api.groq.com/openai/v1
   DIALECTIC_LEVELS__low__TOOL_CHOICE: auto
   DIALECTIC_LEVELS__medium__MODEL_CONFIG__TRANSPORT: openai
-  DIALECTIC_LEVELS__medium__MODEL_CONFIG__MODEL: llama-3.3-70b-versatile
+  DIALECTIC_LEVELS__medium__MODEL_CONFIG__MODEL: meta-llama/llama-4-scout-17b-16e-instruct
   DIALECTIC_LEVELS__medium__MODEL_CONFIG__OVERRIDES__BASE_URL: https://api.groq.com/openai/v1
   DIALECTIC_LEVELS__medium__TOOL_CHOICE: auto
   DIALECTIC_LEVELS__high__MODEL_CONFIG__TRANSPORT: openai
-  DIALECTIC_LEVELS__high__MODEL_CONFIG__MODEL: llama-3.3-70b-versatile
+  DIALECTIC_LEVELS__high__MODEL_CONFIG__MODEL: meta-llama/llama-4-scout-17b-16e-instruct
   DIALECTIC_LEVELS__high__MODEL_CONFIG__OVERRIDES__BASE_URL: https://api.groq.com/openai/v1
   DIALECTIC_LEVELS__high__TOOL_CHOICE: auto
   DIALECTIC_LEVELS__max__MODEL_CONFIG__TRANSPORT: openai
-  DIALECTIC_LEVELS__max__MODEL_CONFIG__MODEL: llama-3.3-70b-versatile
+  DIALECTIC_LEVELS__max__MODEL_CONFIG__MODEL: meta-llama/llama-4-scout-17b-16e-instruct
   DIALECTIC_LEVELS__max__MODEL_CONFIG__OVERRIDES__BASE_URL: https://api.groq.com/openai/v1
   DIALECTIC_LEVELS__max__TOOL_CHOICE: auto
