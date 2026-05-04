@@ -19,6 +19,25 @@
         "ARGOCD_BASE_URL": "http://192.168.0.202",
         "ARGOCD_API_TOKEN": "${ARGOCD_API_TOKEN}"
       }
+    },
+    "aws_iam": {
+      "command": "uvx",
+      "args": ["awslabs.iam-mcp-server@latest"],
+      "env": {
+        "AWS_PROFILE": "homelab",
+        "AWS_REGION": "ap-southeast-2",
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      }
+    },
+    "aws_s3": {
+      "command": "uvx",
+      "args": ["awslabs.aws-api-mcp-server@latest"],
+      "env": {
+        "AWS_PROFILE": "homelab",
+        "AWS_API_MCP_PROFILE_NAME": "homelab",
+        "AWS_REGION": "ap-southeast-2",
+        "AWS_API_MCP_ALLOW_UNRESTRICTED_LOCAL_FILE_ACCESS": "workdir"
+      }
     }
   }
 }

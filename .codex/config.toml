@@ -22,3 +22,33 @@ disabled_tools = ["delete_application"]
 
 [mcp_servers.argocd.env]
 ARGOCD_BASE_URL = "http://192.168.0.202"
+
+[mcp_servers.aws_iam]
+command = "uvx"
+args = ["awslabs.iam-mcp-server@latest", "--allow-write"]
+disabled_tools = [
+  "delete_user",
+  "delete_role",
+  "delete_group",
+  "remove_user_from_group",
+  "detach_group_policy",
+  "detach_user_policy",
+  "delete_access_key",
+  "delete_user_policy",
+  "delete_role_policy",
+]
+
+[mcp_servers.aws_iam.env]
+AWS_PROFILE = "homelab"
+AWS_REGION = "ap-southeast-2"
+FASTMCP_LOG_LEVEL = "ERROR"
+
+[mcp_servers.aws_s3]
+command = "uvx"
+args = ["awslabs.aws-api-mcp-server@latest"]
+
+[mcp_servers.aws_s3.env]
+AWS_PROFILE = "homelab"
+AWS_API_MCP_PROFILE_NAME = "homelab"
+AWS_REGION = "ap-southeast-2"
+AWS_API_MCP_ALLOW_UNRESTRICTED_LOCAL_FILE_ACCESS = "workdir"
