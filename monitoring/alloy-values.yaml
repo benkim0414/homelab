@@ -9,6 +9,13 @@ controller:
       operator: Exists
       effect: NoSchedule
 
+configReloader:
+  # Use numeric IDs so containerd does not need to resolve the image's named
+  # user from /etc/passwd before starting the sidecar.
+  securityContext:
+    runAsUser: 65534
+    runAsGroup: 65534
+
 alloy:
   # Startup can still block on discovery and log tail setup on busy nodes, so
   # keep the readiness timeout above the chart default of 1 second.
