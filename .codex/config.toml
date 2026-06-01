@@ -1,6 +1,9 @@
 [features]
 hooks = true
 
+[shell_environment_policy.set]
+CODEX_GIT_WORKFLOW = "no-pr"
+
 [mcp_servers.kubernetes]
 command = "npx"
 args = ["-y", "kubernetes-mcp-server@latest"]
