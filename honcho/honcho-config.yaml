@@ -14,11 +14,12 @@ data:
   # ── Vector store ────────────────────────────────────────────────────────────
   VECTOR_STORE_TYPE: pgvector
   EMBED_MESSAGES: "true"
-  EMBEDDING_VECTOR_DIMENSIONS: "768"
+  EMBEDDING_VECTOR_DIMENSIONS: "1536"
 
   # ── Embeddings: Gemini embedding-2 ──────────────────────────────────────────
   # LLM_GEMINI_API_KEY is injected from honcho-secrets.
-  # Keep output at 768 dimensions to match the existing pgvector schema.
+  # Keep output at 1536 dimensions while pgvector is active; the running image
+  # rejects alternate dimensions until the vector-store migration is complete.
   EMBEDDING_MODEL_CONFIG__TRANSPORT: gemini
   EMBEDDING_MODEL_CONFIG__MODEL: gemini-embedding-2
 
