@@ -179,5 +179,9 @@ rules if the same mistake is likely to recur.
 - Use `$cluster-health` for a structured operational health check and
   `$security-audit` for the security review workflow. These skills mirror the
   intent of the existing Claude command docs in `.claude/commands/`.
+- `docs/solutions/` contains documented solutions to past problems and
+  reusable guidance, organized by category with YAML frontmatter fields such as
+  `module`, `tags`, and `problem_type`; it is relevant when implementing or
+  debugging in documented areas.
 - Do not mirror `.claude/hooks` into Codex-specific files unless there is a
   concrete Codex runtime consumer for them.
