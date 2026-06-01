@@ -28,6 +28,10 @@ spec:
             runAsUser: 1000
             runAsGroup: 1000
             fsGroup: 1000
+            # Avoid recursively walking the live Forgejo data volume on every
+            # backup pod mount; kubelet has hit I/O errors while applying
+            # fsGroup to existing SSH data under this Longhorn volume.
+            fsGroupChangePolicy: OnRootMismatch
           containers:
             - name: dump
               image: codeberg.org/forgejo/forgejo:15.0.0
