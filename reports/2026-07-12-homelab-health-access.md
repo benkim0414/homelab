@@ -24,7 +24,14 @@ Local SSH permissions were verified: `~/.ssh` is `drwx------`,
 
 ## Cluster Health
 
-Pending.
+| Area | Result | Evidence |
+| --- | --- | --- |
+| Kubernetes nodes | pass | Four nodes are Ready: `rpi5-8gb-crucial-p3-plus-500gb` (`192.168.0.11`), `rpi5-8gb-crucial-bx500-500gb` (`192.168.0.12`), and `rpi5-8gb-samsung-980-500gb` (`192.168.0.13`) are `control-plane,etcd,master`; `rpi5-8gb-rpi-256gb` (`192.168.0.14`) is the unlabelled worker. All report Kubernetes `v1.31.12+k3s1`, Debian 12, and containerd `2.0.5-k3s2.32`. |
+| Node metrics | pass | `.12`: 406m CPU (10%), 5137Mi memory (70%); `.11`: 376m (9%), 4870Mi (60%); `.14`: 60m (1%), 1979Mi (27%); `.13`: 430m (10%), 5990Mi (74%). All nodes report 0Mi swap. |
+| Non-running pods | observe-only | Only Completed pods were returned: recent `honcho-pg-backup`, `immich-offsite-backup`, and `immich-pg-backup` backup jobs, plus `kube-system` `helm-install-traefik` and `helm-install-traefik-crd` jobs. No Failed, Pending, or Unknown pods were returned. |
+| Warning events | local tooling status | `kubectl get events --all-namespaces --field-selector type=Warning --sort-by=.lastTimestamp | tail -50` could not connect to `192.168.0.11:6443`: `socket: operation not permitted`. This is a Codex sandbox/local-tooling limitation, not a cluster failure, because Kubernetes MCP reads succeeded. |
+| ArgoCD apps | concern | All 18 Applications are Healthy. Synced: `alloy`, `apps`, `flannel-ipam-cleanup`, `forgejo`, `forgejo-runner`, `home-assistant`, `honcho`, `immich`, `kube-vip`, `loki`, `longhorn`, `metallb`, `traefik`, and `vaultwarden`. `argocd` is Healthy/OutOfSync; `kube-prometheus-stack`, `sealed-secrets`, and `tailscale` are Healthy/Unknown sync status. The OutOfSync and Unknown states need documented explanations before they can be treated as expected. |
+| Grafana alerts | concern | No firing alert rules were returned and active incidents are empty. Prometheus and Loki datasource health is OK; Alertmanager is unhealthy because its plugin is unavailable (HTTP 500). |
 
 ## Findings
 
