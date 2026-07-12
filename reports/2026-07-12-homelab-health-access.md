@@ -76,7 +76,7 @@ fix or an expected steady state.
 | Type | Target | Change | Verification |
 | --- | --- | --- | --- |
 | repo | `k3s-ansible/README.md` | Aligned `.11`/`.12`/`.13` as control plane/etcd and `.14` as worker/agent; removed stale `.14` control-plane taint guidance and corrected restart commands. | Review against live roles and `host_vars`; Markdown diff inspection. |
-| repo | `argocd/apps/infrastructure.yaml`, `sealed-secrets/values.yaml` | Replaced the retired Sealed Secrets Helm repository URL with `https://bitnami.github.io/sealed-secrets`. | YAML parse check and diff inspection. |
+| repo | `argocd/apps/infrastructure.yaml`, `sealed-secrets/values.yaml` | Replaced the retired Sealed Secrets Helm repository URL with `https://bitnami.github.io/sealed-secrets`; the source remains chart `sealed-secrets` at `targetRevision: '*'`. | YAML parse check and diff inspection passed. Helm repository/chart rendering is `NEEDS_CONTEXT`: this environment has no `helm` executable. Run `helm repo add sealed-secrets https://bitnami.github.io/sealed-secrets`, `helm repo update sealed-secrets`, `helm search repo sealed-secrets/sealed-secrets --versions | head`, then `helm template sealed-secrets sealed-secrets/sealed-secrets -n kube-system -f sealed-secrets/values.yaml --version <resolved version> >/tmp/sealed-secrets-render.yaml`. |
 | none | `argocd`, `kube-prometheus-stack`, `tailscale` | No repo fix applied for timeout/deadline findings because repository state alone does not identify a safe declarative change. | Nearby application and values configuration inspected. |
 | none | Grafana Alertmanager datasource | No repo fix applied because no repository provisioning entry identifies an intended plugin or incorrect datasource type. | Monitoring values inspected. |
 
@@ -91,7 +91,9 @@ fix or an expected steady state.
 - The unavailable Alertmanager Grafana datasource plugin remains follow-up;
   confirm the live datasource owner and intended plugin before a GitOps change.
 - The Sealed Secrets chart repository was fixed in Git, but live ArgoCD
-  reconciliation still needs to pick it up after merge/sync.
+  reconciliation still needs to pick it up after merge/sync. Local Helm
+  validation also needs a context with the Helm CLI and network access; the
+  exact required command sequence is recorded in Fixes Applied.
 
 ## Final Verification
 
@@ -110,3 +112,7 @@ fix or an expected steady state.
 - Recent commits include the Sealed Secrets fix, k3s role documentation fix,
   health classification and evidence, SSH baseline clarification, report,
   plan, and design artifacts.
+- Sealed Secrets Helm validation is `NEEDS_CONTEXT`: `helm` is not installed
+  in this environment, so the official repository/chart render command could
+  not be run locally. The exact required command sequence is recorded in
+  Fixes Applied; no cluster or ArgoCD mutation was performed.

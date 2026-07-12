@@ -1,6 +1,6 @@
 # Homelab Health Access Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Produce a GitOps-first health/access investigation, fix durable repo issues when found, and reserve live node changes for explicit approval.
 
@@ -473,13 +473,15 @@ no output
 For manifest or values fixes, also run a relevant YAML check if available:
 
 ```bash
-python - <<'PY'
-import pathlib, sys, yaml
+python - path/to/changed.yaml <<'PY'
+import sys
+import yaml
+
 for path in sys.argv[1:]:
     with open(path) as f:
-        yaml.safe_load(f)
+        list(yaml.safe_load_all(f))
     print(f"ok {path}")
-PY path/to/changed.yaml
+PY
 ```
 
 Expected:
@@ -552,7 +554,7 @@ Run local checks:
 ```bash
 ssh -F ~/.ssh/config -G github.com >/tmp/homelab-final-ssh-explicit.out
 git status --short
-git log --oneline -5
+git log --oneline -10
 ```
 
 Expected:
@@ -561,6 +563,7 @@ Expected:
 explicit SSH config parses
 cluster nodes remain Ready unless an active finding explains otherwise
 git status is clean after final commit
+the last 10 commits include the plan, investigation evidence, and durable fixes
 recent commits show design, plan, report, and any fixes
 ```
 
