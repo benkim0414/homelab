@@ -554,7 +554,7 @@ Run local checks:
 ```bash
 ssh -F ~/.ssh/config -G github.com >/tmp/homelab-final-ssh-explicit.out
 git status --short
-git log --oneline -10
+git log --oneline "$(git merge-base main HEAD)"..HEAD
 ```
 
 Expected:
@@ -563,8 +563,7 @@ Expected:
 explicit SSH config parses
 cluster nodes remain Ready unless an active finding explains otherwise
 git status is clean after final commit
-the last 10 commits include the plan, investigation evidence, and durable fixes
-recent commits show design, plan, report, and any fixes
+branch commits show design, plan, report, and any fixes
 ```
 
 - [ ] **Step 2: Fill remaining risks**
