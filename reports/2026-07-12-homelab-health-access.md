@@ -57,10 +57,19 @@ fix or an expected steady state.
 
 ## Findings
 
-The intended explicit SSH route is functional for every inventory node. Plain
-global SSH configuration parsing is blocked by system config ownership or
-permissions visible to Codex, but does not affect the explicit configuration
-route used for the node probes.
+| Severity | Component | Finding | Classification | Evidence | Next Action |
+| --- | --- | --- | --- | --- | --- |
+| info | access | Explicit SSH config works for every inventory host. | observe-only | `ssh -F ~/.ssh/config -G github.com` exited 0 and all four explicit-config hostname probes succeeded. | Continue using the explicit SSH configuration for Codex probes; no remote or repository change is needed. |
+| info | access | Plain global SSH parsing fails only inside Codex because it cannot accept the owner or mode of `/etc/ssh/ssh_config.d/20-systemd-ssh-proxy.conf`. | observe-only | `ssh -G github.com` exited 255, while the explicit config route works. This is a namespace ownership difference between the Codex environment and the system SSH configuration, not node access failure. | Keep this as a local diagnostic. Investigate the host-owned system configuration separately only if plain global SSH is required. |
+| info | cluster | Live roles for `.11`, `.12`, and `.13` are control-plane/etcd; `.14` is the worker, matching `host_vars`. | observe-only | All four nodes are Ready and their live Kubernetes roles match the `extra_server_args`/`extra_agent_args` assignments. | No inventory or node recovery action is needed. |
+| low | k3s-ansible documentation | `k3s-ansible/README.md` still lists `.12` as worker and `.14` as control plane, and its restart guidance follows the old roles. | repo fix | The README node table and related taint/restart text contradict live state and `host_vars/192.168.0.12.yml` and `host_vars/192.168.0.14.yml`. | Owner: `k3s-ansible`. In Task 4, update the role table and role-specific operational guidance to match the durable inventory. |
+| info | workload health | Non-running pods are expected Completed backup CronJobs and Helm install jobs. | observe-only | No Failed, Pending, or Unknown pods were returned. | No action is needed. |
+| medium | ArgoCD | `argocd` is Healthy/OutOfSync while automated sync retries after API discovery timeouts during PreSync hook cleanup. | repo fix | The `argocd-redis-secret-init` hook cleanup encountered `context deadline exceeded` against `https://10.43.0.1:443`; live-only drift is not proven. | Owner: `argocd` Application and chart values. In Task 4, inspect the hook cleanup and sync configuration, then make a declarative resiliency fix if the condition persists. |
+| medium | ArgoCD monitoring | `kube-prometheus-stack` is Healthy/Unknown because source-1 manifest generation hit `DeadlineExceeded`. | repo fix | ArgoCD reports a `ComparisonError`, Unknown resources, and pending pruning; live-only drift is not proven. | Owner: `monitoring` and `argocd/apps/monitoring.yaml`. In Task 4, inspect the chart source/render path and make the required declarative fix. |
+| medium | ArgoCD infrastructure | `sealed-secrets` is Healthy/Unknown because its Helm repository index returns `404 Not Found`. | repo fix | Source 1 is `https://bitnami-labs.github.io/sealed-secrets` in `argocd/apps/infrastructure.yaml`, matching the failing repository endpoint. | Owner: `argocd/apps/infrastructure.yaml` and `sealed-secrets`. In Task 4, verify the supported chart repository and update the declarative source. |
+| medium | ArgoCD infrastructure | `tailscale` is Healthy/Unknown because source-1 manifest generation hit `DeadlineExceeded`. | repo fix | ArgoCD reports `ComparisonError` and `context deadline exceeded`; live-only drift is not proven. | Owner: `argocd/apps/infrastructure.yaml` and `tailscale`. In Task 4, inspect the chart source/render path and make the required declarative fix. |
+| low | Grafana monitoring | Alertmanager datasource is unhealthy because its plugin is unavailable and returns HTTP 500. | repo fix | Prometheus and Loki datasources are OK, there are no firing alerts or active incidents, and only the Alertmanager datasource is unhealthy. | Owner: `monitoring`. In Task 4, inspect Grafana datasource provisioning and chart values to install, configure, or remove the unavailable plugin declaratively. |
+| info | SSH fallback | No node-local symptom requires SSH fallback. | observe-only | All four nodes are Ready, node metrics are adequate for this pass, workloads have no failed symptoms, and no pressure condition or k3s service suspicion was observed. | Do not run SSH fallback probes. If a node becomes NotReady, pressure appears, metrics go missing, or a k3s service is suspected, request approval for targeted read-only `systemctl`, `journal`, `df`, and `free` probes. |
 
 ## Fixes Applied
 
@@ -73,5 +82,7 @@ The plain global SSH configuration remains unusable in this Codex environment.
 Use `ssh -F ~/.ssh/config` for subsequent Codex SSH probes unless the local
 system configuration ownership issue is separately investigated.
 
-Task 3 should decide whether the ArgoCD API-discovery, manifest-generation,
-repository-index, and pruning conditions need remediation or are transient.
+No manual recovery is selected from the current evidence. Any future live
+recovery, such as a sync retry or a Job rerun, requires separate approval after
+an identifying read-only probe establishes that declarative remediation is not
+the appropriate owner action.
