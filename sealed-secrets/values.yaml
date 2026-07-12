@@ -1,6 +1,6 @@
 # Sealed Secrets Helm chart values
 # Chart: sealed-secrets/sealed-secrets
-# Repo: https://bitnami-labs.github.io/sealed-secrets
+# Repo: https://bitnami.github.io/sealed-secrets
 
 fullnameOverride: sealed-secrets-controller
 
