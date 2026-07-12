@@ -30,8 +30,30 @@ Local SSH permissions were verified: `~/.ssh` is `drwx------`,
 | Node metrics | pass | `.12`: 406m CPU (10%), 5137Mi memory (70%); `.11`: 376m (9%), 4870Mi (60%); `.14`: 60m (1%), 1979Mi (27%); `.13`: 430m (10%), 5990Mi (74%). All nodes report 0Mi swap. |
 | Non-running pods | observe-only | Only Completed pods were returned: recent `honcho-pg-backup`, `immich-offsite-backup`, and `immich-pg-backup` backup jobs, plus `kube-system` `helm-install-traefik` and `helm-install-traefik-crd` jobs. No Failed, Pending, or Unknown pods were returned. |
 | Warning events | local tooling status | `kubectl get events --all-namespaces --field-selector type=Warning --sort-by=.lastTimestamp | tail -50` could not connect to `192.168.0.11:6443`: `socket: operation not permitted`. This is a Codex sandbox/local-tooling limitation, not a cluster failure, because Kubernetes MCP reads succeeded. |
-| ArgoCD apps | concern | All 18 Applications are Healthy. Synced: `alloy`, `apps`, `flannel-ipam-cleanup`, `forgejo`, `forgejo-runner`, `home-assistant`, `honcho`, `immich`, `kube-vip`, `loki`, `longhorn`, `metallb`, `traefik`, and `vaultwarden`. `argocd` is Healthy/OutOfSync; `kube-prometheus-stack`, `sealed-secrets`, and `tailscale` are Healthy/Unknown sync status. The OutOfSync and Unknown states need documented explanations before they can be treated as expected. |
+| ArgoCD apps | concern | All 18 Applications are Healthy. Synced: `alloy`, `apps`, `flannel-ipam-cleanup`, `forgejo`, `forgejo-runner`, `home-assistant`, `honcho`, `immich`, `kube-vip`, `loki`, `longhorn`, `metallb`, `traefik`, and `vaultwarden`. `argocd` is Healthy/OutOfSync; `kube-prometheus-stack`, `sealed-secrets`, and `tailscale` are Healthy/Unknown. Condition details below are findings for Task 3 to assess. |
 | Grafana alerts | concern | No firing alert rules were returned and active incidents are empty. Prometheus and Loki datasource health is OK; Alertmanager is unhealthy because its plugin is unavailable (HTTP 500). |
+
+## ArgoCD Condition Evidence
+
+These conditions are findings for Task 3 to assess; they do not establish a
+fix or an expected steady state.
+
+- `argocd` is Healthy/OutOfSync. Its automated sync operation is Running on
+  retry attempt #3. PreSync hook resources for `argocd-redis-secret-init`
+  failed while deleting or getting API resources because Kubernetes API
+  discovery timed out with context deadline exceeded against
+  `https://10.43.0.1:443`.
+- `kube-prometheus-stack` is Healthy/Unknown with `ComparisonError`: manifest
+  generation for source 1 of 3 failed with `DeadlineExceeded` while waiting
+  for connections to become ready. Many monitoring resources require pruning
+  and report Unknown.
+- `sealed-secrets` is Healthy/Unknown with `ComparisonError`: manifest
+  generation for source 1 of 2 failed because the repository index fetch
+  returned `404 Not Found` from
+  `https://bitnami-labs.github.io/sealed-secrets`.
+- `tailscale` is Healthy/Unknown with `ComparisonError`: manifest generation
+  for source 1 of 2 failed with `DeadlineExceeded` and context deadline
+  exceeded.
 
 ## Findings
 
@@ -50,3 +72,6 @@ were modified.
 The plain global SSH configuration remains unusable in this Codex environment.
 Use `ssh -F ~/.ssh/config` for subsequent Codex SSH probes unless the local
 system configuration ownership issue is separately investigated.
+
+Task 3 should decide whether the ArgoCD API-discovery, manifest-generation,
+repository-index, and pruning conditions need remediation or are transient.
