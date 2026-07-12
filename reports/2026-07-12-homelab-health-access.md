@@ -82,11 +82,31 @@ fix or an expected steady state.
 
 ## Remaining Risks
 
-The plain global SSH configuration remains unusable in this Codex environment.
-Use `ssh -F ~/.ssh/config` for subsequent Codex SSH probes unless the local
-system configuration ownership issue is separately investigated.
+- Codex plain global SSH parsing still fails without explicit configuration
+  because `/etc/ssh/ssh_config.d/20-systemd-ssh-proxy.conf` has unacceptable
+  ownership or permissions in this environment; use `ssh -F ~/.ssh/config`.
+- ArgoCD timeout/deadline conditions for `argocd`, `kube-prometheus-stack`, and
+  `tailscale` were documented but not speculatively fixed because current
+  repository evidence did not identify a safe declarative remediation.
+- The unavailable Alertmanager Grafana datasource plugin remains follow-up;
+  confirm the live datasource owner and intended plugin before a GitOps change.
+- The Sealed Secrets chart repository was fixed in Git, but live ArgoCD
+  reconciliation still needs to pick it up after merge/sync.
 
-No manual recovery is selected from the current evidence. Any future live
-recovery, such as a sync retry or a Job rerun, requires separate approval after
-an identifying read-only probe establishes that declarative remediation is not
-the appropriate owner action.
+## Final Verification
+
+- `ssh -F ~/.ssh/config -G github.com >/tmp/homelab-final-ssh-explicit.out`
+  exited 0; its only pre-command message was the expected non-interactive
+  pseudo-terminal notice.
+- Kubernetes MCP reports four Ready nodes: `.11`, `.12`, and `.13` are
+  `control-plane,etcd,master`; `.14` is the unlabelled worker. All run
+  `v1.31.12+k3s1`.
+- Final node metrics were `.12` 441m CPU/11%, 5202Mi/71%; `.11` 324m/8%,
+  4934Mi/61%; `.14` 62m/1%, 1981Mi/27%; and `.13` 372m/9%, 6082Mi/75%; all
+  report 0Mi swap.
+- Non-running pods are only Completed Honcho/Immich backup jobs and
+  `kube-system` Traefik install jobs; no Failed, Pending, or Unknown pods were
+  returned.
+- Recent commits include the Sealed Secrets fix, k3s role documentation fix,
+  health classification and evidence, SSH baseline clarification, report,
+  plan, and design artifacts.
