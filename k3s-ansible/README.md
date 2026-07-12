@@ -12,14 +12,14 @@ Inventory and scripts for deploying a high-availability K3s cluster on Raspberry
      ┌──────────────────────────┼──────────────────────────┐
      ▼                          ▼                          ▼
 ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
-│ rpi5-8gb-crucial │  │ rpi5-8gb-samsung │  │  rpi5-8gb-rpi    │  Control Plane
-│ -p3-plus-500gb   │  │ -980-500gb       │  │  -256gb          │  (etcd + server)
-│    .0.11         │  │    .0.13         │  │    .0.14         │
+│ rpi5-8gb-crucial │  │ rpi5-8gb-crucial │  │ rpi5-8gb-samsung │  Control Plane
+│ -p3-plus-500gb   │  │ -bx500-500gb     │  │ -980-500gb       │  (etcd + server)
+│    .0.11         │  │    .0.12         │  │    .0.13         │
 └──────────────────┘  └──────────────────┘  └──────────────────┘
                       ┌──────────────────┐
-                      │ rpi5-8gb-crucial │  Worker
-                      │ -bx500-500gb     │
-                      │    .0.12         │
+                      │  rpi5-8gb-rpi    │  Worker
+                      │    -256gb        │
+                      │    .0.14         │
                       └──────────────────┘
 
    MetalLB Pool: 192.168.0.200 - 192.168.0.250 (L2 mode)
@@ -28,12 +28,12 @@ Inventory and scripts for deploying a high-availability K3s cluster on Raspberry
 
 ### Nodes
 
-| Hostname                       | IP           | Role          | Storage       |
-| ------------------------------ | ------------ | ------------- | ------------- |
-| rpi5-8gb-crucial-p3-plus-500gb | 192.168.0.11 | Control plane | NVMe (fast)   |
-| rpi5-8gb-crucial-bx500-500gb   | 192.168.0.12 | Worker        | SATA          |
-| rpi5-8gb-samsung-980-500gb     | 192.168.0.13 | Control plane | NVMe (fast)   |
-| rpi5-8gb-rpi-256gb             | 192.168.0.14 | Control plane | NVMe (medium) |
+| Hostname                       | IP           | Role                 | Storage       |
+| ------------------------------ | ------------ | -------------------- | ------------- |
+| rpi5-8gb-crucial-p3-plus-500gb | 192.168.0.11 | Control plane / etcd | NVMe (fast)   |
+| rpi5-8gb-crucial-bx500-500gb   | 192.168.0.12 | Control plane / etcd | SATA          |
+| rpi5-8gb-samsung-980-500gb     | 192.168.0.13 | Control plane / etcd | NVMe (fast)   |
+| rpi5-8gb-rpi-256gb             | 192.168.0.14 | Worker / agent       | NVMe (medium) |
 
 ### Networking
 
@@ -162,7 +162,7 @@ kubectl apply -f ~/workspace/homelab/traefik/helmchartconfig.yaml
 kubectl -n kube-system rollout status deployment traefik --timeout=120s
 ```
 
-### 8. Label nodes and apply .14 taint
+### 8. Label nodes
 
 ```bash
 kubectl label node rpi5-8gb-crucial-p3-plus-500gb storage-tier=nvme-fast
@@ -171,22 +171,6 @@ kubectl label node rpi5-8gb-rpi-256gb storage-tier=nvme-medium
 kubectl label node rpi5-8gb-crucial-bx500-500gb storage-tier=sata
 ```
 
-Node `.14` (`rpi5-8gb-rpi-256gb`) has a `NoSchedule` taint to prevent Deployments
-and StatefulSets from scheduling there. It is managed via `host_vars/192.168.0.14.yml`
-(persisted through k3s-ansible re-runs), but must also be applied manually after a fresh
-cluster deploy before ArgoCD syncs workloads:
-
-```bash
-kubectl taint node rpi5-8gb-rpi-256gb node-role.kubernetes.io/control-plane:NoSchedule
-kubectl drain rpi5-8gb-rpi-256gb --ignore-daemonsets --delete-emptydir-data
-```
-
-**Why:** `.14` is the smallest node (256 GB NVMe, "nvme-medium"). Running etcd I/O and
-workload containerization I/O on the same drive caused repeated kubelet crashes, which
-led to force-deleted pods, stale Flannel IPAM leases, and full IPAM exhaustion. DaemonSets
-with `tolerations: [{operator: Exists}]` still run on `.14` (kube-vip, MetalLB,
-Alloy, node-exporter, Longhorn manager/driver, flannel-ipam-cleanup).
-
 The kubelet eviction thresholds in `inventory.yml` (`eviction-hard`, `eviction-soft`,
 `kube-reserved`) are written to `/etc/rancher/k3s/config.yaml` on each server node by
 the k3s-ansible playbook, but do **not** take effect until k3s is restarted. After
@@ -194,15 +178,15 @@ running the playbook, restart k3s one node at a time to preserve etcd quorum:
 
 ```bash
 ssh pi@192.168.0.11 sudo systemctl restart k3s
+ssh pi@192.168.0.12 sudo systemctl restart k3s
 ssh pi@192.168.0.13 sudo systemctl restart k3s
-ssh pi@192.168.0.14 sudo systemctl restart k3s
 ```
 
-The same thresholds are applied to the worker node (`.12`) via `agent_config_yaml`.
+The same thresholds are applied to the worker node (`.14`) via `agent_config_yaml`.
 After running the playbook, restart the agent to pick up the new config:
 
 ```bash
-ssh pi@192.168.0.12 sudo systemctl restart k3s-agent
+ssh pi@192.168.0.14 sudo systemctl restart k3s-agent
 ```
 
 ### 9. Verify
