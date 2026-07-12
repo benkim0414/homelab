@@ -4,13 +4,15 @@
 
 **Goal:** Produce a GitOps-first health/access investigation, fix durable repo issues when found, and reserve live node changes for explicit approval.
 
-**Architecture:** Validate local SSH access first, inspect cluster state through configured read-only integrations second, and use direct SSH only as a targeted fallback. Findings are classified into repository fixes, manual recovery, or observe-only conditions before any mutation.
+**Architecture:** Validate local SSH access first, including read-only hostname probes for the access baseline; inspect cluster state through configured read-only integrations second; and use other direct SSH only as a targeted fallback. Findings are classified into repository fixes, manual recovery, or observe-only conditions before any mutation.
 
 **Tech Stack:** Bash, OpenSSH, Kubernetes MCP tools, optional ArgoCD/Grafana MCP tools, existing `k3s-ansible` inventory and scripts, Markdown reports.
 
 ## Global Constraints
 
-- Direct SSH is used only when read-only cluster evidence points to a node-local problem.
+- Read-only SSH hostname probes are permitted for access-baseline verification.
+- Other direct SSH inspection is used only when read-only cluster evidence points to a node-local problem.
+- State-changing SSH actions require supporting cluster evidence and explicit approval.
 - Completed backup and Helm job pods are not treated as active failures.
 - Durable fixes are made in this repository where possible.
 - Any live mutation is explicitly approved, targeted, and documented.
@@ -109,7 +111,11 @@ plain global ssh parse may fail inside Codex if system ownership is namespace-ma
 
 If `ssh -G github.com` fails but `ssh -F ~/.ssh/config -G github.com` succeeds, classify it as local Codex/global-config diagnostic, not a Pi node failure.
 
-- [ ] **Step 4: Verify SSH hostnames with explicit config**
+- [ ] **Step 4: Verify access-baseline SSH hostnames with explicit config**
+
+Read-only hostname probes are permitted for access-baseline verification even
+when the cluster is healthy. Do not run any state-changing SSH command without
+supporting cluster evidence and explicit approval.
 
 Run after network approval:
 
@@ -141,9 +147,10 @@ Date: 2026-07-12
 
 ## Scope
 
-GitOps-first cluster health and local access investigation. Direct SSH is used
-only for targeted read-only node probes unless a separate live-change approval
-is granted.
+GitOps-first cluster health and local access investigation. Read-only SSH
+hostname probes verify the access baseline; other direct SSH is limited to
+targeted read-only node probes unless supporting evidence and a separate
+live-change approval are granted.
 
 ## Access Baseline
 

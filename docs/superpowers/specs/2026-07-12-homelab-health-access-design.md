@@ -3,8 +3,10 @@
 ## Purpose
 
 Investigate and fix homelab cluster issues using a GitOps-first workflow. The
-scope includes cluster health and local access reliability, with direct SSH used
-only when read-only cluster evidence points to a node-local problem.
+scope includes cluster health and local access reliability. Read-only SSH
+hostname probes are permitted to verify the access baseline; other direct SSH
+inspection is used only when read-only cluster evidence points to a node-local
+problem. State-changing SSH actions require that evidence and separate approval.
 
 ## Success Criteria
 
@@ -32,9 +34,12 @@ Kubernetes first, then ArgoCD and Grafana when available. This layer identifies
 node readiness, resource pressure, pod failures, app health, sync status, and
 alerts without changing live state.
 
-Layer 3 is node-local SSH inspection. It is used only after Layer 2 gives a
-specific reason to inspect a host, such as NotReady status, pressure, missing
-metrics, failed system pods, disk pressure, or a suspected service failure.
+Layer 3 is node-local SSH inspection. Read-only hostname probes are part of
+Layer 1 access-baseline verification. Other node-local inspection is used only
+after Layer 2 gives a specific reason to inspect a host, such as NotReady
+status, pressure, missing metrics, failed system pods, disk pressure, or a
+suspected service failure. State-changing SSH actions require that evidence and
+separate approval.
 
 ## Components
 
@@ -70,9 +75,11 @@ condition.
 ### SSH Fallback Probe
 
 The SSH fallback probe runs targeted node commands only when evidence supports
-it. Initial probes are read-only, such as `hostname`, service status, disk and
-memory pressure, k3s or k3s-agent status, and recent journal lines. Sudo changes,
-restarts, package operations, and file edits require a separate approval.
+it. It is separate from the access-baseline hostname probes, which are always
+read-only. Initial fallback probes are read-only, such as service status, disk
+and memory pressure, k3s or k3s-agent status, and recent journal lines. Sudo
+changes, restarts, package operations, and file edits require both the
+supporting evidence and a separate approval.
 
 ## Data Flow
 
