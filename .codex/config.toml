@@ -10,8 +10,8 @@ args = ["-y", "kubernetes-mcp-server@latest"]
 disabled_tools = ["pods_delete", "resources_delete"]
 
 [mcp_servers.grafana]
-command = "uvx"
-args = ["mcp-grafana"]
+command = "mise"
+args = ["exec", "--", "uvx", "mcp-grafana"]
 env_vars = ["GRAFANA_SERVICE_ACCOUNT_TOKEN"]
 
 [mcp_servers.grafana.env]
@@ -27,8 +27,8 @@ disabled_tools = ["delete_application"]
 ARGOCD_BASE_URL = "http://192.168.0.202"
 
 [mcp_servers.aws_iam]
-command = "uvx"
-args = ["awslabs.iam-mcp-server@latest", "--allow-write"]
+command = "mise"
+args = ["exec", "--", "uvx", "awslabs.iam-mcp-server@latest", "--allow-write"]
 disabled_tools = [
   "delete_user",
   "delete_role",
@@ -47,8 +47,8 @@ AWS_REGION = "ap-southeast-2"
 FASTMCP_LOG_LEVEL = "ERROR"
 
 [mcp_servers.aws_s3]
-command = "uvx"
-args = ["awslabs.aws-api-mcp-server@latest"]
+command = "mise"
+args = ["exec", "--", "uvx", "awslabs.aws-api-mcp-server@latest"]
 
 [mcp_servers.aws_s3.env]
 AWS_PROFILE = "default"

@@ -21,6 +21,22 @@ AWS_REGION=ap-southeast-2
 Keep AWS credentials outside this repository. Configure or refresh the profile
 with the AWS CLI or your local credential provider.
 
+## Local Bootstrap
+
+The Codex MCP config starts AWS Labs MCP servers through `mise exec -- uvx`
+so server startup uses the repo-declared `uv` tool instead of depending on a
+pre-existing `uvx` executable on `PATH`.
+Install the repo-declared local tools before starting a Codex session:
+
+```bash
+mise install
+mise run secrets
+```
+
+`mise install` provides `uv`, `kubectl`, and the AWS CLI for local diagnostics.
+`mise run secrets` refreshes `.env.local` with the Grafana and ArgoCD tokens
+loaded by `.mise.toml`.
+
 ## Destructive Operation Guard
 
 The Codex IAM MCP entry enables IAM writes with `--allow-write`, then keeps

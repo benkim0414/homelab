@@ -10,5 +10,8 @@ honcho/hermes-jwt.txt
 # Session memory buffer (local-only, not for version control)
 .remember/
 
+# Local linked worktrees
+.worktrees/
+
 # mise local overrides (machine-specific)
 .mise.local.toml

@@ -1,3 +1,8 @@
+[tools]
+aws-cli = "latest"
+kubectl = "latest"
+uv = "latest"
+
 [env]
 GRAFANA_URL = "http://192.168.0.203"
 ARGOCD_BASE_URL = "http://192.168.0.202"
