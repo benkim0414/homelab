@@ -5,7 +5,7 @@ k3s_cluster:
       hosts:
         192.168.0.11:    # rpi5-8gb-crucial-p3-plus-500gb (bootstrap leader)
         192.168.0.12:    # rpi5-8gb-crucial-bx500-500gb
-        192.168.0.13:    # rpi5-8gb-samsung-980-500gb
+        192.168.0.13:    # rpi5-8gb-rpi-512gb
     agent:
       hosts:
         192.168.0.14:    # rpi5-8gb-rpi-256gb (agent — no etcd)

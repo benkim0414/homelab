@@ -1,5 +1,5 @@
 ---
-# Per-node overrides for rpi5-8gb-samsung-980-500gb (.13)
+# Per-node overrides for rpi5-8gb-rpi-512gb (.13)
 #
 # Label as a Longhorn storage node (NVMe SSD). Required when
 # createDefaultDiskLabeledNodes is enabled — without this label k3s would

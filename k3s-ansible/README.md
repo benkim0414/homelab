@@ -12,8 +12,8 @@ Inventory and scripts for deploying a high-availability K3s cluster on Raspberry
      ┌──────────────────────────┼──────────────────────────┐
      ▼                          ▼                          ▼
 ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
-│ rpi5-8gb-crucial │  │ rpi5-8gb-crucial │  │ rpi5-8gb-samsung │  Control Plane
-│ -p3-plus-500gb   │  │ -bx500-500gb     │  │ -980-500gb       │  (etcd + server)
+│ rpi5-8gb-crucial │  │ rpi5-8gb-crucial │  │   rpi5-8gb-rpi   │  Control Plane
+│ -p3-plus-500gb   │  │ -bx500-500gb     │  │    -512gb        │  (etcd + server)
 │    .0.11         │  │    .0.12         │  │    .0.13         │
 └──────────────────┘  └──────────────────┘  └──────────────────┘
                       ┌──────────────────┐
@@ -32,7 +32,7 @@ Inventory and scripts for deploying a high-availability K3s cluster on Raspberry
 | ------------------------------ | ------------ | -------------------- | ------------- |
 | rpi5-8gb-crucial-p3-plus-500gb | 192.168.0.11 | Control plane / etcd | NVMe (fast)   |
 | rpi5-8gb-crucial-bx500-500gb   | 192.168.0.12 | Control plane / etcd | SATA          |
-| rpi5-8gb-samsung-980-500gb     | 192.168.0.13 | Control plane / etcd | NVMe (fast)   |
+| rpi5-8gb-rpi-512gb             | 192.168.0.13 | Control plane / etcd | NVMe (fast)   |
 | rpi5-8gb-rpi-256gb             | 192.168.0.14 | Worker / agent       | NVMe (medium) |
 
 ### Networking
@@ -166,7 +166,7 @@ kubectl -n kube-system rollout status deployment traefik --timeout=120s
 
 ```bash
 kubectl label node rpi5-8gb-crucial-p3-plus-500gb storage-tier=nvme-fast
-kubectl label node rpi5-8gb-samsung-980-500gb storage-tier=nvme-fast
+kubectl label node rpi5-8gb-rpi-512gb storage-tier=nvme-fast
 kubectl label node rpi5-8gb-rpi-256gb storage-tier=nvme-medium
 kubectl label node rpi5-8gb-crucial-bx500-500gb storage-tier=sata
 ```

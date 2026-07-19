@@ -5,7 +5,7 @@ set -euo pipefail
 # Validates SSH, cgroups, resources, and network interface
 
 NODES=("192.168.0.11" "192.168.0.13" "192.168.0.14" "192.168.0.12")
-NAMES=("rpi5-8gb-crucial-p3-plus-500gb" "rpi5-8gb-samsung-980-500gb" "rpi5-8gb-rpi-256gb" "rpi5-8gb-crucial-bx500-500gb")
+NAMES=("rpi5-8gb-crucial-p3-plus-500gb" "rpi5-8gb-rpi-512gb" "rpi5-8gb-rpi-256gb" "rpi5-8gb-crucial-bx500-500gb")
 SSH_USER="pi"
 SSH_OPTS="-o ConnectTimeout=5 -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
 

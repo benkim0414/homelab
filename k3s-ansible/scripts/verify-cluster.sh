@@ -107,7 +107,7 @@ kubectl -n kube-system get svc traefik
 
 # --- Node labels ---
 header "Node Labels (storage-tier)"
-for node in rpi5-8gb-crucial-p3-plus-500gb rpi5-8gb-samsung-980-500gb rpi5-8gb-rpi-256gb rpi5-8gb-crucial-bx500-500gb; do
+for node in rpi5-8gb-crucial-p3-plus-500gb rpi5-8gb-rpi-512gb rpi5-8gb-rpi-256gb rpi5-8gb-crucial-bx500-500gb; do
     tier=$(kubectl get node "$node" -o jsonpath='{.metadata.labels.storage-tier}' 2>/dev/null || echo "")
     if [[ -n "$tier" ]]; then
         ok "$node: storage-tier=$tier"
