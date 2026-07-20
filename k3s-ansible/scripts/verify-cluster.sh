@@ -7,6 +7,11 @@ set -euo pipefail
 VIP="192.168.0.10"
 SSH_USER="pi"
 FIRST_SERVER="192.168.0.11"
+EXPECTED_NODES=5
+EXPECTED_CONTROL_PLANES=3
+EXPECTED_KUBE_VIP_PODS=3
+EXPECTED_METALLB_SPEAKERS=5
+MACPRO_NODE="macpro-vm-16gb-samsung-980-120gb"
 PASS=0
 FAIL=0
 
@@ -21,27 +26,42 @@ node_count=$(kubectl get nodes --no-headers 2>/dev/null | wc -l)
 ready_count=$(kubectl get nodes --no-headers 2>/dev/null | grep -c ' Ready' || true)
 cp_count=$(kubectl get nodes --no-headers -l node-role.kubernetes.io/control-plane 2>/dev/null | wc -l)
 
-if [[ $node_count -eq 4 && $ready_count -eq 4 ]]; then
-    ok "All 4 nodes are Ready"
+if [[ $node_count -eq $EXPECTED_NODES && $ready_count -eq $EXPECTED_NODES ]]; then
+    ok "All $EXPECTED_NODES nodes are Ready"
 else
-    fail "Expected 4 Ready nodes, got $ready_count/$node_count"
+    fail "Expected $EXPECTED_NODES Ready nodes, got $ready_count/$node_count"
 fi
 
-if [[ $cp_count -eq 3 ]]; then
-    ok "3 control-plane nodes found"
+if [[ $cp_count -eq $EXPECTED_CONTROL_PLANES ]]; then
+    ok "$EXPECTED_CONTROL_PLANES control-plane nodes found"
 else
-    fail "Expected 3 control-plane nodes, got $cp_count"
+    fail "Expected $EXPECTED_CONTROL_PLANES control-plane nodes, got $cp_count"
 fi
 
 kubectl get nodes -o wide
 
+macpro_ready=$(kubectl get node "$MACPRO_NODE" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "")
+macpro_cp_label=$(kubectl get node "$MACPRO_NODE" -o jsonpath='{.metadata.labels.node-role\.kubernetes\.io/control-plane}' 2>/dev/null || echo "")
+
+if [[ "$macpro_ready" == "True" ]]; then
+    ok "$MACPRO_NODE is Ready"
+else
+    fail "$MACPRO_NODE is not Ready"
+fi
+
+if [[ -z "$macpro_cp_label" ]]; then
+    ok "$MACPRO_NODE is not labeled as control-plane"
+else
+    fail "$MACPRO_NODE unexpectedly has control-plane label"
+fi
+
 # --- kube-vip ---
 header "kube-vip"
 kvip_ready=$(kubectl -n kube-system get pods -l app.kubernetes.io/name=kube-vip --no-headers 2>/dev/null | grep -c 'Running' || true)
-if [[ $kvip_ready -eq 3 ]]; then
-    ok "3 kube-vip pods running"
+if [[ $kvip_ready -eq $EXPECTED_KUBE_VIP_PODS ]]; then
+    ok "$EXPECTED_KUBE_VIP_PODS kube-vip pods running"
 else
-    fail "Expected 3 kube-vip pods, got $kvip_ready running"
+    fail "Expected $EXPECTED_KUBE_VIP_PODS kube-vip pods, got $kvip_ready running"
 fi
 
 kubectl -n kube-system get pods -l app.kubernetes.io/name=kube-vip -o wide
@@ -86,10 +106,10 @@ else
     fail "MetalLB controller not running"
 fi
 
-if [[ $mlb_speakers -eq 4 ]]; then
-    ok "MetalLB speakers running on all 4 nodes"
+if [[ $mlb_speakers -eq $EXPECTED_METALLB_SPEAKERS ]]; then
+    ok "MetalLB speakers running on all $EXPECTED_METALLB_SPEAKERS nodes"
 else
-    fail "Expected 4 MetalLB speakers, got $mlb_speakers"
+    fail "Expected $EXPECTED_METALLB_SPEAKERS MetalLB speakers, got $mlb_speakers"
 fi
 
 kubectl -n metallb-system get pods -o wide
@@ -113,6 +133,25 @@ for node in rpi5-8gb-crucial-p3-plus-500gb rpi5-8gb-rpi-512gb rpi5-8gb-rpi-256gb
         ok "$node: storage-tier=$tier"
     else
         fail "$node: no storage-tier label"
+    fi
+done
+
+# --- Mac Pro VM labels ---
+header "Mac Pro VM Labels"
+declare -A macpro_labels=(
+    ["homelab/host"]="macpro"
+    ["homelab/node-class"]="vm"
+    ["homelab/workload-tier"]="heavy"
+)
+
+for key in "${!macpro_labels[@]}"; do
+    expected="${macpro_labels[$key]}"
+    jsonpath_key="${key//\//\.}"
+    value=$(kubectl get node "$MACPRO_NODE" -o jsonpath="{.metadata.labels.$jsonpath_key}" 2>/dev/null || echo "")
+    if [[ "$value" == "$expected" ]]; then
+        ok "$MACPRO_NODE: $key=$value"
+    else
+        fail "$MACPRO_NODE: expected $key=$expected, got '${value:-missing}'"
     fi
 done
 
