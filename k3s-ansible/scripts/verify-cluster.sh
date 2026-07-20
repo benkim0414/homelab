@@ -154,6 +154,25 @@ for key in "${!macpro_labels[@]}"; do
     fi
 done
 
+# --- Longhorn Mac Pro storage exclusion ---
+header "Longhorn Mac Pro Storage"
+if kubectl -n longhorn-system get nodes.longhorn.io "$MACPRO_NODE" >/dev/null 2>&1; then
+    schedulable_disks=$(kubectl -n longhorn-system get nodes.longhorn.io "$MACPRO_NODE" \
+        -o jsonpath='{range .spec.disks[*]}{.allowScheduling}{"\n"}{end}' 2>/dev/null \
+        | grep -c '^true$' || true)
+    replicas_on_macpro=$(kubectl -n longhorn-system get replicas.longhorn.io \
+        -o jsonpath="{range .items[?(@.spec.nodeID=='$MACPRO_NODE')]}{.metadata.name}{'\n'}{end}" 2>/dev/null \
+        | grep -c . || true)
+
+    if [[ "$schedulable_disks" -eq 0 && "$replicas_on_macpro" -eq 0 ]]; then
+        ok "$MACPRO_NODE has no schedulable Longhorn disks or replicas"
+    else
+        fail "$MACPRO_NODE has $schedulable_disks schedulable Longhorn disks and $replicas_on_macpro replicas"
+    fi
+else
+    ok "$MACPRO_NODE is absent from Longhorn storage nodes"
+fi
+
 # --- whoami smoke test ---
 header "Whoami Smoke Test"
 if [[ -n "$traefik_ip" ]]; then
