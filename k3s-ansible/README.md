@@ -1,29 +1,34 @@
 # K3s HA Cluster - Ansible Configuration
 
-Inventory and scripts for deploying a high-availability K3s cluster on Raspberry Pi 5 nodes using [k3s-ansible](https://github.com/k3s-io/k3s-ansible).
+Inventory and scripts for deploying a high-availability K3s cluster on Raspberry Pi and Proxmox VM nodes using [k3s-ansible](https://github.com/k3s-io/k3s-ansible).
 
 ## Architecture
 
 ```
-                  ┌─────────────────────────┐
-                  │   VIP: 192.168.0.10     │  (kube-vip, ARP mode)
-                  │   K8s API endpoint      │
-                  └─────────────┬───────────┘
-     ┌──────────────────────────┼──────────────────────────┐
-     ▼                          ▼                          ▼
-┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
-│ rpi5-8gb-crucial │  │ rpi5-8gb-crucial │  │   rpi5-8gb-rpi   │  Control Plane
-│ -p3-plus-500gb   │  │ -bx500-500gb     │  │    -512gb        │  (etcd + server)
-│    .0.11         │  │    .0.12         │  │    .0.13         │
-└──────────────────┘  └──────────────────┘  └──────────────────┘
-                      ┌──────────────────┐
-                      │  rpi5-8gb-rpi    │  Worker
-                      │    -256gb        │
-                      │    .0.14         │
-                      └──────────────────┘
+                  +-------------------------+
+                  |   VIP: 192.168.0.10     |  (kube-vip, ARP mode)
+                  |   K8s API endpoint      |
+                  +------------+------------+
+     +-------------------------+-------------------------+
+     v                         v                         v
++------------------+  +------------------+  +------------------+
+| rpi5-8gb-crucial |  | rpi5-8gb-crucial |  |   rpi5-8gb-rpi   |  Control Plane
+| -p3-plus-500gb   |  | -bx500-500gb     |  |    -512gb        |  (etcd + server)
+|    .0.11         |  |    .0.12         |  |    .0.13         |
++------------------+  +------------------+  +------------------+
+                      +------------------+
+                      |  rpi5-8gb-rpi    |  Worker
+                      |    -256gb        |
+                      |    .0.14         |
+                      +------------------+
+                      +------------------+
+                      | macpro-vm-16gb   |  Worker
+                      | samsung-980-120gb|  (Proxmox VM, compute-only)
+                      |    .0.21         |
+                      +------------------+
 
    MetalLB Pool: 192.168.0.200 - 192.168.0.250 (L2 mode)
-   Traefik: LoadBalancer service → gets IP from MetalLB
+   Traefik: LoadBalancer service -> gets IP from MetalLB
 ```
 
 ### Nodes
@@ -34,6 +39,7 @@ Inventory and scripts for deploying a high-availability K3s cluster on Raspberry
 | rpi5-8gb-crucial-bx500-500gb   | 192.168.0.12 | Control plane / etcd | SATA          |
 | rpi5-8gb-rpi-512gb             | 192.168.0.13 | Control plane / etcd | NVMe (fast)   |
 | rpi5-8gb-rpi-256gb             | 192.168.0.14 | Worker / agent       | NVMe (medium) |
+| macpro-vm-16gb-samsung-980-120gb | 192.168.0.21 | Worker / agent       | Proxmox VM, compute-only |
 
 ### Networking
 
@@ -47,23 +53,23 @@ Inventory and scripts for deploying a high-availability K3s cluster on Raspberry
 
 ```
 homelab/
-├── k3s-ansible/
-│   ├── README.md
-│   ├── inventory.yml               # Cluster inventory + all vars
-│   └── scripts/
-│       ├── preflight-check.sh      # Pre-flight node validation
-│       └── verify-cluster.sh       # Post-deploy verification
-├── kube-vip/
-│   └── values.yaml                 # Helm chart values
-├── metallb/
-│   ├── values.yaml                 # Helm chart values
-│   ├── ipaddresspool.yaml          # Post-install CR
-│   └── l2advertisement.yaml        # Post-install CR
-└── traefik/
-    ├── helmchartconfig.yaml         # K3s HelmChartConfig CRD
-    └── examples/
-        ├── example-ingressroute.yaml
-        └── whoami-test.yaml
+|-- k3s-ansible/
+|   |-- README.md
+|   |-- inventory.yml               # Cluster inventory + all vars
+|   `-- scripts/
+|       |-- preflight-check.sh      # Pre-flight node validation
+|       `-- verify-cluster.sh       # Post-deploy verification
+|-- kube-vip/
+|   `-- values.yaml                 # Helm chart values
+|-- metallb/
+|   |-- values.yaml                 # Helm chart values
+|   |-- ipaddresspool.yaml          # Post-install CR
+|   `-- l2advertisement.yaml        # Post-install CR
+`-- traefik/
+    |-- helmchartconfig.yaml         # K3s HelmChartConfig CRD
+    `-- examples/
+        |-- example-ingressroute.yaml
+        `-- whoami-test.yaml
 ```
 
 ## Prerequisites
@@ -85,6 +91,29 @@ helm repo add kube-vip https://kube-vip.github.io/helm-charts
 helm repo add metallb https://metallb.github.io/metallb
 helm repo update
 ```
+
+## Mac Pro Worker VM
+
+The Mac Pro worker is created manually in Proxmox, then joined through this
+inventory as a K3s agent.
+
+Recommended VM settings:
+
+| Setting | Value |
+| ------- | ----- |
+| VM hostname | `macpro-vm-16gb-samsung-980-120gb` |
+| VM IP | `192.168.0.21` |
+| OS | Debian 12 Bookworm |
+| vCPU | 4 |
+| RAM | 16 GiB |
+| Disk | 120 GiB |
+| Network | Proxmox `vmbr0` |
+| K3s role | Agent only |
+| Longhorn role | Compute-only; no default disk label |
+
+Create the `benkim0414` user on the VM with passwordless or promptable sudo
+for Ansible, then install the homelab SSH key used by
+`~/.ssh/codex_homelab_config`.
 
 ## Inventory Configuration
 
@@ -171,6 +200,24 @@ kubectl label node rpi5-8gb-rpi-256gb storage-tier=nvme-medium
 kubectl label node rpi5-8gb-crucial-bx500-500gb storage-tier=sata
 ```
 
+The Mac Pro VM receives opt-in scheduling labels through `extra_agent_args`:
+
+```bash
+kubectl get node macpro-vm-16gb-samsung-980-120gb \
+  -L homelab/host,homelab/node-class,homelab/workload-tier
+```
+
+Expected labels:
+
+```text
+homelab/host=macpro
+homelab/node-class=vm
+homelab/workload-tier=heavy
+```
+
+Do not add `node.longhorn.io/create-default-disk=true` to this VM during the
+first rollout.
+
 The kubelet eviction thresholds in `inventory.yml` (`eviction-hard`, `eviction-soft`,
 `kube-reserved`) are written to `/etc/rancher/k3s/config.yaml` on each server node by
 the k3s-ansible playbook, but do **not** take effect until k3s is restarted. After
@@ -199,12 +246,12 @@ bash ~/workspace/homelab/k3s-ansible/scripts/verify-cluster.sh
 
 | Check                                       | Expected                                  |
 | ------------------------------------------- | ----------------------------------------- |
-| `kubectl get nodes`                         | 4 nodes Ready (3 control-plane, 1 worker) |
+| `kubectl get nodes`                         | 5 nodes Ready (3 control-plane, 2 workers) |
 | `curl -k https://192.168.0.10:6443/healthz` | `ok`                                      |
 | kube-vip pods                               | 3 running (one per control-plane node)    |
-| MetalLB pods                                | 1 controller + 4 speakers                 |
+| MetalLB pods                                | 1 controller + 5 speakers                 |
 | `kubectl -n kube-system get svc traefik`    | EXTERNAL-IP in 192.168.0.200-250          |
-| Node labels                                 | `storage-tier` set on all 4 nodes         |
+| Node labels                                 | `storage-tier` set on Raspberry Pi nodes; opt-in labels set on Mac Pro VM |
 
 ## Resetting
 
@@ -230,7 +277,7 @@ Reboot after modifying. Verify with `cat /proc/cmdline | grep cgroup_enable`.
 ### Secondary servers fail to join
 
 - Ensure `api_endpoint` points to the first server's IP (not the VIP).
-- Do NOT put `cluster-init: true` in `server_config_yaml` — the role handles this.
+- Do NOT put `cluster-init: true` in `server_config_yaml` - the role handles this.
 - Check that the first server's k3s is running: `ssh pi@192.168.0.11 sudo systemctl status k3s`.
 
 ### Role not found errors
