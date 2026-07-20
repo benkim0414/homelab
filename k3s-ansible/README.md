@@ -76,7 +76,8 @@ homelab/
 
 - [k3s-ansible](https://github.com/k3s-io/k3s-ansible) cloned to `~/workspace/k3s-ansible`
 - Ansible with required galaxy collections
-- SSH access to all nodes as the `pi` user (key-based, passwordless sudo)
+- SSH access to Raspberry Pi nodes as `pi` and the Mac Pro VM as `benkim0414`
+  (key-based, passwordless or promptable sudo)
 
 Install galaxy collections:
 
@@ -129,7 +130,8 @@ All configuration lives in `inventory.yml`. Key decisions:
 
 ### 1. Pre-flight checks
 
-Validates SSH connectivity, cgroup parameters, RAM, disk, and `eth0` on all nodes.
+Validates SSH connectivity, RAM, disk, and each node's required network
+interface. Raspberry Pi nodes also get cgroup boot-parameter checks.
 
 ```bash
 bash ~/workspace/homelab/k3s-ansible/scripts/preflight-check.sh
@@ -144,6 +146,16 @@ Run from the k3s-ansible repo root (required for `ansible.cfg` to resolve `roles
 ```bash
 cd ~/workspace/k3s-ansible
 ansible-playbook playbooks/site.yml -i ~/workspace/homelab/k3s-ansible/inventory.yml
+```
+
+To join only the Mac Pro worker VM to an existing cluster, limit the playbook to
+`.21`:
+
+```bash
+cd ~/workspace/k3s-ansible
+ansible-playbook playbooks/site.yml \
+  -i ~/workspace/homelab/k3s-ansible/inventory.yml \
+  --limit 192.168.0.21
 ```
 
 ### 3. Configure kubectl
@@ -229,11 +241,13 @@ ssh pi@192.168.0.12 sudo systemctl restart k3s
 ssh pi@192.168.0.13 sudo systemctl restart k3s
 ```
 
-The same thresholds are applied to the worker node (`.14`) via `agent_config_yaml`.
-After running the playbook, restart the agent to pick up the new config:
+The same thresholds are applied to worker nodes via `agent_config_yaml`. After
+changing those settings on an already joined worker, restart that worker's agent
+to pick up the new config:
 
 ```bash
 ssh pi@192.168.0.14 sudo systemctl restart k3s-agent
+ssh benkim0414@192.168.0.21 sudo systemctl restart k3s-agent
 ```
 
 ### 9. Verify
@@ -252,6 +266,7 @@ bash ~/workspace/homelab/k3s-ansible/scripts/verify-cluster.sh
 | MetalLB pods                                | 1 controller + 5 speakers                 |
 | `kubectl -n kube-system get svc traefik`    | EXTERNAL-IP in 192.168.0.200-250          |
 | Node labels                                 | `storage-tier` set on Raspberry Pi nodes; opt-in labels set on Mac Pro VM |
+| Longhorn Mac Pro disk                       | No schedulable default disk or replicas on the Mac Pro VM |
 
 ## Resetting
 
