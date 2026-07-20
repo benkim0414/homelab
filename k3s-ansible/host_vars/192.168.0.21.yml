@@ -1,0 +1,11 @@
+---
+# Per-node overrides for macpro-vm-16gb-samsung-980-120gb (.21)
+#
+# Proxmox VM on pve-macpro. Compute-only K3s agent for selected amd64
+# workloads. Intentionally do not add the Longhorn default-disk label; the first
+# rollout must not add this node to Longhorn storage scheduling.
+ansible_user: benkim0414
+extra_agent_args: >-
+  --node-label homelab/host=macpro
+  --node-label homelab/node-class=vm
+  --node-label homelab/workload-tier=heavy

@@ -9,6 +9,7 @@ k3s_cluster:
     agent:
       hosts:
         192.168.0.14:    # rpi5-8gb-rpi-256gb (agent — no etcd)
+        192.168.0.21:    # macpro-vm-16gb-samsung-980-120gb (agent - compute-only amd64 VM)
 
   # Required Vars
   vars:
