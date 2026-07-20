@@ -15,8 +15,8 @@ MACPRO_NODE="macpro-vm-16gb-samsung-980-120gb"
 PASS=0
 FAIL=0
 
-ok()    { echo -e "\033[1;32m[PASS]\033[0m $*"; ((PASS++)); }
-fail()  { echo -e "\033[1;31m[FAIL]\033[0m $*"; ((FAIL++)); }
+ok()    { echo -e "\033[1;32m[PASS]\033[0m $*"; ((++PASS)); }
+fail()  { echo -e "\033[1;31m[FAIL]\033[0m $*"; ((++FAIL)); }
 info()  { echo -e "\033[1;34m[INFO]\033[0m $*"; }
 header(){ echo ""; echo "=== $* ==="; }
 
@@ -146,8 +146,7 @@ declare -A macpro_labels=(
 
 for key in "${!macpro_labels[@]}"; do
     expected="${macpro_labels[$key]}"
-    jsonpath_key="${key//\//\.}"
-    value=$(kubectl get node "$MACPRO_NODE" -o jsonpath="{.metadata.labels.$jsonpath_key}" 2>/dev/null || echo "")
+    value=$(kubectl get node "$MACPRO_NODE" -o jsonpath="{.metadata.labels['$key']}" 2>/dev/null || echo "")
     if [[ "$value" == "$expected" ]]; then
         ok "$MACPRO_NODE: $key=$value"
     else
