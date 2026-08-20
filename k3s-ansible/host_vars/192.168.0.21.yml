@@ -5,6 +5,8 @@
 # workloads. Intentionally do not add the Longhorn default-disk label; the first
 # rollout must not add this node to Longhorn storage scheduling.
 ansible_user: benkim0414
+ansible_ssh_private_key_file: ~/.ssh/codex_homelab_ed25519
+ansible_ssh_common_args: "-o IdentitiesOnly=yes"
 extra_agent_args: >-
   --node-label homelab/host=macpro
   --node-label homelab/node-class=vm

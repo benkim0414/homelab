@@ -187,6 +187,37 @@ ssh -tt -F "$SSH_CONFIG" "$PVE_HOST" \
 
 echo
 echo "Waiting for SSH on $VM_IP..."
+grow_guest_root() {
+    ssh -F "$SSH_CONFIG" \
+        -i "${SSH_KEY_PATH%.pub}" \
+        -o BatchMode=yes \
+        -o IdentitiesOnly=yes \
+        "$VM_USER@$VM_IP" '
+set -euo pipefail
+
+if ! command -v growpart >/dev/null 2>&1; then
+    sudo apt-get update
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y cloud-guest-utils
+fi
+
+root_source=$(findmnt -n -o SOURCE /)
+disk_name=$(lsblk -no PKNAME "$root_source" | head -n1)
+part_name=$(lsblk -no NAME "$root_source" | head -n1)
+part_num="${part_name##*[!0-9]}"
+
+if [[ -n "$disk_name" && -n "$part_num" ]]; then
+    sudo growpart "/dev/$disk_name" "$part_num" || true
+fi
+
+fs_type=$(findmnt -n -o FSTYPE /)
+case "$fs_type" in
+    ext*) sudo resize2fs "$root_source" ;;
+    xfs) sudo xfs_growfs / ;;
+    *) echo "Skipping unsupported root filesystem resize for $fs_type" ;;
+esac
+'
+}
+
 for _ in {1..60}; do
     if ssh -F "$SSH_CONFIG" \
         -i "${SSH_KEY_PATH%.pub}" \
@@ -196,6 +227,8 @@ for _ in {1..60}; do
         -o StrictHostKeyChecking=accept-new \
         "$VM_USER@$VM_IP" 'hostname' >/dev/null 2>&1; then
         echo "SSH is ready."
+        echo "Ensuring guest root filesystem uses the resized disk..."
+        grow_guest_root
         ssh -F "$SSH_CONFIG" \
             -i "${SSH_KEY_PATH%.pub}" \
             -o IdentitiesOnly=yes \
