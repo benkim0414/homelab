@@ -6,6 +6,7 @@ set -euo pipefail
 
 VIP="192.168.0.10"
 SSH_USER="pi"
+SSH_KEY="${SSH_KEY:-$HOME/.ssh/codex_homelab_ed25519}"
 FIRST_SERVER="192.168.0.11"
 EXPECTED_NODES=5
 EXPECTED_CONTROL_PLANES=3
@@ -68,10 +69,13 @@ kubectl -n kube-system get pods -l app.kubernetes.io/name=kube-vip -o wide
 
 # --- VIP health ---
 header "VIP Health"
-if curl -sk --connect-timeout 5 "https://$VIP:6443/healthz" | grep -q "ok"; then
+vip_status=$(curl -sk -o /tmp/k3s-vip-healthz.out --connect-timeout 5 -w "%{http_code}" "https://$VIP:6443/healthz" || true)
+if [[ "$vip_status" == "200" ]] && grep -q "ok" /tmp/k3s-vip-healthz.out; then
     ok "VIP $VIP:6443 responding healthy"
+elif [[ "$vip_status" == "401" ]]; then
+    ok "VIP $VIP:6443 reachable (healthz requires authentication)"
 else
-    fail "VIP $VIP:6443 not responding"
+    fail "VIP $VIP:6443 not responding (HTTP ${vip_status:-none})"
 fi
 
 # --- VIP holder ---
@@ -80,16 +84,30 @@ kubectl -n kube-system get lease plndr-cp-lock -o jsonpath='{.spec.holderIdentit
 
 # --- etcd health ---
 header "etcd Health"
-etcd_health=$(ssh -o ConnectTimeout=5 -o BatchMode=yes "$SSH_USER@$FIRST_SERVER" \
-    "sudo ETCDCTL_API=3 /var/lib/rancher/k3s/data/current/bin/etcdctl \
-    --cacert /var/lib/rancher/k3s/server/tls/etcd/server-ca.crt \
-    --cert /var/lib/rancher/k3s/server/tls/etcd/server-client.crt \
-    --key /var/lib/rancher/k3s/server/tls/etcd/server-client.key \
-    endpoint health --cluster -w table" 2>/dev/null || echo "FAILED")
+etcd_health=$(ssh -i "$SSH_KEY" -o IdentitiesOnly=yes -o ConnectTimeout=5 -o BatchMode=yes "$SSH_USER@$FIRST_SERVER" \
+    "etcdctl=\$(sudo find /var/lib/rancher/k3s/data -path '*/bin/etcdctl' -type f 2>/dev/null | sort | tail -n1)
+    if [[ -n \"\$etcdctl\" ]]; then
+        sudo ETCDCTL_API=3 \"\$etcdctl\" \
+        --cacert /var/lib/rancher/k3s/server/tls/etcd/server-ca.crt \
+        --cert /var/lib/rancher/k3s/server/tls/etcd/server-client.crt \
+        --key /var/lib/rancher/k3s/server/tls/etcd/server-client.key \
+        endpoint health --cluster -w table
+    else
+        echo ETCDCTL_NOT_FOUND
+    fi" 2>/dev/null || echo "FAILED")
 
 if echo "$etcd_health" | grep -q "true"; then
     ok "etcd cluster healthy"
     echo "$etcd_health"
+elif echo "$etcd_health" | grep -q "ETCDCTL_NOT_FOUND"; then
+    readyz=$(kubectl get --raw='/readyz?verbose' 2>/dev/null || echo "FAILED")
+    if echo "$readyz" | grep -Eq '^\[\+\]etcd ok$'; then
+        ok "etcd reachable through Kubernetes API readyz"
+        echo "$readyz" | grep -E '^\[\+\]etcd ok$'
+    else
+        fail "etcdctl missing and Kubernetes readyz etcd check failed"
+        echo "$readyz"
+    fi
 else
     fail "etcd health check failed"
     echo "$etcd_health"
@@ -126,13 +144,13 @@ fi
 kubectl -n kube-system get svc traefik
 
 # --- Node labels ---
-header "Node Labels (storage-tier)"
+header "Node Labels (Longhorn default disk)"
 for node in rpi5-8gb-crucial-p3-plus-500gb rpi5-8gb-rpi-512gb rpi5-8gb-rpi-256gb rpi5-8gb-crucial-bx500-500gb; do
-    tier=$(kubectl get node "$node" -o jsonpath='{.metadata.labels.storage-tier}' 2>/dev/null || echo "")
-    if [[ -n "$tier" ]]; then
-        ok "$node: storage-tier=$tier"
+    default_disk=$(kubectl get node "$node" -o jsonpath='{.metadata.labels.node\.longhorn\.io/create-default-disk}' 2>/dev/null || echo "")
+    if [[ "$default_disk" == "true" ]]; then
+        ok "$node: node.longhorn.io/create-default-disk=true"
     else
-        fail "$node: no storage-tier label"
+        fail "$node: missing node.longhorn.io/create-default-disk=true label"
     fi
 done
 
