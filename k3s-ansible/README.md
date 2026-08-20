@@ -116,6 +116,13 @@ Create the `benkim0414` user on the VM with passwordless or promptable sudo
 for Ansible, then install the homelab SSH key used by
 `~/.ssh/codex_homelab_config`.
 
+To create the VM from a Debian 12 cloud image with cloud-init instead of doing
+a manual installer flow, run:
+
+```bash
+~/workspace/homelab/scripts/provision-macpro-k3s-vm.sh
+```
+
 ## Inventory Configuration
 
 All configuration lives in `inventory.yml`. Key decisions:
