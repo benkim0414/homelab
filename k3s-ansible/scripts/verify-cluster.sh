@@ -15,6 +15,8 @@ EXPECTED_METALLB_SPEAKERS=5
 MACPRO_NODE="macpro-vm-16gb-samsung-980-120gb"
 PASS=0
 FAIL=0
+VIP_BODY_FILE=$(mktemp)
+trap 'rm -f "$VIP_BODY_FILE"' EXIT
 
 ok()    { echo -e "\033[1;32m[PASS]\033[0m $*"; ((++PASS)); }
 fail()  { echo -e "\033[1;31m[FAIL]\033[0m $*"; ((++FAIL)); }
@@ -23,9 +25,9 @@ header(){ echo ""; echo "=== $* ==="; }
 
 # --- Nodes ---
 header "Node Status"
-node_count=$(kubectl get nodes --no-headers 2>/dev/null | wc -l)
+node_count=$({ kubectl get nodes --no-headers 2>/dev/null || true; } | wc -l)
 ready_count=$(kubectl get nodes --no-headers 2>/dev/null | grep -c ' Ready' || true)
-cp_count=$(kubectl get nodes --no-headers -l node-role.kubernetes.io/control-plane 2>/dev/null | wc -l)
+cp_count=$({ kubectl get nodes --no-headers -l node-role.kubernetes.io/control-plane 2>/dev/null || true; } | wc -l)
 
 if [[ $node_count -eq $EXPECTED_NODES && $ready_count -eq $EXPECTED_NODES ]]; then
     ok "All $EXPECTED_NODES nodes are Ready"
@@ -39,7 +41,7 @@ else
     fail "Expected $EXPECTED_CONTROL_PLANES control-plane nodes, got $cp_count"
 fi
 
-kubectl get nodes -o wide
+kubectl get nodes -o wide || true
 
 macpro_ready=$(kubectl get node "$MACPRO_NODE" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "")
 macpro_cp_label=$(kubectl get node "$MACPRO_NODE" -o jsonpath='{.metadata.labels.node-role\.kubernetes\.io/control-plane}' 2>/dev/null || echo "")
@@ -65,12 +67,12 @@ else
     fail "Expected $EXPECTED_KUBE_VIP_PODS kube-vip pods, got $kvip_ready running"
 fi
 
-kubectl -n kube-system get pods -l app.kubernetes.io/name=kube-vip -o wide
+kubectl -n kube-system get pods -l app.kubernetes.io/name=kube-vip -o wide || true
 
 # --- VIP health ---
 header "VIP Health"
-vip_status=$(curl -sk -o /tmp/k3s-vip-healthz.out --connect-timeout 5 -w "%{http_code}" "https://$VIP:6443/healthz" || true)
-if [[ "$vip_status" == "200" ]] && grep -q "ok" /tmp/k3s-vip-healthz.out; then
+vip_status=$(curl -sk -o "$VIP_BODY_FILE" --connect-timeout 5 -w "%{http_code}" "https://$VIP:6443/healthz" || true)
+if [[ "$vip_status" == "200" ]] && grep -q "ok" "$VIP_BODY_FILE"; then
     ok "VIP $VIP:6443 responding healthy"
 elif [[ "$vip_status" == "401" ]]; then
     ok "VIP $VIP:6443 reachable (healthz requires authentication)"
@@ -85,7 +87,15 @@ kubectl -n kube-system get lease plndr-cp-lock -o jsonpath='{.spec.holderIdentit
 # --- etcd health ---
 header "etcd Health"
 etcd_health=$(ssh -i "$SSH_KEY" -o IdentitiesOnly=yes -o ConnectTimeout=5 -o BatchMode=yes "$SSH_USER@$FIRST_SERVER" \
-    "etcdctl=\$(sudo find /var/lib/rancher/k3s/data -path '*/bin/etcdctl' -type f 2>/dev/null | sort | tail -n1)
+    "set -o pipefail
+    find_output=\$(sudo find /var/lib/rancher/k3s/data -path '*/bin/etcdctl' -type f 2>&1)
+    find_rc=\$?
+    if [[ \$find_rc -ne 0 ]]; then
+        echo ETCDCTL_FIND_FAILED
+        echo \"\$find_output\"
+        exit 0
+    fi
+    etcdctl=\$(printf '%s\n' \"\$find_output\" | sort | tail -n1)
     if [[ -n \"\$etcdctl\" ]]; then
         sudo ETCDCTL_API=3 \"\$etcdctl\" \
         --cacert /var/lib/rancher/k3s/server/tls/etcd/server-ca.crt \
@@ -96,8 +106,8 @@ etcd_health=$(ssh -i "$SSH_KEY" -o IdentitiesOnly=yes -o ConnectTimeout=5 -o Bat
         echo ETCDCTL_NOT_FOUND
     fi" 2>/dev/null || echo "FAILED")
 
-if echo "$etcd_health" | grep -q "true"; then
-    ok "etcd cluster healthy"
+if echo "$etcd_health" | grep -q "ETCDCTL_FIND_FAILED"; then
+    fail "etcdctl discovery failed on $FIRST_SERVER"
     echo "$etcd_health"
 elif echo "$etcd_health" | grep -q "ETCDCTL_NOT_FOUND"; then
     readyz=$(kubectl get --raw='/readyz?verbose' 2>/dev/null || echo "FAILED")
@@ -108,6 +118,12 @@ elif echo "$etcd_health" | grep -q "ETCDCTL_NOT_FOUND"; then
         fail "etcdctl missing and Kubernetes readyz etcd check failed"
         echo "$readyz"
     fi
+elif echo "$etcd_health" | grep -q "false"; then
+    fail "etcd health check found one or more unhealthy endpoints"
+    echo "$etcd_health"
+elif [[ $(echo "$etcd_health" | grep -Ec '\|[[:space:]]*true[[:space:]]*\|') -eq $EXPECTED_CONTROL_PLANES ]]; then
+    ok "etcd cluster healthy"
+    echo "$etcd_health"
 else
     fail "etcd health check failed"
     echo "$etcd_health"
@@ -130,7 +146,7 @@ else
     fail "Expected $EXPECTED_METALLB_SPEAKERS MetalLB speakers, got $mlb_speakers"
 fi
 
-kubectl -n metallb-system get pods -o wide
+kubectl -n metallb-system get pods -o wide || true
 
 # --- Traefik ---
 header "Traefik"
@@ -141,7 +157,7 @@ else
     fail "Traefik has no external IP"
 fi
 
-kubectl -n kube-system get svc traefik
+kubectl -n kube-system get svc traefik || true
 
 # --- Node labels ---
 header "Node Labels (Longhorn default disk)"
@@ -174,21 +190,17 @@ done
 
 # --- Longhorn Mac Pro storage exclusion ---
 header "Longhorn Mac Pro Storage"
-if kubectl -n longhorn-system get nodes.longhorn.io "$MACPRO_NODE" >/dev/null 2>&1; then
-    schedulable_disks=$(kubectl -n longhorn-system get nodes.longhorn.io "$MACPRO_NODE" \
-        -o jsonpath='{range .spec.disks[*]}{.allowScheduling}{"\n"}{end}' 2>/dev/null \
-        | grep -c '^true$' || true)
+if longhorn_node_query=$(kubectl -n longhorn-system get nodes.longhorn.io "$MACPRO_NODE" 2>&1); then
     replicas_on_macpro=$(kubectl -n longhorn-system get replicas.longhorn.io \
         -o jsonpath="{range .items[?(@.spec.nodeID=='$MACPRO_NODE')]}{.metadata.name}{'\n'}{end}" 2>/dev/null \
         | grep -c . || true)
 
-    if [[ "$schedulable_disks" -eq 0 && "$replicas_on_macpro" -eq 0 ]]; then
-        ok "$MACPRO_NODE has no schedulable Longhorn disks or replicas"
-    else
-        fail "$MACPRO_NODE has $schedulable_disks schedulable Longhorn disks and $replicas_on_macpro replicas"
-    fi
-else
+    fail "$MACPRO_NODE exists as a Longhorn storage node with $replicas_on_macpro replicas; expected it to be absent"
+elif echo "$longhorn_node_query" | grep -qi "not found"; then
     ok "$MACPRO_NODE is absent from Longhorn storage nodes"
+else
+    fail "Could not query Longhorn storage node state for $MACPRO_NODE"
+    echo "$longhorn_node_query"
 fi
 
 # --- whoami smoke test ---
