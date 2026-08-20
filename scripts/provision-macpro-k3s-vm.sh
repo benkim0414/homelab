@@ -58,8 +58,14 @@ case "$answer" in
     *) echo "Aborted."; exit 1 ;;
 esac
 
-ssh -tt -F "$SSH_CONFIG" "$PVE_HOST" \
-    "VMID='$VMID' VM_NAME='$VM_NAME' VM_IP='$VM_IP' VM_CIDR='$VM_CIDR' VM_GW='$VM_GW' VM_DNS='$VM_DNS' VM_USER='$VM_USER' VM_CORES='$VM_CORES' VM_MEMORY_MB='$VM_MEMORY_MB' VM_DISK='$VM_DISK' VM_BRIDGE='$VM_BRIDGE' PVE_STORAGE='$PVE_STORAGE' IMAGE_URL='$IMAGE_URL' IMAGE_PATH='$IMAGE_PATH' SSH_KEY_B64='$SSH_KEY_B64' sudo -E bash -s" <<'REMOTE'
+remote_script=$(mktemp)
+remote_path="/tmp/provision-macpro-k3s-vm-${VMID}.sh"
+cleanup() {
+    rm -f "$remote_script"
+}
+trap cleanup EXIT
+
+cat > "$remote_script" <<'REMOTE'
 set -euo pipefail
 
 need_cmd() {
@@ -150,6 +156,10 @@ echo "VM created:"
 qm status "$VMID"
 qm config "$VMID"
 REMOTE
+
+scp -F "$SSH_CONFIG" "$remote_script" "$PVE_HOST:$remote_path"
+ssh -tt -F "$SSH_CONFIG" "$PVE_HOST" \
+    "VMID='$VMID' VM_NAME='$VM_NAME' VM_IP='$VM_IP' VM_CIDR='$VM_CIDR' VM_GW='$VM_GW' VM_DNS='$VM_DNS' VM_USER='$VM_USER' VM_CORES='$VM_CORES' VM_MEMORY_MB='$VM_MEMORY_MB' VM_DISK='$VM_DISK' VM_BRIDGE='$VM_BRIDGE' PVE_STORAGE='$PVE_STORAGE' IMAGE_URL='$IMAGE_URL' IMAGE_PATH='$IMAGE_PATH' SSH_KEY_B64='$SSH_KEY_B64' sudo -E bash '$remote_path'; status=\$?; rm -f '$remote_path'; exit \$status"
 
 echo
 echo "Waiting for SSH on $VM_IP..."
