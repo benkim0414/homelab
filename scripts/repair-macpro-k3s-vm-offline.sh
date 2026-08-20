@@ -99,7 +99,10 @@ if [[ -z "${disk_path:-}" || ! -e "$disk_path" ]]; then
     exit 1
 fi
 
-mac=$(qm config "$VMID" | awk -F'[,=]' '/^net0:/ {for (i = 1; i <= NF; i++) if ($i ~ /^virtio$/) {print tolower($(i+1)); exit}}')
+mac=$(qm config "$VMID" \
+    | sed -n 's/^net0: virtio=\([^,]*\),.*/\1/p' \
+    | tr '[:upper:]' '[:lower:]' \
+    | head -n1)
 if [[ -z "${mac:-}" ]]; then
     echo "Could not find net0 virtio MAC for VMID $VMID." >&2
     qm config "$VMID"
@@ -126,6 +129,14 @@ Gateway=$VM_GW
 DNS=$VM_DNS
 EOF
 
+cat > "$tmpdir/10-macpro-vm.link" <<EOF
+[Match]
+MACAddress=$mac
+
+[Link]
+Name=eth0
+EOF
+
 cat > "$tmpdir/hosts" <<EOF
 127.0.0.1 localhost
 127.0.1.1 $VM_NAME
@@ -142,11 +153,14 @@ EOF
 echo "Customizing guest disk: $disk_path"
 virt-customize -a "$disk_path" \
     --hostname "$VM_NAME" \
-    --install openssh-server,sudo,qemu-guest-agent \
+    --run-command "getent group sudo >/dev/null 2>&1 || groupadd sudo" \
     --run-command "id -u '$VM_USER' >/dev/null 2>&1 || useradd -m -s /bin/bash -G sudo '$VM_USER'" \
     --mkdir "/home/$VM_USER/.ssh" \
+    --mkdir "/etc/systemd/network" \
+    --mkdir "/etc/sudoers.d" \
     --upload "$tmpdir/authorized_keys:/home/$VM_USER/.ssh/authorized_keys" \
     --upload "$tmpdir/10-macpro-vm.network:/etc/systemd/network/10-macpro-vm.network" \
+    --upload "$tmpdir/10-macpro-vm.link:/etc/systemd/network/10-macpro-vm.link" \
     --upload "$tmpdir/hosts:/etc/hosts" \
     --upload "$tmpdir/sudoers:/etc/sudoers.d/90-$VM_USER" \
     --run-command "chmod 700 '/home/$VM_USER/.ssh'" \
@@ -154,8 +168,19 @@ virt-customize -a "$disk_path" \
     --run-command "chown -R '$VM_USER:$VM_USER' '/home/$VM_USER/.ssh'" \
     --run-command "chmod 0440 '/etc/sudoers.d/90-$VM_USER'" \
     --run-command "touch /etc/cloud/cloud-init.disabled" \
-    --run-command "systemctl enable ssh systemd-networkd qemu-guest-agent" \
+    --run-command "systemctl enable ssh 2>/dev/null || true" \
+    --run-command "systemctl enable systemd-networkd 2>/dev/null || true" \
+    --run-command "systemctl enable qemu-guest-agent 2>/dev/null || true" \
     --run-command "systemctl disable cloud-init cloud-init-local cloud-config cloud-final 2>/dev/null || true"
+
+if ! virt-ls -a "$disk_path" /etc/ssh >/dev/null 2>&1; then
+    echo "OpenSSH server is missing in the guest; installing guest packages..."
+    virt-customize --network -a "$disk_path" \
+        --run-command "apt-get update" \
+        --run-command "DEBIAN_FRONTEND=noninteractive apt-get install -y openssh-server sudo qemu-guest-agent" \
+        --run-command "systemctl enable ssh 2>/dev/null || true" \
+        --run-command "systemctl enable qemu-guest-agent 2>/dev/null || true"
+fi
 
 qm start "$VMID"
 qm status "$VMID"
@@ -170,12 +195,17 @@ echo
 echo "Waiting for SSH on $VM_IP..."
 for _ in {1..60}; do
     if ssh -F "$SSH_CONFIG" \
+        -i "${SSH_KEY_PATH%.pub}" \
         -o ConnectTimeout=3 \
         -o BatchMode=yes \
+        -o IdentitiesOnly=yes \
         -o StrictHostKeyChecking=accept-new \
         "$VM_USER@$VM_IP" 'hostname' >/dev/null 2>&1; then
         echo "SSH is ready."
-        ssh -F "$SSH_CONFIG" "$VM_USER@$VM_IP" \
+        ssh -F "$SSH_CONFIG" \
+            -i "${SSH_KEY_PATH%.pub}" \
+            -o IdentitiesOnly=yes \
+            "$VM_USER@$VM_IP" \
             'hostname; ip -br addr; free -h; lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS; ip route'
         exit 0
     fi

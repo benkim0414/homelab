@@ -10,9 +10,10 @@ NODES=(
     "192.168.0.12|rpi5-8gb-crucial-bx500-500gb|pi|eth0|true"
     "192.168.0.13|rpi5-8gb-rpi-512gb|pi|eth0|true"
     "192.168.0.14|rpi5-8gb-rpi-256gb|pi|eth0|true"
-    "192.168.0.21|macpro-vm-16gb-samsung-980-120gb|benkim0414|ens18|false"
+    "192.168.0.21|macpro-vm-16gb-samsung-980-120gb|benkim0414|eth0|false"
 )
-SSH_OPTS="-o ConnectTimeout=5 -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
+SSH_KEY="${SSH_KEY:-$HOME/.ssh/codex_homelab_ed25519}"
+SSH_OPTS="-i $SSH_KEY -o IdentitiesOnly=yes -o ConnectTimeout=5 -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
 
 CGROUP_PARAMS="cgroup_enable=cpuset cgroup_memory=1 cgroup_enable=memory"
 CMDLINE_FILE="/boot/firmware/cmdline.txt"

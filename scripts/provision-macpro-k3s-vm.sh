@@ -189,12 +189,17 @@ echo
 echo "Waiting for SSH on $VM_IP..."
 for _ in {1..60}; do
     if ssh -F "$SSH_CONFIG" \
+        -i "${SSH_KEY_PATH%.pub}" \
         -o ConnectTimeout=3 \
         -o BatchMode=yes \
+        -o IdentitiesOnly=yes \
         -o StrictHostKeyChecking=accept-new \
         "$VM_USER@$VM_IP" 'hostname' >/dev/null 2>&1; then
         echo "SSH is ready."
-        ssh -F "$SSH_CONFIG" "$VM_USER@$VM_IP" \
+        ssh -F "$SSH_CONFIG" \
+            -i "${SSH_KEY_PATH%.pub}" \
+            -o IdentitiesOnly=yes \
+            "$VM_USER@$VM_IP" \
             'hostname; ip -br addr; free -h; lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS; ip route'
         exit 0
     fi
@@ -203,5 +208,5 @@ done
 
 echo "VM was created, but SSH did not become ready within 5 minutes." >&2
 echo "Check the Proxmox console for $VM_NAME, then retry:" >&2
-echo "  ssh -F $SSH_CONFIG $VM_USER@$VM_IP" >&2
+echo "  ssh -F $SSH_CONFIG -i ${SSH_KEY_PATH%.pub} -o IdentitiesOnly=yes $VM_USER@$VM_IP" >&2
 exit 1

@@ -254,7 +254,10 @@ to pick up the new config:
 
 ```bash
 ssh pi@192.168.0.14 sudo systemctl restart k3s-agent
-ssh benkim0414@192.168.0.21 sudo systemctl restart k3s-agent
+ssh -F ~/.ssh/codex_homelab_config \
+  -i ~/.ssh/codex_homelab_ed25519 \
+  -o IdentitiesOnly=yes \
+  benkim0414@192.168.0.21 sudo systemctl restart k3s-agent
 ```
 
 ### 9. Verify
