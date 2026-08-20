@@ -15,6 +15,7 @@ VM_MEMORY_MB="${VM_MEMORY_MB:-16384}"
 VM_DISK="${VM_DISK:-120G}"
 VM_BRIDGE="${VM_BRIDGE:-vmbr0}"
 PVE_STORAGE="${PVE_STORAGE:-local-lvm}"
+CLOUDINIT_DRIVE="${CLOUDINIT_DRIVE:-scsi1}"
 IMAGE_URL="${IMAGE_URL:-https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-nocloud-amd64.qcow2}"
 IMAGE_PATH="${IMAGE_PATH:-/var/lib/vz/template/iso/debian-12-nocloud-amd64.qcow2}"
 SSH_KEY_PATH="${SSH_KEY_PATH:-$HOME/.ssh/codex_homelab_ed25519.pub}"
@@ -46,6 +47,7 @@ This will create and start a Proxmox VM:
   Gateway:   $VM_GW
   CPU/RAM:   $VM_CORES vCPU / $VM_MEMORY_MB MiB
   Disk:      $VM_DISK on $PVE_STORAGE
+  CloudInit: $CLOUDINIT_DRIVE on $PVE_STORAGE
   Bridge:    $VM_BRIDGE
   User:      $VM_USER
   SSH key:   $SSH_KEY_PATH
@@ -160,7 +162,7 @@ fi
 
 qm set "$VMID" --scsi0 "${disk_ref},discard=on,ssd=1,iothread=1"
 qm resize "$VMID" scsi0 "$VM_DISK"
-qm set "$VMID" --ide2 "$PVE_STORAGE:cloudinit"
+qm set "$VMID" --"$CLOUDINIT_DRIVE" "$PVE_STORAGE:cloudinit"
 qm set "$VMID" --boot order=scsi0
 qm set "$VMID" --citype nocloud
 qm set "$VMID" --ciupgrade 0
@@ -181,7 +183,7 @@ REMOTE
 
 scp -F "$SSH_CONFIG" "$remote_script" "$PVE_HOST:$remote_path"
 ssh -tt -F "$SSH_CONFIG" "$PVE_HOST" \
-    "VMID='$VMID' VM_NAME='$VM_NAME' VM_IP='$VM_IP' VM_CIDR='$VM_CIDR' VM_GW='$VM_GW' VM_DNS='$VM_DNS' VM_USER='$VM_USER' VM_CORES='$VM_CORES' VM_MEMORY_MB='$VM_MEMORY_MB' VM_DISK='$VM_DISK' VM_BRIDGE='$VM_BRIDGE' PVE_STORAGE='$PVE_STORAGE' IMAGE_URL='$IMAGE_URL' IMAGE_PATH='$IMAGE_PATH' SSH_KEY_B64='$SSH_KEY_B64' RECREATE_EXISTING='$RECREATE_EXISTING' sudo -E bash '$remote_path'; status=\$?; rm -f '$remote_path'; exit \$status"
+    "VMID='$VMID' VM_NAME='$VM_NAME' VM_IP='$VM_IP' VM_CIDR='$VM_CIDR' VM_GW='$VM_GW' VM_DNS='$VM_DNS' VM_USER='$VM_USER' VM_CORES='$VM_CORES' VM_MEMORY_MB='$VM_MEMORY_MB' VM_DISK='$VM_DISK' VM_BRIDGE='$VM_BRIDGE' PVE_STORAGE='$PVE_STORAGE' CLOUDINIT_DRIVE='$CLOUDINIT_DRIVE' IMAGE_URL='$IMAGE_URL' IMAGE_PATH='$IMAGE_PATH' SSH_KEY_B64='$SSH_KEY_B64' RECREATE_EXISTING='$RECREATE_EXISTING' sudo -E bash '$remote_path'; status=\$?; rm -f '$remote_path'; exit \$status"
 
 echo
 echo "Waiting for SSH on $VM_IP..."
