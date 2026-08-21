@@ -1,0 +1,21 @@
+cronjob:
+  schedule: "0 4 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+
+envFrom:
+  - secretRef:
+      name: renovate-token
+
+renovate:
+  configIsJson5: true
+  config: |
+    {
+      platform: "github",
+      repositories: ["benkim0414/homelab"],
+      onboarding: false,
+      requireConfig: "required",
+      dependencyDashboard: true,
+      gitAuthor: "Renovate Bot <bot@renovateapp.com>"
+    }
