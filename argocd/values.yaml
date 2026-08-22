@@ -13,6 +13,9 @@ configs:
   cm:
     accounts.admin: apiKey, login
     accounts.argocd-mcp: apiKey
+    resource.customizations.ignoreResourceUpdates.all: |
+      jsonPointers:
+        - /metadata/resourceVersion
   rbac:
     policy.csv: |
       p, role:readonly, applications, get, */*, allow
