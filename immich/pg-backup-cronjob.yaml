@@ -9,7 +9,7 @@ spec:
   schedule: "0 3 * * *"
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
-  failedJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 0
   jobTemplate:
     metadata:
       labels:
