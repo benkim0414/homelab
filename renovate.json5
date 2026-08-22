@@ -30,6 +30,17 @@
       ],
       "depNameTemplate": "ghcr.io/kube-vip/kube-vip",
       "datasourceTemplate": "docker"
+    },
+    {
+      // Vaultwarden server image tag in Helm values (chart supplies repository)
+      "customType": "regex",
+      "fileMatch": ["^vaultwarden/values\\.yaml$"],
+      "matchStrings": [
+        "image:\\s*\\n\\s*tag:\\s*\"(?<currentValue>[^\"]+)\""
+      ],
+      "depNameTemplate": "docker.io/vaultwarden/server",
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker"
     }
   ],
   "packageRules": [
@@ -60,10 +71,9 @@
       "schedule": ["before 6am on the first day of the month"]
     },
     {
-      "description": "Group Vaultwarden packages, schedule monthly",
+      "description": "Group Vaultwarden packages",
       "matchPackagePatterns": ["vaultwarden"],
-      "groupName": "vaultwarden",
-      "schedule": ["before 6am on the first day of the month"]
+      "groupName": "vaultwarden"
     }
   ]
 }
