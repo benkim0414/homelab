@@ -15,6 +15,7 @@ spec:
       labels:
         app: immich-pg-backup
     spec:
+      ttlSecondsAfterFinished: 86400
       template:
         spec:
           restartPolicy: OnFailure
