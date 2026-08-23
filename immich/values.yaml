@@ -1,6 +1,6 @@
 # Immich Helm chart values
 # Chart: oci://ghcr.io/immich-app/immich-charts/immich
-# Version: 0.11.1 (appVersion v2.6.3)
+# Version: 0.13.1 (server image v3.1.0)
 
 # -- Shared env vars (applied to all components)
 controllers:
@@ -8,7 +8,7 @@ controllers:
     containers:
       main:
         image:
-          tag: v2.7.5
+          tag: v3.1.0
         env:
           DB_HOSTNAME: immich-postgres
           DB_PORT: "5432"
