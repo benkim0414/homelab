@@ -4,42 +4,26 @@ Inventory and scripts for deploying a high-availability K3s cluster on Raspberry
 
 ## Architecture
 
-```
-                  +-------------------------+
-                  |   VIP: 192.168.0.10     |  (kube-vip, ARP mode)
-                  |   K8s API endpoint      |
-                  +------------+------------+
-     +-------------------------+-------------------------+
-     v                         v                         v
-+------------------+  +------------------+  +------------------+
-| rpi5-8gb-crucial |  | rpi5-8gb-crucial |  |   rpi5-8gb-rpi   |  Control Plane
-| -p3-plus-500gb   |  | -bx500-500gb     |  |    -512gb        |  (etcd + server)
-|    .0.11         |  |    .0.12         |  |    .0.13         |
-+------------------+  +------------------+  +------------------+
-                      +------------------+
-                      |  rpi5-8gb-rpi    |  Worker
-                      |    -256gb        |
-                      |    .0.14         |
-                      +------------------+
-                      +------------------+
-                      | macpro-vm-16gb   |  Worker
-                      | samsung-980-120gb|  (Proxmox VM, compute-only)
-                      |    .0.21         |
-                      +------------------+
+```text
+API VIP 192.168.0.10 (kube-vip)
+  k3s-01 (.11) -- control plane / etcd
+  k3s-02 (.12) -- control plane / etcd
+  k3s-03 (.13) -- control plane / etcd
+  k3s-04 (.14) -- Raspberry Pi worker
+  k3s-05 (.21) -- Mac Pro VM worker, Longhorn storage
 
-   MetalLB Pool: 192.168.0.200 - 192.168.0.250 (L2 mode)
-   Traefik: LoadBalancer service -> gets IP from MetalLB
+MetalLB: 192.168.0.200 - 192.168.0.250
 ```
 
 ### Nodes
 
 | Hostname                       | IP           | Role                 | Storage       |
 | ------------------------------ | ------------ | -------------------- | ------------- |
-| rpi5-8gb-crucial-p3-plus-500gb | 192.168.0.11 | Control plane / etcd | NVMe (fast)   |
-| rpi5-8gb-crucial-bx500-500gb   | 192.168.0.12 | Control plane / etcd | SATA          |
-| rpi5-8gb-rpi-512gb             | 192.168.0.13 | Control plane / etcd | NVMe (fast)   |
-| rpi5-8gb-rpi-256gb             | 192.168.0.14 | Worker / agent       | NVMe (medium) |
-| macpro-vm-16gb-samsung-980-120gb | 192.168.0.21 | Worker / agent       | Proxmox VM, compute-only |
+| k3s-01 | 192.168.0.11 | Control plane / etcd | 256 GB NVMe   |
+| k3s-02   | 192.168.0.12 | Control plane / etcd | 256 GB NVMe|
+| k3s-03             | 192.168.0.13 | Control plane / etcd | 256 GB NVMe   |
+| k3s-04             | 192.168.0.14 | Worker / agent       | 512 GB NVMe |
+| k3s-05 | 192.168.0.21 | Worker / agent       | Proxmox VM, Longhorn storage |
 
 ### Networking
 
@@ -56,6 +40,9 @@ homelab/
 |-- k3s-ansible/
 |   |-- README.md
 |   |-- inventory.yml               # Cluster inventory + all vars
+|   |-- host_vars/                  # Node names, addresses and VM overrides
+|   |-- prepare-nodes.yml           # Host packages, modules, Pi boot setup
+|   |-- join-workers.yml            # Join existing cluster without server changes
 |   `-- scripts/
 |       |-- preflight-check.sh      # Pre-flight node validation
 |       `-- verify-cluster.sh       # Post-deploy verification
@@ -95,33 +82,41 @@ helm repo update
 
 ## Mac Pro Worker VM
 
-The Mac Pro worker is created manually in Proxmox, then joined through this
-inventory as a K3s agent.
+VM 210 is running and joined as `k3s-05` at `.21`. It was recreated from Debian's
+generic cloud image and joined through this inventory as a K3s agent.
 
 Recommended VM settings:
 
 | Setting | Value |
 | ------- | ----- |
-| VM hostname | `macpro-vm-16gb-samsung-980-120gb` |
+| VM hostname | `k3s-05` |
 | VM IP | `192.168.0.21` |
-| OS | Debian 12 Bookworm |
+| OS | Debian 13 Trixie |
 | vCPU | 4 |
 | RAM | 16 GiB |
-| Disk | 120 GiB |
+| Disk | 128 GiB |
 | Network | Proxmox `vmbr0` |
 | K3s role | Agent only |
-| Longhorn role | Compute-only; no default disk label |
+| Longhorn role | Replica storage; default disk label enabled |
 
 Create the `benkim0414` user on the VM with passwordless or promptable sudo
 for Ansible, then install the homelab SSH key used by
-`~/.ssh/codex_homelab_config`.
+`~/.ssh/homelab_config`.
 
-To create the VM from a Debian 12 cloud image with cloud-init instead of doing
+To create the VM from a Debian 13 generic cloud image with cloud-init instead of doing
 a manual installer flow, run:
 
 ```bash
-~/workspace/homelab/scripts/provision-macpro-k3s-vm.sh
+./scripts/provision-macpro-k3s-vm.sh
 ```
+
+Run from the checkout containing the reviewed script. Replacing existing VM 210
+requires `RECREATE_EXISTING=1` and the interactive `DESTROY-210` confirmation.
+The script downloads/verifies Debian's SHA512 checksum before deleting the VM.
+Proxmox sudo currently requires the user's password in their own terminal.
+The default guest login key is `~/.ssh/pi_ed25519.pub`. Verify the new guest's
+ED25519 host fingerprint through the Proxmox console and add it to local known
+hosts before SSH verification; the script deliberately requires a trusted key.
 
 ## Inventory Configuration
 
@@ -132,6 +127,32 @@ All configuration lives in `inventory.yml`. Key decisions:
 - **`servicelb` is disabled** because MetalLB handles LoadBalancer services instead.
 - **`tls-san`** includes the VIP and all server IPs so the API server cert is valid regardless of which endpoint is used.
 - **`cluster_context`** is set to `k3s` so the kubeconfig context, cluster, and user are named `k3s` instead of the default `k3s-ansible`.
+
+## Fresh node preparation
+
+Set OS hostnames to `k3s-01` through `k3s-04` and preserve the `.11` through `.14`
+addresses when imaging Raspberry Pi OS 64-bit Lite. Enable SSH and passwordless
+sudo for `pi`, and verify each new host key before trusting it.
+
+The Pis use `~/.ssh/pi_ed25519`; local aliases are in `~/.ssh/homelab_config`.
+K3s is pinned to `v1.36.5+k3s1`, with wired `eth0` for Flannel and explicit node
+IPs. The VM also uses `eth0`; it has been provisioned and joined at `.21`.
+
+Apply the reviewed prerequisites and reboot fresh Pis:
+
+```bash
+ANSIBLE_LOCAL_TEMP=/tmp/homelab-ansible \
+ANSIBLE_SSH_CONTROL_PATH_DIR=/tmp/homelab-ansible-cp \
+ansible-playbook -i k3s-ansible/inventory.yml k3s-ansible/prepare-nodes.yml \
+  --limit '192.168.0.11,192.168.0.12,192.168.0.13,192.168.0.14' \
+  -e prepare_reboot=true
+```
+
+The playbook installs iSCSI/NFS tools, enables `iscsid`, loads `iscsi_tcp` and
+`dm_crypt` persistently, enables
+memory cgroups, and disables Pi swap with an rpi-swap drop-in. It preserves the
+original boot command line at `/var/backups/cmdline.txt.before-k3s`; keeping that
+backup off the FAT boot partition avoids unsupported timestamp characters.
 
 ## Deployment
 
@@ -152,20 +173,48 @@ Run from the k3s-ansible repo root (required for `ansible.cfg` to resolve `roles
 
 ```bash
 cd ~/workspace/k3s-ansible
-ansible-playbook playbooks/site.yml -i ~/workspace/homelab/k3s-ansible/inventory.yml
+ansible-playbook playbooks/site.yml -i ~/workspace/homelab/k3s-ansible/inventory.yml \
+  --limit '192.168.0.11,192.168.0.12,192.168.0.13,192.168.0.14' --forks=1 \
+  -e kubeconfig=/tmp/homelab-k3s-rebuild.yaml
 ```
 
-To join only the Mac Pro worker VM to an existing cluster, limit the playbook to
-`.21`:
+To join only the Mac Pro worker VM to an existing cluster, use the worker playbook
+and limit it to `.21`. It retrieves the existing token from the first server with
+logging disabled, without rerunning the server role:
 
 ```bash
 cd ~/workspace/k3s-ansible
-ansible-playbook playbooks/site.yml \
+ANSIBLE_ROLES_PATH="$PWD/roles" ansible-playbook \
+  ~/workspace/homelab/k3s-ansible/join-workers.yml \
   -i ~/workspace/homelab/k3s-ansible/inventory.yml \
   --limit 192.168.0.21
 ```
 
+Verify the replacement VM's SSH fingerprint through Proxmox before joining. The
+replacement VM key was verified through Proxmox and installed in the user's
+persistent known-hosts file with approval on 15 October 2026. Run
+`prepare-nodes.yml` for the VM first; its host variables enable the
+QEMU guest agent along with the Longhorn prerequisites.
+
+After provisioning, restrict files that contain join credentials to root:
+
+```bash
+# Run on each node. The worker uses k3s-agent.service.env.
+sudo chmod 0600 /etc/rancher/k3s/config.yaml /etc/systemd/system/k3s.service.env
+# On a worker instead:
+sudo chmod 0600 /etc/rancher/k3s/config.yaml /etc/systemd/system/k3s-agent.service.env
+```
+
 ### 3. Configure kubectl
+
+For the rebuild, use the separate kubeconfig fetched by Ansible:
+
+```bash
+kubectl --kubeconfig /tmp/homelab-k3s-rebuild.yaml get nodes
+```
+
+The following commands replace the default local kubeconfig; use them only when
+ready to switch local tools to the rebuilt cluster.
 
 ```bash
 mkdir -p ~/.kube
@@ -213,16 +262,16 @@ kubectl -n kube-system rollout status deployment traefik --timeout=120s
 ### 8. Label nodes
 
 ```bash
-kubectl label node rpi5-8gb-crucial-p3-plus-500gb storage-tier=nvme-fast
-kubectl label node rpi5-8gb-rpi-512gb storage-tier=nvme-fast
-kubectl label node rpi5-8gb-rpi-256gb storage-tier=nvme-medium
-kubectl label node rpi5-8gb-crucial-bx500-500gb storage-tier=sata
+kubectl label node k3s-01 storage-tier=nvme
+kubectl label node k3s-03 storage-tier=nvme
+kubectl label node k3s-04 storage-tier=nvme
+kubectl label node k3s-02 storage-tier=nvme
 ```
 
 The Mac Pro VM receives opt-in scheduling labels through `extra_agent_args`:
 
 ```bash
-kubectl get node macpro-vm-16gb-samsung-980-120gb \
+kubectl get node k3s-05 \
   -L homelab/host,homelab/node-class,homelab/workload-tier
 ```
 
@@ -234,8 +283,9 @@ homelab/node-class=vm
 homelab/workload-tier=heavy
 ```
 
-Do not add `node.longhorn.io/create-default-disk=true` to this VM during the
-first rollout.
+The VM host variables enable `node.longhorn.io/create-default-disk=true`.
+Set each OS hostname to its `k3s-01` through `k3s-05` name before provisioning;
+host variables also explicitly set the matching K3s node name.
 
 The kubelet eviction thresholds in `inventory.yml` (`eviction-hard`, `eviction-soft`,
 `kube-reserved`) are written to `/etc/rancher/k3s/config.yaml` on each server node by
@@ -254,16 +304,21 @@ to pick up the new config:
 
 ```bash
 ssh pi@192.168.0.14 sudo systemctl restart k3s-agent
-ssh -F ~/.ssh/codex_homelab_config \
-  -i ~/.ssh/codex_homelab_ed25519 \
+ssh -F ~/.ssh/homelab_config \
+  -i ~/.ssh/pi_ed25519 \
   -o IdentitiesOnly=yes \
   benkim0414@192.168.0.21 sudo systemctl restart k3s-agent
 ```
 
 ### 9. Verify
 
+The verification script creates and deletes a temporary whoami workload; obtain
+approval for those cluster mutations before running it. Use the rebuild
+kubeconfig explicitly:
+
 ```bash
-bash ~/workspace/homelab/k3s-ansible/scripts/verify-cluster.sh
+KUBECONFIG=/tmp/homelab-k3s-rebuild.yaml \
+  bash ~/workspace/homelab/k3s-ansible/scripts/verify-cluster.sh
 ```
 
 ## Verification Checklist
@@ -276,7 +331,7 @@ bash ~/workspace/homelab/k3s-ansible/scripts/verify-cluster.sh
 | MetalLB pods                                | 1 controller + 5 speakers                 |
 | `kubectl -n kube-system get svc traefik`    | EXTERNAL-IP in 192.168.0.200-250          |
 | Node labels                                 | `storage-tier` set on Raspberry Pi nodes; opt-in labels set on Mac Pro VM |
-| Longhorn Mac Pro disk                       | No schedulable default disk or replicas on the Mac Pro VM |
+| Longhorn Mac Pro disk                       | Ready, schedulable Longhorn disk on the Mac Pro VM |
 
 ## Resetting
 

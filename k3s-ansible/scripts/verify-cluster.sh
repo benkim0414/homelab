@@ -6,13 +6,14 @@ set -euo pipefail
 
 VIP="192.168.0.10"
 SSH_USER="pi"
-SSH_KEY="${SSH_KEY:-$HOME/.ssh/codex_homelab_ed25519}"
+SSH_CONFIG="${SSH_CONFIG:-$HOME/.ssh/homelab_config}"
+SSH_KEY="${SSH_KEY:-$HOME/.ssh/pi_ed25519}"
 FIRST_SERVER="192.168.0.11"
 EXPECTED_NODES=5
 EXPECTED_CONTROL_PLANES=3
 EXPECTED_KUBE_VIP_PODS=3
 EXPECTED_METALLB_SPEAKERS=5
-MACPRO_NODE="macpro-vm-16gb-samsung-980-120gb"
+MACPRO_NODE="k3s-05"
 PASS=0
 FAIL=0
 VIP_BODY_FILE=$(mktemp)
@@ -86,7 +87,7 @@ kubectl -n kube-system get lease plndr-cp-lock -o jsonpath='{.spec.holderIdentit
 
 # --- etcd health ---
 header "etcd Health"
-etcd_health=$(ssh -i "$SSH_KEY" -o IdentitiesOnly=yes -o ConnectTimeout=5 -o BatchMode=yes "$SSH_USER@$FIRST_SERVER" \
+etcd_health=$(ssh -F "$SSH_CONFIG" -i "$SSH_KEY" -o StrictHostKeyChecking=yes -o UpdateHostKeys=no -o IdentitiesOnly=yes -o ConnectTimeout=5 -o BatchMode=yes "$SSH_USER@$FIRST_SERVER" \
     "set -o pipefail
     find_output=\$(sudo find /var/lib/rancher/k3s/data -path '*/bin/etcdctl' -type f 2>&1)
     find_rc=\$?
@@ -161,7 +162,7 @@ kubectl -n kube-system get svc traefik || true
 
 # --- Node labels ---
 header "Node Labels (Longhorn default disk)"
-for node in rpi5-8gb-crucial-p3-plus-500gb rpi5-8gb-rpi-512gb rpi5-8gb-rpi-256gb rpi5-8gb-crucial-bx500-500gb; do
+for node in k3s-01 k3s-02 k3s-03 k3s-04 "$MACPRO_NODE"; do
     default_disk=$(kubectl get node "$node" -o jsonpath='{.metadata.labels.node\.longhorn\.io/create-default-disk}' 2>/dev/null || echo "")
     if [[ "$default_disk" == "true" ]]; then
         ok "$node: node.longhorn.io/create-default-disk=true"
@@ -188,19 +189,26 @@ for key in "${!macpro_labels[@]}"; do
     fi
 done
 
-# --- Longhorn Mac Pro storage exclusion ---
+# --- Longhorn Mac Pro replica storage ---
 header "Longhorn Mac Pro Storage"
-if longhorn_node_query=$(kubectl -n longhorn-system get nodes.longhorn.io "$MACPRO_NODE" 2>&1); then
-    replicas_on_macpro=$(kubectl -n longhorn-system get replicas.longhorn.io \
-        -o jsonpath="{range .items[?(@.spec.nodeID=='$MACPRO_NODE')]}{.metadata.name}{'\n'}{end}" 2>/dev/null \
-        | grep -c . || true)
-
-    fail "$MACPRO_NODE exists as a Longhorn storage node with $replicas_on_macpro replicas; expected it to be absent"
-elif echo "$longhorn_node_query" | grep -qi "not found"; then
-    ok "$MACPRO_NODE is absent from Longhorn storage nodes"
+if kubectl -n longhorn-system get nodes.longhorn.io "$MACPRO_NODE" -o json | python3 -c '
+import json, sys
+node = json.load(sys.stdin)
+assert node["spec"].get("allowScheduling") is True
+ready = any(c.get("type") == "Ready" and c.get("status") == "True"
+            for c in node.get("status", {}).get("conditions", []))
+assert ready
+disks = node["spec"].get("disks", {})
+statuses = node.get("status", {}).get("diskStatus", {})
+assert any(disk.get("allowScheduling") is True and
+           all(any(c.get("type") == condition and c.get("status") == "True"
+                   for c in statuses.get(name, {}).get("conditions", []))
+               for condition in ("Ready", "Schedulable"))
+           for name, disk in disks.items())
+'; then
+    ok "$MACPRO_NODE is Ready with a schedulable Longhorn disk"
 else
-    fail "Could not query Longhorn storage node state for $MACPRO_NODE"
-    echo "$longhorn_node_query"
+    fail "$MACPRO_NODE must have a Ready, schedulable Longhorn disk"
 fi
 
 # --- whoami smoke test ---

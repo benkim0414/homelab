@@ -1,0 +1,126 @@
+---
+- name: Prepare fresh nodes for K3s and Longhorn
+  hosts: k3s_cluster
+  become: true
+  tasks:
+    - name: Install the Proxmox guest agent on designated VM nodes
+      ansible.builtin.apt:
+        name: qemu-guest-agent
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+      when: install_qemu_guest_agent | default(false) | bool
+
+    - name: Enable the Proxmox guest agent on designated VM nodes
+      ansible.builtin.systemd_service:
+        name: qemu-guest-agent
+        enabled: true
+        state: started
+      when: install_qemu_guest_agent | default(false) | bool
+
+    - name: Install Longhorn host prerequisites
+      ansible.builtin.apt:
+        name:
+          - open-iscsi
+          - nfs-common
+          - cryptsetup
+          - dmsetup
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Persist the Longhorn kernel modules
+      ansible.builtin.copy:
+        dest: /etc/modules-load.d/longhorn.conf
+        content: "iscsi_tcp\ndm_crypt\n"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Load the Longhorn kernel modules
+      ansible.builtin.command: "modprobe {{ item }}"
+      loop:
+        - iscsi_tcp
+        - dm_crypt
+      changed_when: false
+
+    - name: Enable the iSCSI daemon
+      ansible.builtin.systemd_service:
+        name: iscsid
+        enabled: true
+        state: started
+
+    - name: Check for Raspberry Pi boot configuration
+      ansible.builtin.stat:
+        path: /boot/firmware/cmdline.txt
+      register: pi_cmdline
+
+    - name: Enable Raspberry Pi memory cgroups
+      when: pi_cmdline.stat.exists
+      block:
+        - name: Read the single boot command line
+          ansible.builtin.slurp:
+            src: /boot/firmware/cmdline.txt
+          register: boot_cmdline
+
+        - name: Preserve the original boot configuration outside the FAT partition
+          ansible.builtin.copy:
+            src: /boot/firmware/cmdline.txt
+            dest: /var/backups/cmdline.txt.before-k3s
+            remote_src: true
+            force: false
+            owner: root
+            group: root
+            mode: "0600"
+
+        - name: Append missing cgroup parameters while preserving boot options
+          ansible.builtin.copy:
+            dest: /boot/firmware/cmdline.txt
+            content: >-
+              {{ ((boot_cmdline.content | b64decode).split() + (['cgroup_enable=cpuset', 'cgroup_memory=1', 'cgroup_enable=memory'] | difference((boot_cmdline.content | b64decode).split()))) | join(' ') }}
+            owner: root
+            group: root
+            mode: "0644"
+
+    - name: Check for Raspberry Pi swap management
+      ansible.builtin.stat:
+        path: /etc/rpi/swap.conf
+      register: pi_swap
+
+    - name: Disable Raspberry Pi swap persistently
+      when: pi_swap.stat.exists
+      block:
+        - name: Create local swap configuration directory
+          ansible.builtin.file:
+            path: /etc/rpi/swap.conf.d
+            state: directory
+            owner: root
+            group: root
+            mode: "0755"
+
+        - name: Disable swap through the supported rpi-swap setting
+          ansible.builtin.copy:
+            dest: /etc/rpi/swap.conf.d/99-k3s.conf
+            content: "[Main]\nMechanism=none\n"
+            owner: root
+            group: root
+            mode: "0644"
+
+    - name: Reboot nodes when explicitly requested
+      ansible.builtin.reboot:
+        reboot_timeout: 300
+      when: prepare_reboot | default(false) | bool
+
+    - name: Verify memory cgroups after requested reboot
+      ansible.builtin.command: cat /sys/fs/cgroup/cgroup.controllers
+      changed_when: false
+      register: cgroup_controllers
+      failed_when: "'memory' not in cgroup_controllers.stdout.split()"
+      when: prepare_reboot | default(false) | bool
+
+    - name: Verify swap is disabled after requested reboot
+      ansible.builtin.command: /sbin/swapon --noheadings --show
+      changed_when: false
+      register: active_swap
+      failed_when: active_swap.stdout | trim | length > 0
+      when: prepare_reboot | default(false) | bool

@@ -1,7 +1,7 @@
 ---
-# Per-node overrides for rpi5-8gb-rpi-512gb (.13)
+# Per-node overrides for k3s-03 (.13)
 #
 # Label as a Longhorn storage node (NVMe SSD). Required when
 # createDefaultDiskLabeledNodes is enabled — without this label k3s would
 # not re-create the default disk after a cluster rebuild.
-extra_server_args: "--node-label node.longhorn.io/create-default-disk=true"
+extra_server_args: "--node-name k3s-03 --node-ip 192.168.0.13 --node-label node.longhorn.io/create-default-disk=true"

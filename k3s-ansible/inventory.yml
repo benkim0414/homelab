@@ -3,19 +3,21 @@ k3s_cluster:
   children:
     server:
       hosts:
-        192.168.0.11:    # rpi5-8gb-crucial-p3-plus-500gb (bootstrap leader)
-        192.168.0.12:    # rpi5-8gb-crucial-bx500-500gb
-        192.168.0.13:    # rpi5-8gb-rpi-512gb
+        192.168.0.11:    # k3s-01 (bootstrap leader)
+        192.168.0.12:    # k3s-02
+        192.168.0.13:    # k3s-03
     agent:
       hosts:
-        192.168.0.14:    # rpi5-8gb-rpi-256gb (agent — no etcd)
-        192.168.0.21:    # macpro-vm-16gb-samsung-980-120gb (agent - compute-only amd64 VM)
+        192.168.0.14:    # k3s-04 (agent — no etcd)
+        192.168.0.21:    # replacement Mac Pro VM (agent with Longhorn storage)
 
   # Required Vars
   vars:
     ansible_port: 22
     ansible_user: pi
-    k3s_version: v1.31.12+k3s1
+    ansible_ssh_private_key_file: ~/.ssh/pi_ed25519
+    ansible_ssh_common_args: "-F {{ lookup('env', 'HOME') }}/.ssh/homelab_config -o StrictHostKeyChecking=yes -o UpdateHostKeys=no -o IdentitiesOnly=yes"
+    k3s_version: v1.36.5+k3s1
     # The token should be a random string of reasonable length. You can generate
     # one with the following commands:
     # - openssl rand -base64 64
@@ -43,6 +45,7 @@ k3s_cluster:
     # airgap_dir: /tmp/k3s-airgap-images
 
     server_config_yaml: |
+      flannel-iface: eth0
       tls-san:
         - 192.168.0.10
         - 192.168.0.11
@@ -61,6 +64,7 @@ k3s_cluster:
         - "eviction-soft-grace-period=memory.available=2m"
         - "eviction-hard=memory.available<256Mi"
     agent_config_yaml: |
+      flannel-iface: eth0
       kubelet-arg:
         - "kube-reserved=memory=512Mi,cpu=200m"
         - "eviction-soft=memory.available<512Mi"

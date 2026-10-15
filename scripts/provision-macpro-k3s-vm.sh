@@ -2,9 +2,9 @@
 set -euo pipefail
 
 PVE_HOST="${PVE_HOST:-pve-macpro}"
-SSH_CONFIG="${SSH_CONFIG:-$HOME/.ssh/codex_homelab_config}"
+SSH_CONFIG="${SSH_CONFIG:-$HOME/.ssh/homelab_config}"
 VMID="${VMID:-210}"
-VM_NAME="${VM_NAME:-macpro-vm-16gb-samsung-980-120gb}"
+VM_NAME="${VM_NAME:-k3s-05}"
 VM_IP="${VM_IP:-192.168.0.21}"
 VM_CIDR="${VM_CIDR:-24}"
 VM_GW="${VM_GW:-192.168.0.1}"
@@ -12,13 +12,13 @@ VM_DNS="${VM_DNS:-192.168.0.1}"
 VM_USER="${VM_USER:-benkim0414}"
 VM_CORES="${VM_CORES:-4}"
 VM_MEMORY_MB="${VM_MEMORY_MB:-16384}"
-VM_DISK="${VM_DISK:-120G}"
+VM_DISK="${VM_DISK:-128G}"
 VM_BRIDGE="${VM_BRIDGE:-vmbr0}"
 PVE_STORAGE="${PVE_STORAGE:-local-lvm}"
 CLOUDINIT_DRIVE="${CLOUDINIT_DRIVE:-scsi1}"
-IMAGE_URL="${IMAGE_URL:-https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-nocloud-amd64.qcow2}"
-IMAGE_PATH="${IMAGE_PATH:-/var/lib/vz/template/iso/debian-12-nocloud-amd64.qcow2}"
-SSH_KEY_PATH="${SSH_KEY_PATH:-$HOME/.ssh/codex_homelab_ed25519.pub}"
+IMAGE_URL="${IMAGE_URL:-https://cloud.debian.org/images/cloud/trixie/latest/debian-13-generic-amd64.qcow2}"
+IMAGE_PATH="${IMAGE_PATH:-/var/lib/vz/template/iso/debian-13-generic-amd64.qcow2}"
+SSH_KEY_PATH="${SSH_KEY_PATH:-$HOME/.ssh/pi_ed25519.pub}"
 RECREATE_EXISTING="${RECREATE_EXISTING:-0}"
 
 if [[ ! -f "$SSH_KEY_PATH" ]]; then
@@ -82,6 +82,47 @@ need_cmd() {
 need_cmd qm
 need_cmd pvesm
 
+if qm list | awk -v id="$VMID" -v name="$VM_NAME" \
+    'NR > 1 && $1 != id && $2 == name {found=1} END {exit !found}'; then
+    echo "A VM named $VM_NAME already exists. Choose another VMID or inspect manually." >&2
+    qm list
+    exit 1
+fi
+
+if ! pvesm status | awk 'NR > 1 {print $1}' | grep -Fxq "$PVE_STORAGE"; then
+    echo "Storage $PVE_STORAGE not found." >&2
+    pvesm status
+    exit 1
+fi
+
+# Verify a complete image before any destructive VM operation.
+need_cmd sha512sum
+need_cmd curl
+mkdir -p "$(dirname "$IMAGE_PATH")"
+image_name="${IMAGE_URL##*/}"
+checksums=$(mktemp)
+trap 'rm -f "$checksums"' EXIT
+curl --proto '=https' --tlsv1.2 -L --fail --silent --show-error \
+    "${IMAGE_URL%/*}/SHA512SUMS" -o "$checksums"
+image_sha512=$(awk -v file="$image_name" '$2 == file || $2 == "*" file {print $1}' "$checksums")
+if [[ ! "$image_sha512" =~ ^[[:xdigit:]]{128}$ ]]; then
+    echo "No unique SHA512 checksum for $image_name. Aborted before VM deletion." >&2
+    exit 1
+fi
+if [[ ! -s "$IMAGE_PATH" ]]; then
+    echo "Downloading Debian cloud image..."
+    curl --proto '=https' --tlsv1.2 -L --fail --progress-bar \
+        "$IMAGE_URL" -o "${IMAGE_PATH}.partial"
+    printf '%s  %s\n' "$image_sha512" "${IMAGE_PATH}.partial" | sha512sum --check --status
+    mv "${IMAGE_PATH}.partial" "$IMAGE_PATH"
+else
+    echo "Verifying existing Debian image..."
+    printf '%s  %s\n' "$image_sha512" "$IMAGE_PATH" | sha512sum --check --status
+fi
+echo "Debian image SHA512 verified."
+rm -f "$checksums"
+trap - EXIT
+
 if qm status "$VMID" >/dev/null 2>&1; then
     echo "VMID $VMID already exists:"
     qm config "$VMID"
@@ -104,33 +145,6 @@ if qm status "$VMID" >/dev/null 2>&1; then
         qm shutdown "$VMID" --timeout 60 || qm stop "$VMID"
     fi
     qm destroy "$VMID" --purge
-fi
-
-if qm list | awk 'NR > 1 {print $2}' | grep -Fxq "$VM_NAME"; then
-    echo "A VM named $VM_NAME already exists. Choose another VMID or inspect manually." >&2
-    qm list
-    exit 1
-fi
-
-if ! pvesm status | awk 'NR > 1 {print $1}' | grep -Fxq "$PVE_STORAGE"; then
-    echo "Storage $PVE_STORAGE not found." >&2
-    pvesm status
-    exit 1
-fi
-
-mkdir -p "$(dirname "$IMAGE_PATH")"
-if [[ ! -s "$IMAGE_PATH" ]]; then
-    echo "Downloading Debian cloud image..."
-    if command -v curl >/dev/null 2>&1; then
-        curl -L --fail --progress-bar "$IMAGE_URL" -o "$IMAGE_PATH"
-    elif command -v wget >/dev/null 2>&1; then
-        wget -O "$IMAGE_PATH" "$IMAGE_URL"
-    else
-        echo "Neither curl nor wget is available on Proxmox." >&2
-        exit 1
-    fi
-else
-    echo "Using existing image: $IMAGE_PATH"
 fi
 
 key_file=$(mktemp)
@@ -189,6 +203,8 @@ echo
 echo "Waiting for SSH on $VM_IP..."
 grow_guest_root() {
     ssh -F "$SSH_CONFIG" \
+        -o StrictHostKeyChecking=yes \
+        -o UpdateHostKeys=no \
         -i "${SSH_KEY_PATH%.pub}" \
         -o BatchMode=yes \
         -o IdentitiesOnly=yes \
@@ -224,7 +240,8 @@ for _ in {1..60}; do
         -o ConnectTimeout=3 \
         -o BatchMode=yes \
         -o IdentitiesOnly=yes \
-        -o StrictHostKeyChecking=accept-new \
+        -o StrictHostKeyChecking=yes \
+        -o UpdateHostKeys=no \
         "$VM_USER@$VM_IP" 'hostname' >/dev/null 2>&1; then
         echo "SSH is ready."
         echo "Ensuring guest root filesystem uses the resized disk..."
