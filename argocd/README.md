@@ -277,7 +277,7 @@ The manual root, Sealed Secrets, MetalLB, kube-vip, Traefik, Tailscale, Immich,
 Vaultwarden and Longhorn Applications have now been synced without pruning.
 All report Synced/Healthy. Existing application pods and database volumes remained
 healthy. Vaultwarden's reviewed backup validation improvement is deployed.
-ArgoCD self-adoption, Loki, Alloy and Home Assistant remain unsynced.
+ArgoCD self-adoption and Home Assistant remain unsynced.
 
 After the user removed the stale Longhorn tailnet device and renamed the new
 proxy, the ingress advertises `https://longhorn.tailbd291c.ts.net`. DNS resolves
@@ -317,3 +317,16 @@ the operator waiting for its TLS Secret. Re-running with the hook strategy
 created the certificate and started the operator without pruning or force.
 Review the completed Prometheus/Grafana rollout before syncing Loki and finally
 Alloy. All apps remain manual.
+
+Loki was subsequently synced with approval, without pruning or force replacement.
+It reports Synced/Healthy: the single-binary pod is 2/2 ready, its gateway is
+1/1 ready, and neither has restarted. Its 10Gi Longhorn volume is healthy.
+The readiness endpoint returns HTTP 200 and the labels query succeeds. Runtime
+configuration confirms `168h` retention and filesystem compactor delete requests.
+Log collection and end-to-end ingestion remain pending Alloy deployment.
+
+Alloy's first approved sync created collectors on all five nodes, but runtime
+verification found wildcard log paths being treated as literal filenames.
+The proposed correction enables `file_match` in `loki.source.file`; the rendered
+configuration passes validation using the deployed Alloy v1.20.1 binary.
+End-to-end ingestion remains unverified until this correction is deployed.

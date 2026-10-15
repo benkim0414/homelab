@@ -81,6 +81,9 @@ alloy:
       loki.source.file "pods" {
         targets    = discovery.relabel.pods.output
         forward_to = [loki.process.cri.receiver]
+        file_match {
+          enabled = true
+        }
       }
 
       // Parse CRI log format
