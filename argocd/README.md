@@ -349,4 +349,7 @@ All five nodes and seven Longhorn volumes are healthy after these deployments.
 The root app's remaining diff is an explicit empty `group` in the Grafana Secret
 ignore rule, which Kubernetes omits from the stored Application. Removing that
 empty field preserves the rule while avoiding this serialization difference.
-The repository correction remains pending publication and root reconciliation.
+The correction is published in commit `8e675c0`. Refreshing the root comparison
+against that revision resolved the diff without resource mutations or pruning.
+All 14 Applications report Synced/Healthy and all five nodes are Ready.
+Home Assistant onboarding and its replacement metrics token remain user tasks.
