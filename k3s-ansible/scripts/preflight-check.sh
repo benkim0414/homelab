@@ -10,7 +10,7 @@ NODES=(
     "192.168.0.12|k3s-02|pi|eth0|true"
     "192.168.0.13|k3s-03|pi|eth0|true"
     "192.168.0.14|k3s-04|pi|eth0|true"
-    "192.168.0.21|k3s-05|benkim0414|eth0|false"
+    "192.168.0.22|k3s-05|benkim0414|eth0|false"
 )
 SSH_CONFIG="${SSH_CONFIG:-$HOME/.ssh/homelab_config}"
 SSH_KEY="${SSH_KEY:-$HOME/.ssh/pi_ed25519}"

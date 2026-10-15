@@ -9,7 +9,7 @@ k3s_cluster:
     agent:
       hosts:
         192.168.0.14:    # k3s-04 (agent — no etcd)
-        192.168.0.21:    # replacement Mac Pro VM (agent with Longhorn storage)
+        192.168.0.22:    # replacement Mac Pro VM (agent with Longhorn storage)
 
   # Required Vars
   vars:
