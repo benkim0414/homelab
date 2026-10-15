@@ -7,18 +7,21 @@ metadata:
     app: immich-pg-backup
 spec:
   schedule: "0 3 * * *"
+  timeZone: Australia/Melbourne
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
-  failedJobsHistoryLimit: 0
+  failedJobsHistoryLimit: 3
   jobTemplate:
     metadata:
       labels:
         app: immich-pg-backup
     spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 1800
       ttlSecondsAfterFinished: 86400
       template:
         spec:
-          restartPolicy: OnFailure
+          restartPolicy: Never
           containers:
             - name: pg-backup
               image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0
@@ -27,21 +30,28 @@ spec:
                 - -c
                 - |
                   set -euo pipefail
-                  TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-                  BACKUP_FILE="/backups/immich-${TIMESTAMP}.dump"
-                  echo "Starting backup: ${BACKUP_FILE}"
-                  pg_dump -h immich-postgres -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc -f "$BACKUP_FILE"
-                  echo "Backup complete: $(du -h "$BACKUP_FILE" | cut -f1)"
-
-                  # Retain only the last 7 backups
-                  echo "Cleaning up old backups..."
-                  ls -1t /backups/immich-*.dump 2>/dev/null | tail -n +8 | xargs -r rm -v
-                  echo "Current backups:"
-                  ls -lh /backups/immich-*.dump
+                  umask 077
+                  mkdir -p /backups/scheduled
+                  TIMESTAMP=$(date -u +%Y%m%dT%H%M%S%NZ)
+                  BACKUP_FILE="/backups/scheduled/immich-${TIMESTAMP}.dump"
+                  PARTIAL="${BACKUP_FILE}.partial"
+                  trap 'rm -f "$PARTIAL"' EXIT
+                  pg_dump -h immich-postgres -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc -f "$PARTIAL"
+                  test -s "$PARTIAL"
+                  pg_restore --list "$PARTIAL" >/dev/null
+                  mv "$PARTIAL" "$BACKUP_FILE"
+                  sha256sum "$BACKUP_FILE"
+                  # Only this new directory participates in retention.
+                  if (( BACKUP_KEEP > 0 )); then
+                    mapfile -t BACKUPS < <(find /backups/scheduled -maxdepth 1 -type f -name 'immich-*.dump' | sort -r)
+                    for OLD in "${BACKUPS[@]:BACKUP_KEEP}"; do rm -- "$OLD"; done
+                  fi
               envFrom:
                 - secretRef:
                     name: immich-db-credentials
               env:
+                - name: BACKUP_KEEP
+                  value: "7"
                 - name: PGPASSWORD
                   valueFrom:
                     secretKeyRef:
