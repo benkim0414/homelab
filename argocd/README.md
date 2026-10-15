@@ -277,7 +277,7 @@ The manual root, Sealed Secrets, MetalLB, kube-vip, Traefik, Tailscale, Immich,
 Vaultwarden and Longhorn Applications have now been synced without pruning.
 All report Synced/Healthy. Existing application pods and database volumes remained
 healthy. Vaultwarden's reviewed backup validation improvement is deployed.
-ArgoCD self-adoption, monitoring and Home Assistant remain unsynced.
+ArgoCD self-adoption, Loki, Alloy and Home Assistant remain unsynced.
 
 After the user removed the stale Longhorn tailnet device and renamed the new
 proxy, the ingress advertises `https://longhorn.tailbd291c.ts.net`. DNS resolves
@@ -300,6 +300,17 @@ The reviewed persistent volumes total 34Gi for monitoring (20Gi Prometheus,
 2Gi Grafana, 2Gi Alertmanager, 10Gi Loki), before Longhorn replication.
 
 The user confirmed the old `grafana` Tailscale device was removed or renamed
-before first sync so the new proxy can claim that exact name. Request approval to sync the
-Prometheus stack without pruning, verify operator/CRD/storage readiness, and
-review the results before syncing Loki and finally Alloy. All apps remain manual.
+before first sync so the new proxy can claim that exact name. The approved
+Prometheus stack sync created the operator, Prometheus, Alertmanager and all five
+node exporters successfully. All three Longhorn claims are bound (24Gi total).
+Thirty of 31 scrape targets are healthy; Grafana is the remaining target because
+its container exceeds the original 256Mi memory limit and is OOM-killed.
+A proposed Git change raises Grafana's request to 256Mi and limit to 768Mi;
+deployment and runtime verification remain pending approval.
+
+Use ArgoCD's hook sync strategy for chart installation. The apply strategy skips
+Helm hooks, including this chart's admission-certificate creation job, leaving
+the operator waiting for its TLS Secret. Re-running with the hook strategy
+created the certificate and started the operator without pruning or force.
+Review the completed Prometheus/Grafana rollout before syncing Loki and finally
+Alloy. All apps remain manual.
