@@ -1,4 +1,5 @@
 sealed-secrets/sealed-secrets-master-keys.yaml
+/sealed-secrets-master-keys.yaml
 immich-backup.dump
 
 # Honcho JWT (contains a long-lived bearer token — never commit)
