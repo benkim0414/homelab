@@ -2,15 +2,15 @@
 set -euo pipefail
 
 PVE_HOST="${PVE_HOST:-pve-macpro}"
-SSH_CONFIG="${SSH_CONFIG:-$HOME/.ssh/codex_homelab_config}"
+SSH_CONFIG="${SSH_CONFIG:-$HOME/.ssh/homelab_config}"
 VMID="${VMID:-210}"
-VM_NAME="${VM_NAME:-macpro-vm-16gb-samsung-980-120gb}"
+VM_NAME="${VM_NAME:-k3s-05}"
 VM_IP="${VM_IP:-192.168.0.21}"
 VM_CIDR="${VM_CIDR:-24}"
 VM_GW="${VM_GW:-192.168.0.1}"
 VM_DNS="${VM_DNS:-192.168.0.1}"
 VM_USER="${VM_USER:-benkim0414}"
-SSH_KEY_PATH="${SSH_KEY_PATH:-$HOME/.ssh/codex_homelab_ed25519.pub}"
+SSH_KEY_PATH="${SSH_KEY_PATH:-$HOME/.ssh/pi_ed25519.pub}"
 
 if [[ ! -f "$SSH_KEY_PATH" ]]; then
     SSH_KEY_PATH="$HOME/.ssh/id_ed25519.pub"
@@ -230,7 +230,8 @@ for _ in {1..60}; do
         -o ConnectTimeout=3 \
         -o BatchMode=yes \
         -o IdentitiesOnly=yes \
-        -o StrictHostKeyChecking=accept-new \
+        -o StrictHostKeyChecking=yes \
+        -o UpdateHostKeys=no \
         "$VM_USER@$VM_IP" 'hostname' >/dev/null 2>&1; then
         echo "SSH is ready."
         echo "Ensuring guest root filesystem uses the resized disk..."
