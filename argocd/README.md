@@ -303,10 +303,13 @@ The user confirmed the old `grafana` Tailscale device was removed or renamed
 before first sync so the new proxy can claim that exact name. The approved
 Prometheus stack sync created the operator, Prometheus, Alertmanager and all five
 node exporters successfully. All three Longhorn claims are bound (24Gi total).
-Thirty of 31 scrape targets are healthy; Grafana is the remaining target because
-its container exceeds the original 256Mi memory limit and is OOM-killed.
-A proposed Git change raises Grafana's request to 256Mi and limit to 768Mi;
-deployment and runtime verification remain pending approval.
+Grafana exceeded the original 256Mi memory limit and was OOM-killed. The approved
+Git fix raises its request to 256Mi and limit to 768Mi. The subsequent sync
+completed without pruning: the Application is Synced/Healthy, Grafana is 3/3
+with no restarts, and both LAN and Tailscale HTTPS health checks report its
+database healthy. Initial observed Grafana pod memory is about 445Mi; this is
+a startup observation, not a sustained-load test.
+All 31 Prometheus scrape targets are healthy after the rollout.
 
 Use ArgoCD's hook sync strategy for chart installation. The apply strategy skips
 Helm hooks, including this chart's admission-certificate creation job, leaving
