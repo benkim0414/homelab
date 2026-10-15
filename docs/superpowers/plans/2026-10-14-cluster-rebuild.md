@@ -323,3 +323,37 @@ backup cleanup without pruning, scoped ZFS retention and failure safety, and VM
 checksum rejection before destructive operations. Candidate files contained no
 private-key/token patterns; the master-key export and Python bytecode remain
 ignored. No merge, push or ArgoCD activation was performed during this review.
+
+## VM address migration to .22 — completed
+
+During Longhorn Tailscale ingress adoption, VM image pulls repeatedly failed DNS
+resolution through 192.168.0.1. SSH to .21 then became refused, and both Proxmox
+and k3s-01 associated .21 with MAC 38:8c:50:e0:97:56 rather than VM 210's
+bc:24:11:5a:9b:d4. The user selected 192.168.0.22. Proxmox probes found no ICMP
+reply or resolved ARP entry for .22; this does not replace reserving it in DHCP.
+
+Active inventory, host vars, provisioning/repair scripts and node tables now use
+.22. Earlier entries in this record retain the historical addresses. Proxmox
+required interactive sudo; the user updated cloud-init ipconfig0 to
+192.168.0.22/24 (gateway .1), regenerated cloud-init and power-cycled the VM.
+The agent node-ip was then updated while preserving node name k3s-05 and all disks.
+
+Migration verification: SSH host key changed after cloud-init; the user confirmed
+SHA256:cDRctZN2vO4ZI0nzhMb6HBSeZBv67QXfJvwcFvPrwNY through Proxmox. Strict SSH
+verification uses a temporary known-hosts file; the user's persistent SSH files
+were not changed. The agent service's explicit node-ip was changed to .22 with
+its previous unit backed up. Initially the network policy controller saw stale
+Node status at .21. A guarded status patch was rejected because the status had
+already converged to .22; the next service restart succeeded. No Node was deleted.
+
+Both LAN DNS and Cloudflare queries passed at .22, but image pulls still failed
+DNS resolution. The approved persistent systemd-resolved Cloudflare override was
+then installed and a direct containerd image pull succeeded. Ansible now records
+this override. Longhorn is Synced/Healthy; its proxy is Running and advertises
+https://longhorn-1.tailbd291c.ts.net initially, which passed HTTPS verification.
+The user subsequently removed the stale device and renamed the new one. The
+ingress now advertises https://longhorn.tailbd291c.ts.net and DNS resolves it to
+100.104.134.122. A workstation HTTPS check after the rename timed out; renamed
+HTTPS access is not yet verified. No old device was deleted by the agent. Both
+application volumes remain healthy. Flag stale tailnet names before provisioning
+future proxies and obtain approval before deleting any old devices.

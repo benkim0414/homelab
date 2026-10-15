@@ -12,7 +12,7 @@ under `argocd/apps/`.
 | `k3s-02` | `192.168.0.12` | Control plane and etcd | Raspberry Pi 5, 8 GiB RAM, 256 GB NVMe |
 | `k3s-03` | `192.168.0.13` | Control plane and etcd | Raspberry Pi 5, 8 GiB RAM, 256 GB NVMe |
 | `k3s-04` | `192.168.0.14` | Worker | Raspberry Pi 5, 8 GiB RAM, 512 GB NVMe |
-| `k3s-05` | `192.168.0.21` | Worker | Mac Pro Proxmox VM, 4 vCPUs, 16 GiB RAM, 128 GiB disk |
+| `k3s-05` | `192.168.0.22` | Worker | Mac Pro Proxmox VM, 4 vCPUs, 16 GiB RAM, 128 GiB disk |
 
 The Pis run Raspberry Pi OS 64-bit Lite based on Debian 13 Trixie. The replacement
 VM runs Debian 13 Trixie. OS hostnames and K3s node names match. Hardware and
@@ -58,7 +58,7 @@ observed before backup. Vaultwarden uses chart `0.46.3` with image `1.37.1`.
 Both are restored and pass LAN and Tailscale HTTPS health checks; the user confirmed
 both applications work. The original Tailscale URLs, `https://immich.tailbd291c.ts.net` and
 `https://vaultwarden.tailbd291c.ts.net`, now point to the rebuilt cluster.
-VM 210 has been recreated and joined as `k3s-05` at `.21`; all five nodes are Ready.
+VM 210 is Ready as `k3s-05` at `.22`, migrated from `.21` after an IP conflict.
 See [Tailscale setup](tailscale/README.md) for operator credentials.
 S3 backups still need replacement credentials.
 Immich database backups run daily at 03:00 and full Vaultwarden archives at 03:30
