@@ -18,6 +18,38 @@ tags: [proxmox, debian-cloud-image, k3s, ansible, ssh, vm-provisioning, macpro]
 
 # Provisioning Proxmox Debian Cloud-Image VMs as K3s Workers
 
+## October 2026 update
+
+The sections below record the original Debian 12 rollout. The rebuilt VM is
+`k3s-05`, VMID `210`, at `192.168.0.21`, running Debian 13.7 with 4 vCPUs,
+16 GiB RAM, a 128 GiB disk and Longhorn replica storage. It uses
+`~/.ssh/pi_ed25519` through `~/.ssh/homelab_config`. All five nodes joined
+successfully. See [current setup](../../../k3s-ansible/README.md) and the
+[rebuild record](../../superpowers/plans/2026-10-14-cluster-rebuild.md).
+
+This rebuild completed through cloud-init without offline mutation. The guest
+root filesystem grew automatically. `.15` resolved to a different MAC, so the
+user selected `.21` after checking router allocation. A TCP refusal differs from
+a host-key mismatch: preserve SSH error output rather than treating both as an
+unreachable guest. After reusing an address, verify the replacement host key
+through Proxmox before replacing the old trusted entry.
+
+The cloud image had no console password or running guest agent initially. To
+read the public host key through the trusted Proxmox host, use:
+
+```bash
+ssh -t -F ~/.ssh/homelab_config pve-macpro \
+  'sudo virt-cat -a /dev/pve/vm-210-disk-0 /etc/ssh/ssh_host_ed25519_key.pub | ssh-keygen -lf -'
+```
+
+`virt-cat` inspects the guest automatically; it does not accept `-i`. Compare
+the fingerprint with the SSH-presented key before trusting it. The preparation
+playbook now installs the guest agent and Longhorn packages/modules; the worker
+join playbook reads the existing token in memory with logging disabled.
+
+## Original rollout record
+
+
 ## Problem
 
 Provisioning the Mac Pro as a Debian 12 Proxmox cloud-image VM for a
