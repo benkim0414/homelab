@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: vaultwarden-backups-nfs-pv
+spec:
+  capacity:
+    storage: 10Gi
+  volumeMode: Filesystem
+  accessModes: [ReadWriteMany]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  claimRef:
+    namespace: vaultwarden
+    name: vaultwarden-backups
+  mountOptions: [hard, nfsvers=4.1, noatime]
+  nfs:
+    server: 192.168.0.40
+    path: /k3s-storage/vaultwarden/backups
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vaultwarden-backups
+  namespace: vaultwarden
+spec:
+  storageClassName: ""
+  volumeName: vaultwarden-backups-nfs-pv
+  accessModes: [ReadWriteMany]
+  resources:
+    requests:
+      storage: 10Gi

@@ -12,6 +12,8 @@ storage:
 
 service:
   type: LoadBalancer
+  annotations:
+    metallb.io/address-pool: vaultwarden-pool
   # IP fixed via metallb/ipaddresspool.yaml (vaultwarden-pool: 192.168.0.205)
 
 adminToken:

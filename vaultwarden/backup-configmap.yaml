@@ -1,0 +1,69 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vaultwarden-backup-script
+  namespace: vaultwarden
+data:
+  backup.py: |
+    import datetime
+    import gzip
+    import hashlib
+    import os
+    from pathlib import Path
+    import sqlite3
+    import tarfile
+    import tempfile
+
+    os.umask(0o077)
+    source = Path('/data')
+    target = Path('/backups')
+    keep = int(os.environ['BACKUP_KEEP'])
+    if keep < 0:
+        raise ValueError('BACKUP_KEEP must be nonnegative')
+    stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
+    archive = target / f'vaultwarden-{stamp}.tar.gz'
+    partial = archive.with_suffix(archive.suffix + '.partial')
+    excluded = {'db.sqlite3', 'db.sqlite3-wal', 'db.sqlite3-shm', 'tmp', 'lost+found'}
+    try:
+        with tempfile.TemporaryDirectory() as work:
+            database = Path(work) / 'db.sqlite3'
+            with sqlite3.connect('file:/data/db.sqlite3?mode=ro', uri=True) as live:
+                with sqlite3.connect(database) as snapshot:
+                    live.backup(snapshot)
+            with sqlite3.connect(database) as snapshot:
+                if snapshot.execute('PRAGMA integrity_check').fetchone()[0] != 'ok':
+                    raise RuntimeError('SQLite backup integrity failed')
+                required = [f'attachments/{cipher}/{identity}' for identity, cipher in
+                            snapshot.execute('SELECT id, cipher_uuid FROM attachments')]
+                counts = {table: snapshot.execute(f'SELECT count(*) FROM {table}').fetchone()[0]
+                          for table in ['users', 'ciphers', 'attachments']}
+            with tarfile.open(partial, 'x:gz') as output:
+                output.add(database, arcname='db.sqlite3')
+                for entry in sorted(source.iterdir()):
+                    if entry.name not in excluded:
+                        output.add(entry, arcname=entry.name)
+            # Consume the gzip trailer too, so corruption cannot be published.
+            with gzip.open(partial, 'rb') as stream:
+                while stream.read(1024 * 1024):
+                    pass
+            # Verify required archive members and the archived database.
+            with tarfile.open(partial, 'r:gz') as check:
+                members = {m.name for m in check.getmembers() if m.isfile()}
+                if not {'db.sqlite3', 'rsa_key.pem', *required}.issubset(members):
+                    raise RuntimeError('Backup is missing required database, key or attachments')
+                restored = Path(work) / 'restored.sqlite3'
+                with check.extractfile('db.sqlite3') as src, restored.open('wb') as dest:
+                    dest.write(src.read())
+                with sqlite3.connect(restored) as connection:
+                    if connection.execute('PRAGMA integrity_check').fetchone()[0] != 'ok':
+                        raise RuntimeError('Archived SQLite integrity failed')
+            with partial.open('rb') as file:
+                digest = hashlib.file_digest(file, 'sha256').hexdigest()
+            partial.rename(archive)
+        print(f'Backup verified: {archive.name}, {archive.stat().st_size} bytes, sha256={digest}', flush=True)
+        print(f'Counts: {counts}', flush=True)
+        if keep:
+            for old in sorted(target.glob('vaultwarden-*.tar.gz'), reverse=True)[keep:]:
+                old.unlink()
+    finally:
+        partial.unlink(missing_ok=True)

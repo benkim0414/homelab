@@ -9,7 +9,7 @@ spec:
     # Helm chart
     - repoURL: https://guerzon.github.io/vaultwarden
       chart: vaultwarden
-      targetRevision: '*'
+      targetRevision: '0.46.3'
       helm:
         valueFiles:
           - $repo/vaultwarden/values.yaml
@@ -22,7 +22,7 @@ spec:
       targetRevision: HEAD
       path: vaultwarden
       directory:
-        include: '{sealed-secret.yaml,tailscale-ingress.yaml}'
+        include: '{sealed-secret.yaml,tailscale-ingress.yaml,backup-pv-pvc.yaml,backup-configmap.yaml,backup-cronjob.yaml}'
   destination:
     server: https://kubernetes.default.svc
     namespace: vaultwarden

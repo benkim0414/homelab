@@ -1,0 +1,61 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: vaultwarden-backup
+  namespace: vaultwarden
+spec:
+  schedule: "30 3 * * *"
+  timeZone: Australia/Melbourne
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 1800
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - labelSelector:
+                    matchLabels:
+                      app.kubernetes.io/name: vaultwarden
+                      app.kubernetes.io/instance: vaultwarden
+                  topologyKey: kubernetes.io/hostname
+          containers:
+            - name: backup
+              image: python:3.13-slim
+              command: [python3, /scripts/backup.py]
+              env:
+                - name: BACKUP_KEEP
+                  value: "7"
+              resources:
+                requests:
+                  cpu: 25m
+                  memory: 64Mi
+                limits:
+                  memory: 256Mi
+              volumeMounts:
+                - name: data
+                  mountPath: /data
+                  readOnly: true
+                - name: backups
+                  mountPath: /backups
+                - name: script
+                  mountPath: /scripts
+                  readOnly: true
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: vaultwarden-data-vaultwarden-0
+                readOnly: true
+            - name: backups
+              persistentVolumeClaim:
+                claimName: vaultwarden-backups
+            - name: script
+              configMap:
+                name: vaultwarden-backup-script
