@@ -58,6 +58,26 @@ helm upgrade --install tailscale-operator tailscale/tailscale-operator \
 
 OAuth credentials are passed via `--set-string` at install time and not committed to Git.
 
+### Rebuild credentials
+
+Follow the [current operator installation guide](https://tailscale.com/docs/kubernetes-operator/install-operator).
+The console now calls the OAuth client page **Trust credentials**. Create a client
+with write access to **General/Services**, **Devices/Core** and **Keys/Auth Keys**,
+each scoped to `tag:k8s-operator`. Retain the `tagOwners` relationship shown above.
+
+For the rebuild, save the credentials in your vault and a separate local file
+outside Git, with permissions `0600`:
+
+```yaml
+oauth:
+  clientId: "<client ID>"
+  clientSecret: "<client secret>"
+```
+
+Pass the file with `-f /absolute/path/to/credentials.yaml` alongside the repository
+values and the dedicated rebuild kubeconfig. This avoids placing credential
+values in command arguments. Never commit the file or paste its contents in chat.
+
 ## Verify
 
 ```bash

@@ -24,7 +24,7 @@ spec:
   sources:
     - repoURL: https://metallb.github.io/metallb
       chart: metallb
-      targetRevision: '*'
+      targetRevision: '0.16.1'
       helm:
         valueFiles:
           - $repo/metallb/values.yaml
@@ -57,7 +57,7 @@ spec:
   sources:
     - repoURL: https://bitnami.github.io/sealed-secrets
       chart: sealed-secrets
-      targetRevision: '*'
+      targetRevision: '2.20.0'
       helm:
         valueFiles:
           - $repo/sealed-secrets/values.yaml
@@ -82,7 +82,7 @@ spec:
   sources:
     - repoURL: https://kube-vip.github.io/helm-charts
       chart: kube-vip
-      targetRevision: '*'
+      targetRevision: '0.11.1'
       helm:
         valueFiles:
           - $repo/kube-vip/values.yaml
@@ -125,7 +125,7 @@ spec:
   sources:
     - repoURL: https://pkgs.tailscale.com/helmcharts
       chart: tailscale-operator
-      targetRevision: '*'
+      targetRevision: '1.104.1'
       helm:
         valueFiles:
           - $repo/tailscale/values.yaml
