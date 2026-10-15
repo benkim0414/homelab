@@ -323,10 +323,13 @@ It reports Synced/Healthy: the single-binary pod is 2/2 ready, its gateway is
 1/1 ready, and neither has restarted. Its 10Gi Longhorn volume is healthy.
 The readiness endpoint returns HTTP 200 and the labels query succeeds. Runtime
 configuration confirms `168h` retention and filesystem compactor delete requests.
-Log collection and end-to-end ingestion remain pending Alloy deployment.
+End-to-end collection was subsequently verified after the Alloy correction below.
 
 Alloy's first approved sync created collectors on all five nodes, but runtime
 verification found wildcard log paths being treated as literal filenames.
-The proposed correction enables `file_match` in `loki.source.file`; the rendered
+The approved correction enables `file_match` in `loki.source.file`; the rendered
 configuration passes validation using the deployed Alloy v1.20.1 binary.
-End-to-end ingestion remains unverified until this correction is deployed.
+The fix is deployed and Alloy reports Synced/Healthy with all five collectors
+2/2 ready and no restarts. ConfigMap propagation and automatic reload completed
+without a rollout. Loki queries confirm recent logs from every node, k3s-01
+through k3s-05. All six Longhorn volumes remained healthy during deployment.
