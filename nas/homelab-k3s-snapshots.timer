@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily NAS K3s snapshot at 03:45 Melbourne time
+
+[Timer]
+OnCalendar=*-*-* 03:45:00 Australia/Melbourne
+Persistent=true
+Unit=homelab-k3s-snapshots.service
+
+[Install]
+WantedBy=timers.target

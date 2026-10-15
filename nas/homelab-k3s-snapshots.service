@@ -1,0 +1,9 @@
+[Unit]
+Description=Snapshot NAS K3s media and backup dataset
+RequiresMountsFor=/storage/k3s
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/sbin/homelab-k3s-snapshots.py
+User=root
+UMask=0077
