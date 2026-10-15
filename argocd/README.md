@@ -124,7 +124,7 @@ kubectl delete namespace argocd
 
 ## Rebuild adoption review — 15 October 2026
 
-No Applications are installed in the rebuilt cluster. At the initial review the
+At the initial review, no Applications were installed in the rebuilt cluster. The
 root selected all 16 child Applications. Honcho, Flannel cleanup and Renovate
 are now excluded at the user's request,
 leaving 13 selected Applications. Monitoring (Prometheus/Grafana, Loki and Alloy)
@@ -270,3 +270,36 @@ persistent markers under `/var/loki/compactor`. Expired chunks are removed
 asynchronously; retention does not impose a hard disk-usage ceiling. See the
 [official retention configuration](https://grafana.com/docs/loki/latest/operations/storage/retention/). Monitoring and Home Assistant Tailscale ingresses
 will create new proxies/devices when synced and still require diff/name review.
+
+### Adoption progress and monitoring diff review
+
+The manual root, Sealed Secrets, MetalLB, kube-vip, Traefik, Tailscale, Immich,
+Vaultwarden and Longhorn Applications have now been synced without pruning.
+All report Synced/Healthy. Existing application pods and database volumes remained
+healthy. Vaultwarden's reviewed backup validation improvement is deployed.
+ArgoCD self-adoption, monitoring and Home Assistant remain unsynced.
+
+After the user removed the stale Longhorn tailnet device and renamed the new
+proxy, the ingress advertises `https://longhorn.tailbd291c.ts.net`. DNS resolves
+that name, but the post-rename workstation HTTPS check timed out. The earlier
+suffixed URL had passed HTTPS verification. Resolve stale tailnet names before
+creating replacements; do not delete devices without approval.
+
+The live ArgoCD comparison for monitoring is error-free and consists solely of
+new resources: 112 for kube-prometheus-stack, 12 for Loki and 7 for Alloy. No
+existing resources are changed or removed by these comparisons. The stack adds
+Prometheus CRDs/operator, admission webhooks, Prometheus/Alertmanager, Grafana,
+exporters, scrape monitors/rules, Longhorn storage and the Grafana Tailscale ingress.
+Loki adds single-binary logging with seven-day retention; Alloy adds its log
+collector DaemonSet and PodLogs CRD. Runtime operators will create additional
+Pods/PVCs not represented by these rendered-resource counts.
+
+The five nodes are Ready with roughly 6–36% observed memory usage before this
+installation. This is a point-in-time capacity observation, not a load test.
+The reviewed persistent volumes total 34Gi for monitoring (20Gi Prometheus,
+2Gi Grafana, 2Gi Alertmanager, 10Gi Loki), before Longhorn replication.
+
+The user confirmed the old `grafana` Tailscale device was removed or renamed
+before first sync so the new proxy can claim that exact name. Request approval to sync the
+Prometheus stack without pruning, verify operator/CRD/storage readiness, and
+review the results before syncing Loki and finally Alloy. All apps remain manual.
