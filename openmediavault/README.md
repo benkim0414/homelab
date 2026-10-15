@@ -2,6 +2,28 @@
 
 Complete guide to setting up a production-ready NAS on Raspberry Pi 5 with OpenMediaVault 7, ZFS RAID10, and NFS integration for Kubernetes (K3s).
 
+## Current cluster integration (October 2026)
+
+The NAS at `192.168.0.40` was preserved during the cluster rebuild. The detailed
+installation examples below describe the original NAS setup; their example
+applications and `local-path` storage are not the current deployed cluster.
+Current application manifests are authoritative:
+
+| Data | Current location |
+| --- | --- |
+| Immich media | `/storage/k3s/immich/library`, NFSv4 `/k3s-storage/immich/library` |
+| Immich database dumps | `/storage/k3s/immich/backups/scheduled`, daily 03:00 Melbourne, retain 7 |
+| Vaultwarden archives | `/storage/k3s/vaultwarden/backups`, daily 03:30 Melbourne, retain 7 |
+| Live application databases | Longhorn volumes on cluster SSDs, two replicas |
+| Longhorn backup target | `nfs://192.168.0.40:/longhorn-backups` |
+| Verified rebuild backup | `/storage/rebuild-backups/2026-10-14`, preserved separately |
+
+Daily [ZFS snapshots](../nas/README.md) of `storage/k3s` run at 03:45 Melbourne,
+retaining seven managed snapshots. The first snapshot and both application
+backup jobs passed verification. Snapshots and archives share the NAS pool.
+Do not reapply the historical storage examples to the restored applications;
+use [Immich](../immich/README.md) and [Vaultwarden](../vaultwarden/README.md).
+
 ## Table of Contents
 
 - [Hardware](#hardware)

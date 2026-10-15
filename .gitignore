@@ -15,3 +15,7 @@ honcho/hermes-jwt.txt
 
 # mise local overrides (machine-specific)
 .mise.local.toml
+
+# Local Python bytecode from backup/snapshot validation
+__pycache__/
+*.pyc
