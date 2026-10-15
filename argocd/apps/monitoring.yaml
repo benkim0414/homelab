@@ -28,8 +28,7 @@ spec:
     namespace: monitoring
   ignoreDifferences:
     # Grafana admin secret is generated once; ignore drift to prevent perpetual OutOfSync
-    - group: ""
-      kind: Secret
+    - kind: Secret
       name: kube-prometheus-stack-grafana
       jsonPointers:
         - /data/admin-password

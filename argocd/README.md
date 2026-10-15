@@ -277,7 +277,7 @@ The manual root, Sealed Secrets, MetalLB, kube-vip, Traefik, Tailscale, Immich,
 Vaultwarden and Longhorn Applications have now been synced without pruning.
 All report Synced/Healthy. Existing application pods and database volumes remained
 healthy. Vaultwarden's reviewed backup validation improvement is deployed.
-ArgoCD self-adoption and Home Assistant remain unsynced.
+ArgoCD self-adoption and Home Assistant have subsequently been synced; see below.
 
 After the user removed the stale Longhorn tailnet device and renamed the new
 proxy, the ingress advertises `https://longhorn.tailbd291c.ts.net`. DNS resolves
@@ -333,3 +333,20 @@ The fix is deployed and Alloy reports Synced/Healthy with all five collectors
 2/2 ready and no restarts. ConfigMap propagation and automatic reload completed
 without a rollout. Loki queries confirm recent logs from every node, k3s-01
 through k3s-05. All six Longhorn volumes remained healthy during deployment.
+
+Home Assistant was installed fresh with approval and reports Synced/Healthy.
+Its 5Gi Longhorn claim is healthy, its pod is ready without restarts, and LAN
+`http://192.168.0.204:8123` and `https://home-assistant.tailbd291c.ts.net`
+return onboarding redirects. User onboarding and a replacement metrics token
+are still required; the old instance's token does not authenticate to this one.
+
+ArgoCD self-adoption completed without pruning or workload restarts and reports
+Synced/Healthy. A transient Quay DNS failure delayed its Redis secret-init hook;
+the automatic retry succeeded and confirmed the existing Redis credential.
+LAN access and `https://argocd.tailbd291c.ts.net` both return HTTP 200.
+All five nodes and seven Longhorn volumes are healthy after these deployments.
+
+The root app's remaining diff is an explicit empty `group` in the Grafana Secret
+ignore rule, which Kubernetes omits from the stored Application. Removing that
+empty field preserves the rule while avoiding this serialization difference.
+The repository correction remains pending publication and root reconciliation.
