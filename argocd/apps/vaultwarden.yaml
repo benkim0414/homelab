@@ -15,11 +15,11 @@ spec:
           - $repo/vaultwarden/values.yaml
     # Git repo for values file reference
     - repoURL: https://github.com/benkim0414/homelab.git
-      targetRevision: HEAD
+      targetRevision: main
       ref: repo
     # Raw manifests (Tailscale ingress + SealedSecret)
     - repoURL: https://github.com/benkim0414/homelab.git
-      targetRevision: HEAD
+      targetRevision: main
       path: vaultwarden
       directory:
         include: '{sealed-secret.yaml,tailscale-ingress.yaml,backup-pv-pvc.yaml,backup-configmap.yaml,backup-cronjob.yaml}'
@@ -27,8 +27,5 @@ spec:
     server: https://kubernetes.default.svc
     namespace: vaultwarden
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
     syncOptions:
       - CreateNamespace=true

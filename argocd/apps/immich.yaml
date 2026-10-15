@@ -15,20 +15,17 @@ spec:
           - $repo/immich/values.yaml
     # Git repo for values file and raw manifests
     - repoURL: https://github.com/benkim0414/homelab.git
-      targetRevision: HEAD
+      targetRevision: main
       ref: repo
     # Raw manifests (namespace, PostgreSQL, NFS, sealed secret, etc.)
     - repoURL: https://github.com/benkim0414/homelab.git
-      targetRevision: HEAD
+      targetRevision: main
       path: immich
       directory:
-        include: '{namespace.yaml,postgresql.yaml,nfs-pv-pvc.yaml,sealed-secret.yaml,s3-sealed-secret.yaml,tailscale-ingress.yaml,pg-backup-cronjob.yaml,offsite-backup-cronjob.yaml}'
+        include: '{namespace.yaml,postgresql.yaml,nfs-pv-pvc.yaml,sealed-secret.yaml,tailscale-ingress.yaml,pg-backup-cronjob.yaml}'
   destination:
     server: https://kubernetes.default.svc
     namespace: immich
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
     syncOptions:
       - CreateNamespace=true
