@@ -133,8 +133,8 @@ ansible_ssh_private_key_file: ~/.ssh/codex_homelab_ed25519
 ansible_ssh_common_args: "-o IdentitiesOnly=yes"
 ```
 
-Those host vars are scoped to `192.168.0.21` in
-[k3s-ansible/host_vars/192.168.0.21.yml](../../../k3s-ansible/host_vars/192.168.0.21.yml),
+Those host vars are now scoped to the replacement address `192.168.0.22` in
+[k3s-ansible/host_vars/192.168.0.22.yml](../../../k3s-ansible/host_vars/192.168.0.22.yml),
 preserving the default Raspberry Pi SSH user in inventory.
 
 Resize the guest root filesystem after SSH comes up, and derive the partition

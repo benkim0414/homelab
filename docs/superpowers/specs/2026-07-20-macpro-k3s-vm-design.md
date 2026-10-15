@@ -1,6 +1,6 @@
 # Mac Pro K3s Worker VM Design
 
-> Historical July 2026 design. Superseded by the [October rebuild record](../plans/2026-10-14-cluster-rebuild.md) and [current node configuration](../../../k3s-ansible/README.md). The current VM is `k3s-05` at `.21`, Debian 13, 128 GiB, with Longhorn enabled.
+> Historical July 2026 design. Superseded by the [October rebuild record](../plans/2026-10-14-cluster-rebuild.md) and [current node configuration](../../../k3s-ansible/README.md). The configured VM is `k3s-05` at `.22`, Debian 13, 128 GiB, with Longhorn enabled.
 
 Date: 2026-07-20
 Status: approved design

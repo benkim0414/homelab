@@ -10,7 +10,7 @@ API VIP 192.168.0.10 (kube-vip)
   k3s-02 (.12) -- control plane / etcd
   k3s-03 (.13) -- control plane / etcd
   k3s-04 (.14) -- Raspberry Pi worker
-  k3s-05 (.21) -- Mac Pro VM worker, Longhorn storage
+  k3s-05 (.22) -- Mac Pro VM worker, Longhorn storage
 
 MetalLB: 192.168.0.200 - 192.168.0.250
 ```
@@ -23,7 +23,7 @@ MetalLB: 192.168.0.200 - 192.168.0.250
 | k3s-02   | 192.168.0.12 | Control plane / etcd | 256 GB NVMe|
 | k3s-03             | 192.168.0.13 | Control plane / etcd | 256 GB NVMe   |
 | k3s-04             | 192.168.0.14 | Worker / agent       | 512 GB NVMe |
-| k3s-05 | 192.168.0.21 | Worker / agent       | Proxmox VM, Longhorn storage |
+| k3s-05 | 192.168.0.22 | Worker / agent       | Proxmox VM, Longhorn storage |
 
 ### Networking
 
@@ -82,7 +82,8 @@ helm repo update
 
 ## Mac Pro Worker VM
 
-VM 210 is running and joined as `k3s-05` at `.21`. It was recreated from Debian's
+VM 210 is Ready as `k3s-05` at `.22` after migration from the conflicting `.21`
+address. It was recreated from Debian's
 generic cloud image and joined through this inventory as a K3s agent.
 
 Recommended VM settings:
@@ -90,7 +91,7 @@ Recommended VM settings:
 | Setting | Value |
 | ------- | ----- |
 | VM hostname | `k3s-05` |
-| VM IP | `192.168.0.21` |
+| VM IP | `192.168.0.22` |
 | OS | Debian 13 Trixie |
 | vCPU | 4 |
 | RAM | 16 GiB |
@@ -136,7 +137,7 @@ sudo for `pi`, and verify each new host key before trusting it.
 
 The Pis use `~/.ssh/pi_ed25519`; local aliases are in `~/.ssh/homelab_config`.
 K3s is pinned to `v1.36.5+k3s1`, with wired `eth0` for Flannel and explicit node
-IPs. The VM also uses `eth0`; it has been provisioned and joined at `.21`.
+IPs. The VM also uses `eth0`; it is joined at `.22`.
 
 Apply the reviewed prerequisites and reboot fresh Pis:
 
@@ -179,7 +180,7 @@ ansible-playbook playbooks/site.yml -i ~/workspace/homelab/k3s-ansible/inventory
 ```
 
 To join only the Mac Pro worker VM to an existing cluster, use the worker playbook
-and limit it to `.21`. It retrieves the existing token from the first server with
+and limit it to `.22`. It retrieves the existing token from the first server with
 logging disabled, without rerunning the server role:
 
 ```bash
@@ -187,7 +188,7 @@ cd ~/workspace/k3s-ansible
 ANSIBLE_ROLES_PATH="$PWD/roles" ansible-playbook \
   ~/workspace/homelab/k3s-ansible/join-workers.yml \
   -i ~/workspace/homelab/k3s-ansible/inventory.yml \
-  --limit 192.168.0.21
+  --limit 192.168.0.22
 ```
 
 Verify the replacement VM's SSH fingerprint through Proxmox before joining. The
@@ -307,7 +308,7 @@ ssh pi@192.168.0.14 sudo systemctl restart k3s-agent
 ssh -F ~/.ssh/homelab_config \
   -i ~/.ssh/pi_ed25519 \
   -o IdentitiesOnly=yes \
-  benkim0414@192.168.0.21 sudo systemctl restart k3s-agent
+  benkim0414@192.168.0.22 sudo systemctl restart k3s-agent
 ```
 
 ### 9. Verify
@@ -363,3 +364,17 @@ Reboot after modifying. Verify with `cat /proc/cmdline | grep cgroup_enable`.
 ### Role not found errors
 
 Run `ansible-playbook` from the `~/workspace/k3s-ansible` directory so `ansible.cfg` can resolve `roles_path = ./roles`.
+
+### VM DNS and IP migration
+
+VM 210 now uses 192.168.0.22; .21 was observed answering with a different MAC.
+The K3s agent service's explicit node-ip is .22, matching inventory and host vars.
+After the service restart, the Node status converged to .22 and all five nodes
+reported Ready. No Node deletion or disk reformat was needed.
+
+The approved host DNS override uses 1.1.1.1 with the default DNS routing domain
+`~.` in `/etc/systemd/resolved.conf.d/60-homelab-dns.conf`. It is managed by
+`prepare-nodes.yml` only where `host_dns_server` is set. Provisioning/repair
+scripts default to the same resolver for future runs. The existing Proxmox
+cloud-init DNS metadata still contains .1; the guest override takes precedence.
+A direct containerd pull of tailscale/tailscale:v1.104.1 succeeded afterward.
