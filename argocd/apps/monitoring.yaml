@@ -9,17 +9,17 @@ spec:
     # Helm chart
     - repoURL: https://prometheus-community.github.io/helm-charts
       chart: kube-prometheus-stack
-      targetRevision: '*'
+      targetRevision: '92.7.0'
       helm:
         valueFiles:
           - $repo/monitoring/kube-prometheus-stack-values.yaml
     # Git repo for values file reference
     - repoURL: https://github.com/benkim0414/homelab.git
-      targetRevision: HEAD
+      targetRevision: main
       ref: repo
     # Raw manifests (Tailscale ingress)
     - repoURL: https://github.com/benkim0414/homelab.git
-      targetRevision: HEAD
+      targetRevision: main
       path: monitoring
       directory:
         include: '{tailscale-ingress.yaml,prometheus-rules.yaml}'
@@ -41,9 +41,6 @@ spec:
       jsonPointers:
         - /spec/template/metadata/annotations/checksum~1secret
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
@@ -60,21 +57,18 @@ spec:
     # Helm chart
     - repoURL: https://grafana.github.io/helm-charts
       chart: loki
-      targetRevision: '*'
+      targetRevision: '7.3.0'
       helm:
         valueFiles:
           - $repo/monitoring/loki-values.yaml
     # Git repo for values file reference
     - repoURL: https://github.com/benkim0414/homelab.git
-      targetRevision: HEAD
+      targetRevision: main
       ref: repo
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
     syncOptions:
       - CreateNamespace=true
 ---
@@ -89,20 +83,17 @@ spec:
     # Helm chart
     - repoURL: https://grafana.github.io/helm-charts
       chart: alloy
-      targetRevision: '*'
+      targetRevision: '1.13.1'
       helm:
         valueFiles:
           - $repo/monitoring/alloy-values.yaml
     # Git repo for values file reference
     - repoURL: https://github.com/benkim0414/homelab.git
-      targetRevision: HEAD
+      targetRevision: main
       ref: repo
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
     syncOptions:
       - CreateNamespace=true

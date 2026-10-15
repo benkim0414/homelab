@@ -9,17 +9,17 @@ spec:
     # Helm chart
     - repoURL: https://pajikos.github.io/home-assistant-helm-chart/
       chart: home-assistant
-      targetRevision: '*'
+      targetRevision: '0.3.86'
       helm:
         valueFiles:
           - $repo/home-assistant/values.yaml
     # Git repo for values file reference
     - repoURL: https://github.com/benkim0414/homelab.git
-      targetRevision: HEAD
+      targetRevision: main
       ref: repo
     # Raw manifests (Tailscale ingress)
     - repoURL: https://github.com/benkim0414/homelab.git
-      targetRevision: HEAD
+      targetRevision: main
       path: home-assistant
       directory:
         include: '{tailscale-ingress.yaml,sealed-secret.yaml}'
@@ -27,8 +27,5 @@ spec:
     server: https://kubernetes.default.svc
     namespace: home-assistant
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
     syncOptions:
       - CreateNamespace=true

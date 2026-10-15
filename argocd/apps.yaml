@@ -7,12 +7,11 @@ spec:
   project: default
   source:
     repoURL: https://github.com/benkim0414/homelab.git
-    targetRevision: HEAD
+    targetRevision: main
     path: argocd/apps
+    directory:
+      # Retain retired/disabled apps without deploying them.
+      exclude: '{honcho.yaml,flannel-ipam-cleanup.yaml,renovate.yaml}'
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true

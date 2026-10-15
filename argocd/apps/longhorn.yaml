@@ -13,10 +13,10 @@ spec:
         valueFiles:
           - $repo/longhorn/values.yaml
     - repoURL: https://github.com/benkim0414/homelab.git
-      targetRevision: HEAD
+      targetRevision: main
       ref: repo
     - repoURL: https://github.com/benkim0414/homelab.git
-      targetRevision: HEAD
+      targetRevision: main
       path: longhorn
       directory:
         include: '{tailscale-ingress.yaml}'
@@ -24,8 +24,5 @@ spec:
     server: https://kubernetes.default.svc
     namespace: longhorn-system
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
     syncOptions:
       - CreateNamespace=true
