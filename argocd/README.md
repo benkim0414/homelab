@@ -63,7 +63,9 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
 
 ### 4. Access the UI
 
-Open **https://192.168.0.202** in your browser. Log in with username `admin` and the password from step 3.
+Open **http://192.168.0.202** on the trusted LAN. The configured server runs
+without TLS because the Tailscale ingress terminates TLS when installed.
+Log in with username `admin` and the password from step 3.
 
 ### 5. Connect the Git repo
 
@@ -80,7 +82,11 @@ kubectl apply -f argocd/apps/infrastructure.yaml
 kubectl apply -f argocd/apps/immich.yaml
 ```
 
-ArgoCD will detect that existing Helm releases match the declared state and show them as "Synced" without making changes.
+These Applications enable automatic reconciliation from the remote repository.
+During a rebuild, defer this step until Sealed Secrets keys and application data
+are restored and the reviewed configuration is merged. Installing ArgoCD alone
+does not deploy applications. Matching chart versions and values are necessary
+for adoption; resource tracking metadata can still produce an initial difference.
 
 ## How upgrades work with Renovate
 
