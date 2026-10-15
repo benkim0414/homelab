@@ -3,20 +3,20 @@
 # Distributed block storage tuned for RPi5 cluster (4 nodes)
 
 defaultSettings:
-  # 2 replicas — enough for redundancy on a 4-node cluster
+  # Two replicas across the five rebuilt storage nodes.
   defaultReplicaCount: 2
-  # NFS backup target on NAS
-  backupTarget: nfs://192.168.0.40:/export/longhorn-backups
   # Default 12% is too high for 4-core ARM64
   guaranteedInstanceManagerCPU: 5
   # Default 25% wastes too much on 256-500GB disks
   storageMinimalAvailablePercentage: 15
-  # Disabled — ArgoCD tracks the latest chart via targetRevision: '*'
+  # Version changes are reviewed through GitOps; the recovery chart is pinned.
   upgradeChecker: false
-  # Only create default disks on nodes explicitly labeled for storage.
-  # Prevents .14's storage device from being used for volume replicas,
-  # reducing I/O contention with etcd on that node.
+  # All rebuilt nodes with SSD storage carry this label.
   createDefaultDiskLabeledNodes: true
+
+# NFSv4 export path verified on the NAS. Longhorn 1.13 uses this chart field.
+defaultBackupStore:
+  backupTarget: nfs://192.168.0.40:/longhorn-backups
 
 persistence:
   defaultClass: true
@@ -27,9 +27,7 @@ preUpgradeChecker:
   jobEnabled: false
 
 # Run only on nodes that participate in Longhorn storage.
-# .14 has no storage label and its frequent longhorn-manager crashes
-# corrupt containerd state, cascading into CreateContainerError on
-# co-located DaemonSets (traefik, alloy, kube-vip).
+# The rebuilt .14 worker now has NVMe storage and participates as well.
 longhornManager:
   tolerations:
     - key: node-role.kubernetes.io/control-plane
