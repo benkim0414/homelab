@@ -80,7 +80,7 @@ alertmanager:
               storage: 2Gi
 
 # --- node-exporter (DaemonSet, one per node) ---
-nodeExporter:
+prometheus-node-exporter:
   # Allow node-exporter to reschedule on .14 after the control-plane NoSchedule taint
   tolerations:
     - key: node-role.kubernetes.io/control-plane
