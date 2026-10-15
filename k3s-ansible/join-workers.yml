@@ -1,0 +1,31 @@
+---
+- name: Join workers using the existing server token
+  hosts: agent
+  become: true
+  gather_facts: true
+  pre_tasks:
+    - name: Retrieve existing cluster join token without logging credentials
+      ansible.builtin.slurp:
+        src: /var/lib/rancher/k3s/server/token
+      delegate_to: "{{ groups['server'][0] }}"
+      register: existing_join_token
+      no_log: true
+    - name: Use the existing cluster token in memory
+      ansible.builtin.set_fact:
+        token: "{{ existing_join_token.content | b64decode | trim }}"
+      no_log: true
+  roles:
+    - prereq
+    - airgap
+    - raspberrypi
+    - k3s_agent
+  post_tasks:
+    - name: Restrict cluster credential files to root
+      ansible.builtin.file:
+        path: "{{ item }}"
+        owner: root
+        group: root
+        mode: '0600'
+      loop:
+        - /etc/rancher/k3s/config.yaml
+        - /etc/systemd/system/k3s-agent.service.env

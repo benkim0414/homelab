@@ -1,13 +1,15 @@
 ---
-# Per-node overrides for macpro-vm-16gb-samsung-980-120gb (.21)
+# Per-node overrides for the replacement Mac Pro VM (.21)
 #
-# Proxmox VM on pve-macpro. Compute-only K3s agent for selected amd64
-# workloads. Intentionally do not add the Longhorn default-disk label; the first
-# rollout must not add this node to Longhorn storage scheduling.
+# Proxmox VM on pve-macpro. K3s worker with Longhorn replica storage.
 ansible_user: benkim0414
-ansible_ssh_private_key_file: ~/.ssh/codex_homelab_ed25519
-ansible_ssh_common_args: "-o IdentitiesOnly=yes"
+install_qemu_guest_agent: true
+ansible_ssh_private_key_file: ~/.ssh/pi_ed25519
+ansible_ssh_common_args: "-F {{ lookup('env', 'HOME') }}/.ssh/homelab_config -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UpdateHostKeys=no"
 extra_agent_args: >-
+  --node-name k3s-05
+  --node-ip 192.168.0.21
+  --node-label node.longhorn.io/create-default-disk=true
   --node-label homelab/host=macpro
   --node-label homelab/node-class=vm
   --node-label homelab/workload-tier=heavy

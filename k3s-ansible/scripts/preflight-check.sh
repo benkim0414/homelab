@@ -6,14 +6,15 @@ set -euo pipefail
 
 # Format: ip|name|ssh_user|required_interface|pi_cgroup_check
 NODES=(
-    "192.168.0.11|rpi5-8gb-crucial-p3-plus-500gb|pi|eth0|true"
-    "192.168.0.12|rpi5-8gb-crucial-bx500-500gb|pi|eth0|true"
-    "192.168.0.13|rpi5-8gb-rpi-512gb|pi|eth0|true"
-    "192.168.0.14|rpi5-8gb-rpi-256gb|pi|eth0|true"
-    "192.168.0.21|macpro-vm-16gb-samsung-980-120gb|benkim0414|eth0|false"
+    "192.168.0.11|k3s-01|pi|eth0|true"
+    "192.168.0.12|k3s-02|pi|eth0|true"
+    "192.168.0.13|k3s-03|pi|eth0|true"
+    "192.168.0.14|k3s-04|pi|eth0|true"
+    "192.168.0.21|k3s-05|benkim0414|eth0|false"
 )
-SSH_KEY="${SSH_KEY:-$HOME/.ssh/codex_homelab_ed25519}"
-SSH_OPTS="-i $SSH_KEY -o IdentitiesOnly=yes -o ConnectTimeout=5 -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
+SSH_CONFIG="${SSH_CONFIG:-$HOME/.ssh/homelab_config}"
+SSH_KEY="${SSH_KEY:-$HOME/.ssh/pi_ed25519}"
+SSH_OPTS=(-F "$SSH_CONFIG" -i "$SSH_KEY" -o IdentitiesOnly=yes -o ConnectTimeout=5 -o BatchMode=yes -o StrictHostKeyChecking=yes -o UpdateHostKeys=no)
 
 CGROUP_PARAMS="cgroup_enable=cpuset cgroup_memory=1 cgroup_enable=memory"
 CMDLINE_FILE="/boot/firmware/cmdline.txt"
@@ -37,16 +38,24 @@ for record in "${NODES[@]}"; do
     echo "=========================================="
 
     # --- SSH connectivity ---
-    if ! ssh $SSH_OPTS "$ssh_user@$node" true 2>/dev/null; then
+    if ! ssh "${SSH_OPTS[@]}" "$ssh_user@$node" true 2>/dev/null; then
         error "$name: SSH connection failed"
         FAILED=true
         continue
     fi
     ok "$name: SSH connected"
 
+    actual_hostname=$(ssh "${SSH_OPTS[@]}" "$ssh_user@$node" hostname)
+    if [[ "$actual_hostname" != "$name" ]]; then
+        error "$node: expected hostname $name, got $actual_hostname"
+        FAILED=true
+    else
+        ok "$name: hostname matches inventory"
+    fi
+
     # --- Raspberry Pi cgroup parameters ---
     if [[ "$pi_cgroup_check" == "true" ]]; then
-        cmdline=$(ssh $SSH_OPTS "$ssh_user@$node" "cat $CMDLINE_FILE 2>/dev/null || echo ''")
+        cmdline=$(ssh "${SSH_OPTS[@]}" "$ssh_user@$node" "cat $CMDLINE_FILE 2>/dev/null || echo ''")
         missing_params=""
         for param in $CGROUP_PARAMS; do
             if ! echo "$cmdline" | grep -q "$param"; then
@@ -57,7 +66,7 @@ for record in "${NODES[@]}"; do
         if [[ -n "$missing_params" ]]; then
             warn "$name: Missing cgroup params:$missing_params"
             info "$name: Adding cgroup params to $CMDLINE_FILE"
-            ssh $SSH_OPTS "$ssh_user@$node" "sudo sed -i 's/$/ ${missing_params## }/' $CMDLINE_FILE"
+            ssh "${SSH_OPTS[@]}" "$ssh_user@$node" "sudo sed -i 's/$/ ${missing_params## }/' $CMDLINE_FILE"
             warn "$name: REBOOT REQUIRED for cgroup changes to take effect"
             REBOOT_NEEDED=true
         else
@@ -68,7 +77,7 @@ for record in "${NODES[@]}"; do
     fi
 
     # --- RAM ---
-    ram_kb=$(ssh $SSH_OPTS "$ssh_user@$node" "grep MemTotal /proc/meminfo | awk '{print \$2}'")
+    ram_kb=$(ssh "${SSH_OPTS[@]}" "$ssh_user@$node" "grep MemTotal /proc/meminfo | awk '{print \$2}'")
     ram_mb=$((ram_kb / 1024))
     if [[ $ram_mb -lt $MIN_RAM_MB ]]; then
         error "$name: Insufficient RAM: ${ram_mb}MB (minimum ${MIN_RAM_MB}MB)"
@@ -78,7 +87,7 @@ for record in "${NODES[@]}"; do
     fi
 
     # --- Disk ---
-    disk_mb=$(ssh $SSH_OPTS "$ssh_user@$node" "df -m / | awk 'NR==2 {print \$4}'")
+    disk_mb=$(ssh "${SSH_OPTS[@]}" "$ssh_user@$node" "df -m / | awk 'NR==2 {print \$4}'")
     if [[ $disk_mb -lt $MIN_DISK_MB ]]; then
         error "$name: Insufficient disk: ${disk_mb}MB free (minimum ${MIN_DISK_MB}MB)"
         FAILED=true
@@ -87,7 +96,7 @@ for record in "${NODES[@]}"; do
     fi
 
     # --- required network interface ---
-    if ssh $SSH_OPTS "$ssh_user@$node" "ip link show $required_interface" &>/dev/null; then
+    if ssh "${SSH_OPTS[@]}" "$ssh_user@$node" "ip link show $required_interface" &>/dev/null; then
         ok "$name: $required_interface interface exists"
     else
         error "$name: $required_interface interface not found"

@@ -1,6 +1,6 @@
 ---
-# Per-node overrides for rpi5-8gb-rpi-256gb (.14)
+# Per-node overrides for k3s-04 (.14)
 #
-# Agent (worker) node — no etcd. The 256GB RPi NVMe is stable for
+# Agent (worker) node — no etcd. The 512GB NVMe is stable for
 # workload and Longhorn replica I/O without etcd contention.
-extra_agent_args: "--node-label node.longhorn.io/create-default-disk=true"
+extra_agent_args: "--node-name k3s-04 --node-ip 192.168.0.14 --node-label node.longhorn.io/create-default-disk=true"
