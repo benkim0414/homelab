@@ -192,9 +192,10 @@ ANSIBLE_ROLES_PATH="$PWD/roles" ansible-playbook \
 ```
 
 Verify the replacement VM's SSH fingerprint through Proxmox before joining. The
-replacement VM key was verified through Proxmox and installed in the user's
-persistent known-hosts file with approval on 15 October 2026. Run
-`prepare-nodes.yml` for the VM first; its host variables enable the
+replacement VM key at `.21` was installed in persistent known-hosts with approval
+on 15 October 2026. After migration to `.22`, a changed key was independently
+verified using temporary trust; a persistent update for that key is not recorded.
+Run `prepare-nodes.yml` for the VM first; its host variables enable the
 QEMU guest agent along with the Longhorn prerequisites.
 
 After provisioning, restrict files that contain join credentials to root:

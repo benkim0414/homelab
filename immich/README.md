@@ -41,9 +41,9 @@ helm install immich oci://ghcr.io/immich-app/immich-charts/immich \
   --namespace immich -f immich/values.yaml --version 0.12.0
 ```
 
-The current deployment is already restored. ArgoCD activation remains pending
-review and publication of the matching repository configuration. Its raw manifest
-include list in `argocd/apps/immich.yaml` must cover storage, PostgreSQL, backups,
+The current deployment is restored and manual ArgoCD adoption is complete.
+Review the full diff before future syncs. The raw manifest include list in
+`argocd/apps/immich.yaml` must cover storage, PostgreSQL, backups,
 SealedSecret and the Tailscale ingress.
 
 ## Scheduled backups

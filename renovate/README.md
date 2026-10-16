@@ -4,6 +4,20 @@ Renovate has an Application in `argocd/apps/renovate.yaml` using the official
 Renovate Helm chart. It is currently excluded from root discovery; secret creation
 does not authorize activation.
 
+## Update detection decisions
+
+`renovate.json5` is repository policy; the chart's config selects this repository
+and requires that policy to exist. Vaultwarden values contain an image tag without
+its repository, so a custom regex manager associates it with
+`docker.io/vaultwarden/server`. Vaultwarden updates are grouped without the
+monthly infrastructure delay: an earlier stale pin caused client login
+compatibility problems. Infrastructure and monitoring retain their monthly
+schedules. The CronJob uses `concurrencyPolicy: Forbid` to prevent overlapping runs.
+
+Review proposed chart and server image versions together; a chart's appVersion
+label does not override an explicitly pinned image. Git history records the
+original one-tag Vaultwarden correction; the current manifests define its pin.
+
 ## GitHub Token
 
 The CronJob expects a Kubernetes Secret named `renovate-token` in the `renovate` namespace with a `RENOVATE_TOKEN` key. Do not commit a plaintext Secret.

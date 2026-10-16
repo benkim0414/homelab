@@ -30,14 +30,15 @@ See [K3s setup](k3s-ansible/README.md) for inventory, host prerequisites and
 installation. Local SSH aliases are configured in `~/.ssh/homelab_config`;
 the Pis and VM use the client key `~/.ssh/pi_ed25519`. The VM login is
 `benkim0414`; Pi logins use `pi`. The replacement VM's SSH host key was verified
-through Proxmox and its persistent known-hosts entry updated. Private keys never
-belong in Git.
+through Proxmox. After the later `.22` migration, verification used temporary
+trust; a persistent known-hosts update for that key remains unrecorded. Private
+keys never belong in Git.
 
-The [October 2026 rebuild plan](docs/superpowers/plans/2026-10-14-cluster-rebuild.md)
+The [October 2026 rebuild record](docs/superpowers/plans/2026-10-14-cluster-rebuild.md)
 records recovery sequencing and the verified Immich and Vaultwarden backups.
 Restore Sealed Secrets master keys before applying encrypted secrets, and restore
 application data before enabling application sync. VM replacement, infrastructure
-bootstrap and application recovery are complete; GitOps activation remains pending.
+bootstrap, application recovery and manual GitOps adoption are complete.
 
 ## Infrastructure bootstrap
 
@@ -48,10 +49,10 @@ Its NAS backup target is `nfs://192.168.0.40:/longhorn-backups`.
 
 Use the dedicated rebuild kubeconfig explicitly. Install each chart with its
 local values before applying MetalLB pools and the Traefik HelmChartConfig.
-Do not apply `argocd/apps.yaml` during recovery: it enables automatic deployment
-from the remote repository. Restore the Sealed Secrets keys and application data,
-review the deployed versions, then enable GitOps after the reviewed configuration
-is available on `main`.
+Defer registering `argocd/apps.yaml` until the Sealed Secrets keys and application
+data are restored and the reviewed configuration is available on `main`. The root
+and selected child Applications use manual sync: registration alone does not
+deploy workloads. Review the deployed versions and ArgoCD diffs before syncing.
 
 Immich recovery uses chart `0.12.0` with server `v2.7.5`, matching the server
 observed before backup. Vaultwarden uses chart `0.46.3` with image `1.37.1`.
@@ -66,12 +67,14 @@ in `Australia/Melbourne`, retaining seven successful backups in dedicated NAS
 directories. Both configured jobs passed manual runs. Immich media remains on
 the NAS, with the separately verified rebuild copy preserved; a recurring media
 snapshot job runs at 03:45 Melbourne time with seven snapshots retained;
-see [NAS snapshots](nas/README.md). Its first snapshot succeeded. GitOps
-activation remains pending.
+see [NAS storage and snapshots](nas/README.md). Its first snapshot succeeded.
+Manual GitOps adoption is complete; Home Assistant onboarding and its replacement
+metrics token remain user tasks.
 
 ## GitOps workflow
 
 Make changes on a feature branch and review them before merging to `main`.
-Applications use the three-source pattern documented in [AGENTS.md](AGENTS.md).
+Applications combine Helm, repository values and raw manifest sources as needed;
+see the [ArgoCD instructions](argocd/AGENTS.md).
 After K3s and storage are ready, bootstrap ArgoCD using
 [its setup instructions](argocd/README.md).
