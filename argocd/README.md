@@ -165,9 +165,9 @@ automatically deploy their workloads. Repository sources explicitly track `main`
 | Database PV reclaim policy is `Delete` | Deleting a database PVC can remove its underlying Longhorn data | Review PVC/StatefulSet diffs carefully and do not use force/replace or prune data claims during adoption |
 | Monitoring and Home Assistant chart versions | Previously used wildcard versions | Prepared: pinned and rendered the four selected charts; runtime validation remains pending |
 
-Nextcloud has no child Application under the current root directory and is not
-selected. Excluding an optional app from root discovery is a deployment choice;
-it does not delete the app's source files or existing data.
+Nextcloud's retired deployment sources have been removed. It already had no
+child Application, so the selected set is unchanged. Repository cleanup does not
+delete cluster resources, volumes or backups; configuration remains in Git history.
 
 ### Verified comparison and limits
 
