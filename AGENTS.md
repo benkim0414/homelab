@@ -21,13 +21,27 @@ integration details. This repository declares a K3s homelab through GitOps.
 - Work on feature branches; ArgoCD repository sources track `main`.
 - For concurrent work, use isolated worktrees within configured workspace roots.
   Request approval before removing worktrees or deleting branches.
-- Use `type(component): description`, for example `fix(argocd): preserve manual
-  sync` or `docs(k3s-ansible): clarify worker recovery`. Follow established scopes
-  in recent history; use the affected component rather than a broad task label.
-- Make each commit one logical change. Split independent component changes;
-  keep implementation and directly supporting documentation together.
-- Inspect staged changes before committing. Commit, merge, push, and deployment
-  are separate actions; do not infer authorization for one from another.
+- Commit, merge, push, and deployment are separate actions; do not infer
+  authorization for one from another.
+
+### Atomic and conventional commits
+
+- Use `type(component): description`. Types: `feat` for new behavior, `fix` for
+  corrections, `docs` for documentation, `chore` for maintenance, `refactor` for
+  restructuring without behavior changes, and `test` for tests.
+- Scope by the affected app or component, following recent history: `argocd`,
+  `immich`, `k3s-ansible`, `alloy`, `codex`, or `agents`. Scope follows purpose,
+  not just file location: an Immich chart bump under `argocd/apps/` uses `immich`.
+- Write a short imperative description: `fix(alloy): expand pod log paths` or
+  `docs(k3s-ansible): clarify worker recovery`. Mark breaking changes with `!`
+  after the scope and explain the impact and migration in the commit body.
+- Each commit should express one independently reviewable and revertible change.
+  Split unrelated fixes, cleanup, and independent component changes. Keep coupled
+  manifests, values, tests, and supporting docs together; do not split solely by
+  file or directory or leave broken references between commits.
+- Stage explicit paths or hunks. Review `git diff --cached`, run
+  `git diff --cached --check` and relevant checks, and ensure the message describes
+  the entire staged change. Exclude unrelated user work and generated artifacts.
 
 ## Find task-specific guidance
 
