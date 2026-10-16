@@ -26,15 +26,21 @@ integration details. This repository declares a K3s homelab through GitOps.
 
 ### Atomic and conventional commits
 
-- Use `type(component): description`. Types: `feat` for new behavior, `fix` for
+- Follow [Conventional Commits 1.0.0](https://github.com/conventional-commits/conventionalcommits.org/blob/master/content/v1.0.0/index.md):
+  use `type: description` or `type(scope): description`. Types: `feat` for new behavior, `fix` for
   corrections, `docs` for documentation, `chore` for maintenance, `refactor` for
   restructuring without behavior changes, and `test` for tests.
-- Scope by the affected app or component, following recent history: `argocd`,
+- Scope is optional. Include it only when the change has a specific app, component
+  or target. For repository-wide or cross-component work without a single clear
+  target, omit the scope; do not invent catch-all scopes such as `homelab`, `repo`
+  or `general`. Example: `docs: consolidate recovery records and remove stale plans`.
+- When a scope applies, use the affected app or component, following recent history: `argocd`,
   `immich`, `k3s-ansible`, `alloy`, `codex`, or `agents`. Scope follows purpose,
   not just file location: an Immich chart bump under `argocd/apps/` uses `immich`.
 - Write a short imperative description: `fix(alloy): expand pod log paths` or
   `docs(k3s-ansible): clarify worker recovery`. Mark breaking changes with `!`
-  after the scope and explain the impact and migration in the commit body.
+  immediately before the colon, with or without a scope (`feat(api)!:` or `feat!:`),
+  and explain the impact and migration in the commit body.
 - Each commit should express one independently reviewable and revertible change.
   Split unrelated fixes, cleanup, and independent component changes. Keep coupled
   manifests, values, tests, and supporting docs together; do not split solely by
