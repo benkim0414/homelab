@@ -2,9 +2,6 @@ sealed-secrets/sealed-secrets-master-keys.yaml
 /sealed-secrets-master-keys.yaml
 immich-backup.dump
 
-# Retired Honcho: keep any local bearer token out of Git.
-honcho/hermes-jwt.txt
-
 # Claude Code local settings (machine-specific overrides)
 .claude/settings.local.json
 
