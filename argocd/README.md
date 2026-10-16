@@ -1,6 +1,11 @@
 # ArgoCD on K3s
 
-GitOps continuous delivery for the homelab K3s cluster. ArgoCD watches the Git repo and automatically reconciles cluster state when changes are merged.
+GitOps continuous delivery for the homelab K3s cluster. ArgoCD watches `main`
+and compares desired and live state. The root and selected child Applications
+currently use manual sync; publishing changes does not automatically deploy them.
+Inspect each Application's declared sync policy before planning a rollout.
+
+Operational commands below require task authorization; they are not local tests.
 
 ## Architecture
 
@@ -51,6 +56,7 @@ helm repo update
 kubectl create namespace argocd
 helm install argocd argo/argo-cd \
   --namespace argocd \
+  --version 10.10.3 \
   -f argocd/values.yaml
 ```
 
@@ -82,17 +88,24 @@ kubectl apply -f argocd/apps/infrastructure.yaml
 kubectl apply -f argocd/apps/immich.yaml
 ```
 
-These Applications enable automatic reconciliation from the remote repository.
-During a rebuild, defer this step until Sealed Secrets keys and application data
-are restored and the reviewed configuration is merged. Installing ArgoCD alone
-does not deploy applications. Matching chart versions and values are necessary
-for adoption; resource tracking metadata can still produce an initial difference.
+These Applications register desired configuration from the remote repository;
+their current policies require an explicit sync to deploy it. For root App-of-Apps
+bootstrap, register `argocd/apps.yaml`, review its selected resources and AppProject,
+then explicitly sync the root to create child Applications. Review and sync each
+child separately. During a rebuild, defer adoption until Sealed Secrets keys and
+application data are restored and the reviewed configuration is published.
+Installing ArgoCD alone does not deploy applications. Matching chart versions
+and values are necessary for adoption; resource tracking metadata can still
+produce an initial difference. See the adoption sequence below and the
+[Sealed Secrets runbook](../docs/operations/sealed-secrets.md).
 
 ## How upgrades work with Renovate
 
 1. Renovate detects a new Immich version and opens a PR bumping `tag:` in `immich/values.yaml` and/or `targetRevision:` in `argocd/apps/immich.yaml`
 2. You review and merge the PR
-3. ArgoCD detects the change on `main` and syncs automatically
+3. ArgoCD detects the change on `main`; review the diff and explicitly sync while
+   the Application uses manual sync. Automatic deployment applies only if that
+   Application's policy is separately changed to enable it.
 4. Verify a recent successful PostgreSQL backup before syncing an upgrade. The scheduled CronJob is not a pre-upgrade gate.
 
 ## Adopting existing Helm releases
@@ -103,10 +116,18 @@ ArgoCD can adopt resources it did not originally create. Match chart versions, r
 
 ## Upgrade ArgoCD
 
+ArgoCD manages its own chart through `argocd/apps/argocd.yaml`. Prefer updating
+that pin and reviewing/syncing the Application through GitOps. The following
+manual Helm procedure is for separately authorized bootstrap or recovery, not
+the routine upgrade path. The example version must match `targetRevision` for
+`argo-cd` in `argocd/apps/argocd.yaml`; an unversioned Helm upgrade may install a
+different chart and is not recovery of the declared Application:
+
 ```bash
 helm repo update
 helm upgrade argocd argo/argo-cd \
   --namespace argocd \
+  --version 10.10.3 \
   -f argocd/values.yaml
 ```
 
