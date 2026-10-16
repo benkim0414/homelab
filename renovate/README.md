@@ -1,17 +1,23 @@
 # Renovate
 
-Renovate is deployed by ArgoCD from `argocd/apps/renovate.yaml` using the official Renovate Helm chart.
+Renovate has an Application in `argocd/apps/renovate.yaml` using the official
+Renovate Helm chart. It is currently excluded from root discovery; secret creation
+does not authorize activation.
 
 ## GitHub Token
 
 The CronJob expects a Kubernetes Secret named `renovate-token` in the `renovate` namespace with a `RENOVATE_TOKEN` key. Do not commit a plaintext Secret.
 
-Create the SealedSecret after generating a GitHub token with repository write access:
+With explicit authorization, create the SealedSecret using an approved GitHub
+token. Follow the [Sealed Secrets runbook](../docs/operations/sealed-secrets.md).
+Prepare a restricted local env file containing `RENOVATE_TOKEN` outside tracked
+files; do not put the token in shell arguments or history. Replace the example
+input path below:
 
 ```bash
 kubectl create namespace renovate --dry-run=client -o yaml | kubectl apply -f -
 kubectl create secret generic renovate-token -n renovate \
-  --from-literal=RENOVATE_TOKEN='<github-token>' \
+  --from-env-file=path/to/local-renovate-token.env \
   --dry-run=client -o yaml \
   | kubeseal \
       --controller-name sealed-secrets-controller \
