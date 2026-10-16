@@ -1,187 +1,102 @@
 # Homelab GitOps
 
-<!-- Canonical sibling doc: CLAUDE.md. Keep shared repo conventions aligned. -->
+Canonical shared instructions for coding agents. `CLAUDE.md` adds Claude-specific
+integration details. This repository declares a K3s homelab through GitOps.
 
-This repository manages a homelab K3s cluster through GitOps. Prefer declarative
-changes in Git over manual cluster mutations, and treat this file as the Codex
-entrypoint for repo-specific operating rules.
+## Working boundaries
 
-## Repo Structure
+- Keep changes focused and preserve unrelated user work.
+- Ask directly before merges (including local merges to main), branch deletion,
+  destructive commands or issue/PR actions, force pushes or history rewrites,
+  credential access, repository administration, settings or secrets changes,
+  non-GitHub network access, GitHub API access through arbitrary runtimes or shell
+  scripts, or writes outside configured workspace roots.
+- Use narrow, operation-specific permission prefixes; never persist broad shell
+  or runtime prefixes. Request git network approval per command unless permissions
+  enforce the GitHub remote, active worktree, and non-destructive operation.
+- Runbook commands describe procedures; their presence does not authorize execution.
 
-Each app has its own directory containing `values.yaml` (Helm values),
-`sealed-secret.yaml` (encrypted and safe to commit), and raw manifests
-(namespace, storage, CRDs, and related resources). ArgoCD Application
-definitions live in `argocd/apps/*.yaml`.
+## Git workflow
 
-## ArgoCD Multi-Source Pattern
+- Work on feature branches; ArgoCD repository sources track `main`.
+- For concurrent work, use isolated worktrees within configured workspace roots.
+  Request approval before removing worktrees or deleting branches.
+- Use `type(component): description`, for example `fix(argocd): preserve manual
+  sync` or `docs(k3s-ansible): clarify worker recovery`. Follow established scopes
+  in recent history; use the affected component rather than a broad task label.
+- Make each commit one logical change. Split independent component changes;
+  keep implementation and directly supporting documentation together.
+- Inspect staged changes before committing. Commit, merge, push, and deployment
+  are separate actions; do not infer authorization for one from another.
 
-All apps use a 3-source pattern:
+## Find task-specific guidance
 
-- Source 1: Upstream Helm chart. It references the `$repo` alias for
-  `valueFiles`.
-- Source 2: This Git repo with `ref: repo`, which allows Source 1 to resolve
-  `$repo/<app>/values.yaml`.
-- Source 3: Optional raw manifests from this repo at `path: <app>` with a
-  `directory.include` glob. Files not covered by `include:` are ignored by
-  ArgoCD even if present in the directory.
+App directories hold Helm values and raw manifests; Applications live under
+`argocd/apps/`. Read only guidance relevant to the task. When starting from the
+root, explicitly read the applicable nested instructions before editing files;
+working-directory instruction discovery may not load them automatically.
 
-`targetRevision: '*'` means latest chart release. Immich is pinned because the
-chart version must match the `immich-server` image tag in `immich/values.yaml`.
-Use `argocd/apps/immich.yaml` as the canonical pinned-version example.
+| Task | Instructions and references |
+| --- | --- |
+| Applications, chart sources, sync/adoption, new apps | [ArgoCD instructions](argocd/AGENTS.md), [runbook](argocd/README.md) |
+| Nodes, containerd, CNI, VM provision/repair scripts under `scripts/` | [K3s instructions](k3s-ansible/AGENTS.md), [runbook](k3s-ansible/README.md) |
+| Immich, including its Application or upgrade | [Immich instructions](immich/AGENTS.md), [runbook](immich/README.md) |
+| Prometheus, Grafana, Loki, Alloy, monitoring Application | [Monitoring instructions](monitoring/AGENTS.md) |
+| Home Assistant, including its Application or metrics | [Home Assistant instructions](home-assistant/AGENTS.md) |
+| Sealed Secrets or controller-key recovery | [Sealed Secrets runbook](docs/operations/sealed-secrets.md) |
+| Tailscale exposure/operator | [Tailscale runbook](tailscale/README.md), ArgoCD instructions |
+| NAS snapshots or application archives | [NAS](nas/README.md), affected app README |
+| MCP setup or environment troubleshooting | [MCP setup](docs/mcp/README.md), `.codex/config.toml`, `.mise.toml` |
+| Renovate configuration | `renovate.json5`, [Renovate runbook](renovate/README.md) |
 
-## ArgoCD Is Self-Managed
+For networking, storage, Sealed Secrets, or ArgoCD changes, consult the affected
+app README and relevant records in `reports/` or `docs/solutions/`. Record new,
+reusable operational lessons in committed docs; do not depend on machine-local
+memory or write outside the workspace to preserve them.
 
-ArgoCD manages itself through `argocd/apps/argocd.yaml` using the same
-3-source pattern. Upgrade flow is normal GitOps: merge to `main`, then let
-ArgoCD self-sync. The ArgoCD Tailscale Ingress in
-`argocd/tailscale-ingress.yaml` is managed by that same Application.
+## GitOps and data safety
 
-## Bootstrapping a Fresh Cluster
+- Prefer declarative Git changes. Inspect live state through MCP or read-only
+  `kubectl` when needed; bring fixes back into Git rather than leaving ad-hoc drift.
+- Inspect declared sync policies. Root and selected Applications currently use
+  manual sync; publishing to `main` does not imply deployment. Preserve that
+  posture and disabled-app exclusions unless changing them is explicitly in scope.
+- Preserve volume identities, reclaim policies, and restored data. Review deletion,
+  pruning, force/replace, and credential prerequisites before proposing a rollout.
+- Never commit plaintext credentials, controller private keys, or local env files.
+  Use Sealed Secrets or local injection; do not read or refresh credentials merely
+  to validate documentation or manifests.
+- Tailscale OAuth credentials are externally supplied; do not introduce blank or
+  replacement credentials while adjusting chart values.
+- Before AWS S3 MCP use, follow the policy setup in
+  `docs/mcp/aws-api-mcp-security-policy.json`. Keep destructive direct MCP tools
+  disabled; use an approval-capable command workflow for destructive operations.
 
-After `k3s-ansible` provisions the nodes:
+## Verification and completion
 
-```bash
-helm repo add argo https://argoproj.github.io/argo-helm
-helm install argocd argo/argo-cd -n argocd --create-namespace -f argocd/values.yaml
-kubectl apply -f argocd/apps.yaml
-```
+- Choose checks for the changed behavior. There is no repository-wide test task;
+  do not run environment bootstrap, node scripts, or a deployment as a local test.
+- For docs, check referenced paths, accuracy against manifests, and
+  `git diff --check`. For shell changes, use `bash -n <changed-script>` plus
+  relevant tests.
+- For manifests, check YAML structure, referenced files, and ArgoCD include/exclude
+  coverage. Render affected charts when dependencies are available and any needed
+  network access is approved. Do not claim a local render verifies live rollout.
+- Review the final diff and complete relevant checks. Report changes, checks,
+  remaining limitations, and whether anything was deployed.
 
-The root App-of-Apps then creates child Applications from `argocd/apps/`.
-Check rollout state with `kubectl get applications -n argocd`.
+## Code Review Rules
 
-## Sealed Secrets Workflow
+- Flag newly committed plaintext credentials or controller private keys. Use
+  encrypted SealedSecrets or local injection instead.
+- Flag unrequested automation/pruning or disabled-app activation. Preserve the
+  declared manual sync posture unless the requested rollout explicitly changes it.
+- Flag destructive storage changes without a data-preservation plan. Review actual
+  reclaim/retention policies; a retained NFS volume does not protect database PVCs.
 
-Create a new sealed secret with:
+## Agent integrations
 
-```bash
-kubectl create secret generic <name> -n <namespace> \
-  --from-literal=KEY=VALUE \
-  --dry-run=client -o yaml \
-  | kubeseal \
-      --controller-name sealed-secrets-controller \
-      --controller-namespace kube-system \
-      --format yaml > <app>/sealed-secret.yaml
-```
-
-The master key backup lives at
-`sealed-secrets/sealed-secrets-master-keys.yaml` and is gitignored. Regenerate
-it with:
-
-```bash
-kubectl get secrets -n kube-system \
-  -l sealedsecrets.bitnami.com/sealed-secrets-key=active \
-  -o yaml > sealed-secrets/sealed-secrets-master-keys.yaml
-```
-
-Back it up externally. Without that key, sealed secrets are unrecoverable after
-a cluster rebuild.
-
-## Tailscale Operator
-
-OAuth credentials are intentionally not committed in `tailscale/values.yaml`.
-Pass them via `--set-string` during initial install as described in
-`tailscale/README.md`.
-
-To expose an app through Tailscale:
-
-1. Commit `<app>/tailscale-ingress.yaml`.
-2. Add that file to the app's ArgoCD `directory.include` glob.
-
-## Handling Chart-Generated Secrets
-
-Some charts generate random values on render, which causes perpetual
-OutOfSync. Fix those by:
-
-1. Adding `ignoreDifferences` on the generated Secret fields and any dependent
-   Deployment `checksum/secret` annotation.
-2. Adding `RespectIgnoreDifferences=true` to `syncOptions`.
-
-Use `argocd/apps/monitoring.yaml` as the canonical example.
-
-## Renovate Conventions
-
-- Renovate tracks chart versions from `argocd/apps/*.yaml`.
-- Custom regex managers handle non-standard `tag:` fields in
-  `immich/values.yaml` and `kube-vip/values.yaml`.
-- Commits use semantic prefixes such as `feat:`, `fix:`, `chore:`, and
-  `docs:`.
-- Update schedule is intentionally staggered. Immich is immediate; major
-  infrastructure, monitoring, and Home Assistant updates are monthly.
-- Immich update reviews should verify that the PostgreSQL backup CronJob ran.
-
-## Adding a New App
-
-1. Create `<app>/` with `values.yaml` plus any raw manifests.
-2. Add `argocd/apps/<app>.yaml` using the 3-source pattern.
-3. If secrets are needed, create `<app>/sealed-secret.yaml` through `kubeseal`.
-4. Merge to `main`; the root `apps` Application will pick it up.
-
-## Cluster Access and Local Environment
-
-For Codex, cluster integrations are defined in `.codex/config.toml`:
-
-- `kubernetes` for cluster resource access
-- `grafana` for metrics, logs, dashboards, and alerts
-- `argocd` for application state and operations
-- `aws_iam` for AWS IAM inspection and non-destructive administration
-- `aws_s3` for regular S3/S3API operations through AWS API MCP
-
-Environment variables and secrets bootstrap are defined in `.mise.toml`.
-`scripts/env-secrets.sh` resolves local secrets into `.env.local`. Run
-`mise run secrets` after first clone or after rotating credentials.
-
-AWS MCP uses the local `default` AWS profile instead of repo-managed secrets.
-Before using `aws_s3`, install the AWS API MCP security policy from
-`docs/mcp/aws-api-mcp-security-policy.json`; it asks for approval before common
-destructive AWS CLI commands while leaving IAM permissions as the primary
-boundary.
-For direct MCP tools that cannot prompt per operation, keep destructive tools
-disabled and use a command-based workflow when review-before-approval is needed.
-
-## Worktree and Parallel Changes
-
-ArgoCD tracks `main`, so development should happen on feature branches. For
-parallel work, prefer Git worktrees:
-
-```bash
-git worktree add ../homelab-<task> -b <type>/<app>-<description>
-git worktree remove ../homelab-<task> && git branch -d <type>/<app>-<description>
-```
-
-## Cluster Gotchas
-
-Hard-won lessons from operating this cluster are recorded in the local memory
-file at `~/.claude/projects/-home-benkim0414-workspace-homelab/memory/MEMORY.md`.
-Check the "Key Learnings" there before touching k3s nodes, containerd,
-Flannel/CNI, Sealed Secrets, or ArgoCD sync operations.
-
-When a new gotcha is discovered, record it in memory and update these repo
-rules if the same mistake is likely to recur.
-
-## GitOps Safety Rules
-
-- Prefer Git changes over manual `kubectl edit`, `kubectl patch`, or ad-hoc
-  drift in the cluster.
-- Treat `argocd/apps/immich.yaml` and `argocd/apps/monitoring.yaml` as the
-  canonical examples for pinned versions and ignore-differences patterns.
-- Before changing manifests for networking, storage, Sealed Secrets, or ArgoCD,
-  read the adjacent app README and any relevant report under `reports/`.
-- Never commit plaintext credentials. Use Sealed Secrets or local env injection.
-- If you must inspect live state, use MCP tools or read-only `kubectl` first,
-  then bring the fix back into Git.
-
-## Codex-Specific Notes
-
-- This file is the Codex-facing onboarding doc for the repo.
-- `CLAUDE.md` remains the Claude-facing sibling doc and may include
-  Claude-runtime-specific details such as hooks and local memory paths.
-- Repo-scoped Codex skills live under `.agents/skills/`.
-- Use `$cluster-health` for a structured operational health check and
-  `$security-audit` for the security review workflow. These skills mirror the
-  intent of the existing Claude command docs in `.claude/commands/`.
-- `docs/solutions/` contains documented solutions to past problems and
-  reusable guidance, organized by category with YAML frontmatter fields such as
-  `module`, `tags`, and `problem_type`; it is relevant when implementing or
-  debugging in documented areas.
-- Do not mirror `.claude/hooks` into Codex-specific files unless there is a
-  concrete Codex runtime consumer for them.
+- Codex operational workflows: `.agents/skills/cluster-health/SKILL.md` for health
+  checks and `.agents/skills/security-audit/SKILL.md` for security reviews.
+- MCP/environment bootstrap is documented separately; credential refresh requires
+  authorization. Do not mirror `.claude/hooks` without a concrete Codex consumer.
