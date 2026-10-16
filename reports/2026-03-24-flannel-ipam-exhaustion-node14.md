@@ -2,7 +2,8 @@
 
 **Status:** Historical incident, resolved. The original automatic-cleanup
 recommendation is superseded by the October rebuild assessment. The cleanup
-Application remains excluded from ArgoCD discovery; do not enable it as recovery.
+Application, DaemonSet and RBAC have since been removed from the repository;
+do not restore the unsafe automation as recovery.
 
 ## Incident and evidence
 

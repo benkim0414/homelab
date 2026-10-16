@@ -20,7 +20,7 @@ for node, containerd, CNI, or VM recovery changes.
 - Preserve strict SSH host-key verification and explicit VM destruction guards.
   VM recreation and node reboots require operational authorization.
 - Do not remove host-local IPAM leases from a Running-pod-only comparison or when
-  API queries fail. Flannel cleanup remains excluded from ArgoCD discovery.
+  API queries fail. The unsafe Flannel cleanup manifests have been removed.
 
 ## Verification
 

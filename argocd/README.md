@@ -153,8 +153,8 @@ seven Longhorn volumes healthy. Root and selected children remain manual.
 ### Selection and adoption decisions
 
 Honcho, Flannel cleanup and Renovate were initially excluded, leaving 13 child
-Applications. Honcho and Nextcloud sources have since been removed because both
-are retired; the selected set is unchanged. Renovate and Flannel cleanup remain
+Applications. Honcho, Nextcloud and Flannel cleanup sources have since been
+removed because they are retired; the selected set is unchanged. Renovate remains
 excluded. Removing repository sources did not delete cluster resources or data.
 Historical configuration is available in Git history.
 
@@ -179,7 +179,8 @@ subsequent adoption. Local rendering alone is not rollout verification.
 
 ### Flannel cleanup decision
 
-The old privileged cleanup DaemonSet was assessed and left disabled. Its failed
+The old privileged cleanup DaemonSet was assessed, left disabled during adoption,
+and subsequently removed from the repository with its Application and RBAC. Its failed
 API queries become empty active-IP sets; its Running-pod-only comparison also
 misses starting attachments. Either can lead to live lease deletion. Read-only
 inspection found no orphaned/zero-byte leases on the five rebuilt nodes and no
