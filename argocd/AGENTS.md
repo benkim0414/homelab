@@ -11,7 +11,7 @@ historical rollout notes as live status.
   three sources. Preserve repository revisions on `main` and existing chart pins.
 - Raw manifests must be covered by the Application's `directory.include` glob.
   Check coverage whenever adding storage, SealedSecrets, rules, or ingresses.
-- Preserve root exclusions for Honcho, Flannel cleanup, and Renovate. Review
+- Preserve root exclusions for Flannel cleanup and Renovate. Review
   `apps.yaml` selection as well as child Applications when adding an app.
 - For a new app, add its values/raw manifests and Application together. Check its
   AppProject, namespace, chart identity, value-file paths, and raw-file selection.

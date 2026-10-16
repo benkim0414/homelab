@@ -10,8 +10,8 @@ spec:
     targetRevision: main
     path: argocd/apps
     directory:
-      # Retain retired/disabled apps without deploying them.
-      exclude: '{honcho.yaml,flannel-ipam-cleanup.yaml,renovate.yaml}'
+      # Keep optional apps disabled until separately reviewed.
+      exclude: '{flannel-ipam-cleanup.yaml,renovate.yaml}'
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd

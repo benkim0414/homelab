@@ -146,9 +146,8 @@ kubectl delete namespace argocd
 ## Rebuild adoption review — 15 October 2026
 
 At the initial review, no Applications were installed in the rebuilt cluster. The
-root selected all 16 child Applications. Honcho, Flannel cleanup and Renovate
-are now excluded at the user's request,
-leaving 13 selected Applications. Monitoring (Prometheus/Grafana, Loki and Alloy)
+root selected all 16 child Applications. Honcho was retired and its deployment sources removed. Flannel cleanup and
+Renovate remain excluded, leaving the same 13 selected Applications. Monitoring (Prometheus/Grafana, Loki and Alloy)
 and Home Assistant are approved for the initial selection. The root and every
 selected child now use manual sync for adoption; registering them will not
 automatically deploy their workloads. Repository sources explicitly track `main`.
@@ -157,7 +156,7 @@ automatically deploy their workloads. Repository sources explicitly track `main`
 
 | Finding | Effect | Required preparation |
 | --- | --- | --- |
-| Initial application selection | Monitoring and Home Assistant are approved; Renovate credentials are unavailable | Prepared: exclude Renovate, Honcho and Flannel cleanup; retain monitoring and Home Assistant for manual review/sync. |
+| Initial application selection | Monitoring and Home Assistant are approved; Renovate credentials are unavailable | Prepared: remove Honcho sources; exclude Renovate and Flannel cleanup; retain monitoring and Home Assistant for manual review/sync. |
 | Immich includes `s3-sealed-secret.yaml` and `offsite-backup-cronjob.yaml` | Attempts to decrypt an unrecoverable Secret and schedules a job without working credentials | Prepared: both are excluded until replacement S3 credentials are configured |
 | Root and selected children use manual sync | Each deployment requires an explicit sync | Prepared: automated sync/pruning removed; enable automation per app only after reviewing the diff |
 | Tailscale release is installed as `tailscale-operator`, Application is `tailscale` | Release identity differs from default ArgoCD rendering | Prepared: chart source explicitly sets `helm.releaseName: tailscale-operator` |
@@ -206,9 +205,9 @@ which differs from Helm's `app.kubernetes.io/instance`; preserve that distinctio
    backups remain configured. Enable automation and pruning per app only after
    separate review of the resulting desired resource set.
 
-The review initially changed documentation only. The root discovery filter now
-excludes Honcho, Flannel cleanup and Renovate, while retaining their Application
-and source files. The selected Applications and root are manual, Immich offsite
+The review initially changed documentation only. Honcho deployment sources and
+its child Application have since been removed. The root discovery filter retains
+Flannel cleanup and Renovate exclusions and their source files. The selected Applications and root are manual, Immich offsite
 backup manifests are excluded, and Tailscale release identity is explicit. No
 Applications, credentials, tailnet devices or workloads were created, synced,
 deleted or reconfigured. Selection and chart rendering review are complete;
@@ -242,7 +241,7 @@ verified, and no lease files were changed during this assessment.
 
 The user approved excluding the old automated cleanup job. Its Application was
 extracted from `infrastructure.yaml` into `argocd/apps/flannel-ipam-cleanup.yaml`
-and excluded by the root discovery filter alongside Honcho. The DaemonSet and
+and excluded by the root discovery filter. Honcho has since been removed. The DaemonSet and
 RBAC source files remain available. Monitor for sandbox/IPAM errors and increasing
 lease use, and investigate any recurrence before performing targeted cleanup.
 
