@@ -195,5 +195,40 @@ Hindsight against a migrated schema without a compatible database restore.
 - [NAS recovery and snapshots](../nas/README.md)
 - [ArgoCD deployment workflow](../argocd/README.md)
 
-Repository validation is not a live rollout result. Record deployment and restore
-test evidence here after the corresponding checks have actually completed.
+## Verified rollout — 17 October 2026
+
+Deployed commit `4c97249` through manual root and Hindsight ArgoCD syncs without
+pruning or force. Both Applications finished `Synced`, `Healthy`, and `Succeeded`.
+The dedicated subscription login succeeded; its temporary bootstrap pod was removed.
+
+- UI: <https://hindsight.tailbd291c.ts.net>
+- API: <https://hindsight-api.tailbd291c.ts.net>
+- Global-bank MCP: <https://hindsight-api.tailbd291c.ts.net/mcp/reserve/>
+
+REST requests and MCP initialization rejected absent and incorrect tokens with
+HTTP 401. Authenticated in-cluster MCP initialization succeeded. MCP's unauthenticated
+GET probe intentionally returns 200; use POST initialization to test authentication.
+The UI dashboard and 13 linked JavaScript assets loaded without disclosing the API
+token. API health and metrics returned 200, and all five PVCs bound.
+
+A workstation client retained a synthetic Amber Heron launch-color fact in
+`validation-20261017`; a separate in-cluster client recalled it and reflected the
+correct answer using the configured subscription model. Recall still worked after
+an API restart. `reserve` remained empty, with zero documents, memories, and failed
+operations. Re-running the initializer preserved its existing configuration.
+
+The manual backup Job wrote and verified
+`hindsight-20261017T001325393167633Z.dump` on the NAS, SHA-256
+`cfc2234ad0b517512ad9ac85244a4072e2ebb93922980340b74d319646a85f2c`.
+A separate restore Job restored that archive with `--exit-on-error --no-owner --no-acl`
+into `hindsight_validation_20261017`. SQL checks recovered both bank configurations
+and two validation memory rows (fact and consolidated observation), with no memories
+in `reserve`. The live database was not overwritten.
+
+After explicit approval, the validation bank `validation-20261017`, isolated restore
+database `hindsight_validation_20261017`, and both validation Jobs were deleted.
+Checks confirmed the test bank and database were absent and `reserve` remained empty.
+The backup archive is retained under the normal backup policy. OAuth credentials
+persisted across restart and both their file and directory were writable;
+expiry-driven token rotation has not yet been observed.
+Agent clients still need their own connection configuration and injected API token.
