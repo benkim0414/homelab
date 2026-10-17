@@ -1,0 +1,42 @@
+{
+  "repository": "https://github.com/benkim0414/homelab.git",
+  "destination": "https://kubernetes.default.svc",
+  "root": "argocd/apps.yaml",
+  "tools": {
+    "helm": "3.19.0",
+    "kubeconform": "0.7.0",
+    "conftest": "0.66.0",
+    "gitleaks": "8.30.0"
+  },
+  "schema_revision": "aff1ca44984cbbcfa376c1cb6fdc4bb6aa0381fd",
+  "excluded": {
+    "immich/offsite-backup-cronjob.yaml": "Disabled pending replacement S3 credentials and explicit activation (immich/AGENTS.md).",
+    "immich/s3-sealed-secret.yaml": "Disabled pending replacement S3 credentials and explicit activation (immich/AGENTS.md).",
+    "hindsight/bootstrap-login-pod.yaml": "Recovery-only login pod; not part of routine reconciliation.",
+    "traefik/examples/example-ingressroute.yaml": "Documentation example; not deployed.",
+    "traefik/examples/whoami-test.yaml": "Documentation example; not deployed."
+  },
+  "external_crds": [
+    "https://raw.githubusercontent.com/k3s-io/helm-controller/v0.16.15/pkg/crds/yaml/generated/helm.cattle.io_helmchartconfigs.yaml"
+  ],
+  "exceptions": [],
+  "generated_fields": [
+    {
+      "kind": "Secret",
+      "namespace": "monitoring",
+      "name": "kube-prometheus-stack-grafana",
+      "paths": [
+        "/data/admin-password",
+        "/data/admin-user"
+      ]
+    },
+    {
+      "kind": "Deployment",
+      "namespace": "monitoring",
+      "name": "kube-prometheus-stack-grafana",
+      "paths": [
+        "/spec/template/metadata/annotations/checksum~1secret"
+      ]
+    }
+  ]
+}

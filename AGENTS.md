@@ -94,8 +94,10 @@ memory or write outside the workspace to preserve them.
 
 ## Verification and completion
 
-- Choose checks for the changed behavior. There is no repository-wide test task;
-  do not run environment bootstrap, node scripts, or a deployment as a local test.
+- Choose checks for the changed behavior. For GitOps changes, use the
+  [verification command](verification/README.md) to render and validate selected
+  Applications; its offline mode is only a partial structure check. Do not run
+  environment bootstrap, node scripts, or a deployment as a local test.
 - For docs, check referenced paths, accuracy against manifests, and
   `git diff --check`. For shell changes, use `bash -n <changed-script>` plus
   relevant tests.

@@ -1,0 +1,10 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Hindsight bank config URL expression, not a credential"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''hindsight/initialize-bank-job\.yaml$''']
+regexTarget = "line"
+regexes = ['''^\s*url = "http://hindsight-api:8888/v1/default/banks/" \+ name\s*$''']
