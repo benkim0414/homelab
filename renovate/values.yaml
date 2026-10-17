@@ -1,5 +1,6 @@
 cronjob:
   schedule: "0 4 * * *"
+  timeZone: "Australia/Melbourne"
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3

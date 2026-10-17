@@ -4,17 +4,23 @@
     "config:recommended",
     ":semanticCommits"
   ],
+  "automerge": false,
+  "ignoreUnstable": true,
+  "separateMajorMinor": true,
+  "schedule": ["at any time"],
+  "timezone": "Australia/Melbourne",
   "argocd": {
-    "fileMatch": ["argocd/.+\\.ya?ml$"]
+    "managerFilePatterns": ["/^argocd/.+\\.ya?ml$/"]
   },
   "kubernetes": {
-    "fileMatch": ["immich/.+\\.ya?ml$", "monitoring/.+\\.ya?ml$", "home-assistant/.+\\.ya?ml$", "vaultwarden/.+\\.ya?ml$"]
+    "managerFilePatterns": ["/^(?:argocd|hindsight|home-assistant|immich|kube-vip|longhorn|metallb|monitoring|renovate|tailscale|traefik|vaultwarden)/.+\\.ya?ml$/"]
   },
+  "ignorePaths": ["**/examples/**", "**/node_modules/**", "**/.worktrees/**", "**/.renovate-validation/**"],
   "customManagers": [
     {
       // Immich server image tag in Helm values (non-standard path)
       "customType": "regex",
-      "fileMatch": ["^immich/values\\.yaml$"],
+      "managerFilePatterns": ["/^immich/values\\.yaml$/"],
       "matchStrings": [
         "tag:\\s*(?<currentValue>v[\\d.]+)"
       ],
@@ -24,7 +30,7 @@
     {
       // kube-vip image tag in Helm values
       "customType": "regex",
-      "fileMatch": ["^kube-vip/values\\.yaml$"],
+      "managerFilePatterns": ["/^kube-vip/values\\.yaml$/"],
       "matchStrings": [
         "tag:\\s*\"(?<currentValue>v[\\d.]+)\""
       ],
@@ -34,46 +40,75 @@
     {
       // Vaultwarden server image tag in Helm values (chart supplies repository)
       "customType": "regex",
-      "fileMatch": ["^vaultwarden/values\\.yaml$"],
+      "managerFilePatterns": ["/^vaultwarden/values\\.yaml$/"],
       "matchStrings": [
         "image:\\s*\\n\\s*tag:\\s*\"(?<currentValue>[^\"]+)\""
       ],
       "depNameTemplate": "docker.io/vaultwarden/server",
       "datasourceTemplate": "docker",
       "versioningTemplate": "docker"
+    },
+    {
+      // Compare the +k3s revision as a build number, not ignored semver metadata.
+      "customType": "regex",
+      "managerFilePatterns": ["/^k3s-ansible/inventory\\.yml$/"],
+      "matchStrings": ["k3s_version:\\s*(?<currentValue>v\\d+\\.\\d+\\.\\d+\\+k3s\\d+)"],
+      "depNameTemplate": "k3s-io/k3s",
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "regex:^v(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)\\+k3s(?<build>\\d+)$"
     }
   ],
   "packageRules": [
     {
       "description": "Group Immich packages together",
-      "matchPackagePatterns": ["immich"],
+      "matchPackageNames": ["ghcr.io/immich-app/**"],
       "groupName": "immich",
       "prBodyNotes": [
         "**Reminder:** Ensure the PostgreSQL backup CronJob has run recently before merging. Check with: `kubectl get jobs -n immich -l app=immich-pg-backup --sort-by=.status.startTime`"
       ]
     },
     {
-      "description": "Group infrastructure packages, schedule monthly",
-      "matchPackagePatterns": ["metallb", "sealed-secrets", "kube-vip", "tailscale", "argo-cd", "longhorn"],
-      "groupName": "infrastructure",
-      "schedule": ["before 6am on the first day of the month"]
+      "description": "Group Hindsight chart and API images",
+      "matchPackageNames": ["ghcr.io/vectorize-io/**"],
+      "groupName": "hindsight",
+      "prBodyNotes": ["Review chart/API compatibility and verify a recent successful Hindsight PostgreSQL backup before rollout."]
     },
     {
-      "description": "Group monitoring packages, schedule monthly",
-      "matchPackagePatterns": ["kube-prometheus-stack", "loki", "alloy"],
-      "groupName": "monitoring",
-      "schedule": ["before 6am on the first day of the month"]
+      "description": "Group kube-vip chart and image",
+      "matchPackageNames": ["kube-vip", "ghcr.io/kube-vip/kube-vip"],
+      "groupName": "kube-vip"
     },
     {
-      "description": "Group Home Assistant packages, schedule monthly",
-      "matchPackagePatterns": ["home-assistant"],
-      "groupName": "home-assistant",
-      "schedule": ["before 6am on the first day of the month"]
+      "description": "Group Home Assistant packages",
+      "matchPackageNames": ["home-assistant"],
+      "groupName": "home-assistant"
     },
     {
       "description": "Group Vaultwarden packages",
-      "matchPackagePatterns": ["vaultwarden"],
+      "matchPackageNames": ["vaultwarden", "docker.io/vaultwarden/server"],
       "groupName": "vaultwarden"
+    },
+    {
+      "description": "Preserve Immich PostgreSQL 14 and its vector extension variant",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["ghcr.io/immich-app/postgres"],
+      "versioning": "docker",
+      "allowedVersions": "/^14(?:\\.\\d+){0,2}-vectorchord0\\.4\\.3-pgvectors0\\.2\\.0$/",
+      "prBodyNotes": ["Database engine major and vector extension changes require a separately reviewed migration. Keep database and pg_dump images aligned."]
+    },
+    {
+      "description": "Preserve Hindsight PostgreSQL 17 and Bookworm image variant",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["pgvector/pgvector"],
+      "versioning": "docker",
+      "allowedVersions": "/^\\d+\\.\\d+\\.\\d+-pg17-bookworm$/",
+      "groupName": "hindsight-postgresql",
+      "prBodyNotes": ["Verify a recent successful PostgreSQL backup and pgvector compatibility before rollout. Engine major and OS variant changes require a separately reviewed migration; keep database and pg_dump images aligned."]
+    },
+    {
+      "description": "Keep K3s upgrades separately reviewed",
+      "matchPackageNames": ["k3s-io/k3s"],
+      "prBodyNotes": ["Review the K3s upgrade runbook and supported version-skew/upgrade path, including bundled Traefik changes. Merging this inventory pin does not execute a node upgrade."]
     }
   ]
 }
