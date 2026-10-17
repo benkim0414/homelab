@@ -97,7 +97,10 @@ layer. GitHub dependencies and Helm downloads must remain available for a clean 
 First establish a passing complete baseline and representative PR runs. Then,
 with separate approval for repository settings, require the stable `Verify` status
 on `main`, require pull requests and up-to-date branches, and restrict bypasses.
-This workflow does not configure repository protection.
+This workflow does not configure repository protection. The pre-sync gate is a
+manual procedure, not an ArgoCD authorization control. Follow the
+[pre-sync checklist](../argocd/README.md#verification-before-manual-sync) before
+deployment.
 
 Research references:
 

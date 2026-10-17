@@ -117,6 +117,41 @@ for dependency coverage, database constraints and activation verification.
 K3s proposals update the inventory only; node upgrades require a separately
 authorized Ansible operation.
 
+## Verification before manual sync
+
+Run the [repository verifier](../verification/README.md) before merging. CI renders
+selected Helm charts and raw manifests, validates schemas and repository policies,
+and publishes a sanitized desired-state change summary. A green check does not
+verify the live cluster or authorize a deployment.
+
+Before each separately authorized sync:
+
+1. Record the exact commit on `main` and confirm its successful `Verify` check.
+   Confirm ArgoCD resolves all repository sources to that commit; stop if `main`
+   advances before the reviewed sync. Review chart/image release notes and database
+   migration compatibility when versions change.
+2. Inspect the full ArgoCD generated-to-live diff, including removals, hooks, CRDs,
+   service exposure, RBAC and resource ownership. Review finalizers, actual storage
+   reclaim/retention policies, PVC identities, and force/replace/pruning options.
+3. Confirm required operators/CRDs, namespaces, external Secret names/keys and
+   capacity. Do not retrieve credential values merely to complete this checklist.
+   For database upgrades, verify a recent successful backup Job and review the
+   recovery procedure. A scheduled CronJob or archive listing is insufficient.
+4. When admission behavior needs verification, obtain scoped live/network access
+   and use server dry-run with the intended apply semantics. New namespaces and
+   CRDs may require staged validation. ArgoCD server-side diff, if separately
+   enabled, does not run admission validation for resources that do not yet exist.
+   Do not enable a new diff strategy or change sync policies as part of validation.
+5. Obtain deployment authorization, then explicitly sync only the reviewed
+   Applications. Review the root separately when registering children. Keep
+   pruning disabled unless the specific removal and data-preservation plan has
+   been authorized.
+6. Confirm the deployed revision, Synced/Healthy status and application behavior.
+   Use relevant checks: endpoints, database connectivity, recent backup results,
+   authenticated metrics scraping, or recent logs by node/workload. Record failures
+   and follow the app's recovery procedure; a Git revert may not undo a database
+   migration or restore deleted data.
+
 ## Adopting existing Helm releases
 
 ArgoCD can adopt resources it did not originally create. Match chart versions, release names, values and raw manifests, then inspect the full generated-to-live diff before syncing. API defaults, generated Secrets, tracking metadata and chart hooks can still produce differences. Adoption is not guaranteed to avoid a rollout merely because the Helm versions match.

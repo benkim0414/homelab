@@ -78,3 +78,10 @@ Applications combine Helm, repository values and raw manifest sources as needed;
 see the [ArgoCD instructions](argocd/AGENTS.md).
 After K3s and storage are ready, bootstrap ArgoCD using
 [its setup instructions](argocd/README.md).
+
+## Verification before deployment
+
+Use the [verification command and CI checks](verification/README.md) for Helm
+rendering, schema validation, repository safeguards and sanitized resource-change
+previews. Follow the [manual pre-sync checklist](argocd/README.md#verification-before-manual-sync)
+before deploying the verified revision.
