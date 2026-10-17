@@ -1,0 +1,69 @@
+# A PostSync hook creates the bank only if missing; subsequent syncs preserve it.
+# This does not retain any memories or invoke the subscription model.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: hindsight-initialize-reserve
+  namespace: hindsight
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 300
+  template:
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+        - name: initialize
+          image: ghcr.io/vectorize-io/hindsight-api:0.10.3
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          command:
+            - python
+            - -c
+            - |
+              import json
+              import os
+              import urllib.error
+              import urllib.request
+
+              url = "http://hindsight-api:8888/v1/default/banks/reserve"
+              headers = {
+                  "Authorization": "Bearer " + os.environ["HINDSIGHT_API_KEY"],
+                  "Content-Type": "application/json",
+              }
+              try:
+                  with urllib.request.urlopen(urllib.request.Request(url + "/config", headers=headers), timeout=30):
+                      print("reserve already exists; left unchanged")
+              except urllib.error.HTTPError as error:
+                  if error.code != 404:
+                      raise RuntimeError(f"Bank lookup failed: HTTP {error.code}") from None
+                  body = json.dumps({
+                      "name": "reserve",
+                      "retain_mission": "Retain only explicitly requested cross-project decisions and personal preferences. Preserve source, date and scope when supplied. Do not infer global policy from project-specific conversations.",
+                      "reflect_mission": "Recall the user's explicit cross-project decisions and preferences. Distinguish superseded decisions and uncertainty. Current user instructions and repository instructions take precedence.",
+                  }).encode()
+                  request = urllib.request.Request(url, data=body, headers=headers, method="PUT")
+                  with urllib.request.urlopen(request, timeout=30):
+                      print("Created empty reserve bank")
+          env:
+            - name: HINDSIGHT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hindsight-api-credentials
+                  key: HINDSIGHT_API_TENANT_API_KEY
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi

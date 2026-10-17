@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: hindsight
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: ghcr.io/vectorize-io/charts
+      chart: hindsight
+      targetRevision: 0.10.3
+      helm:
+        releaseName: hindsight
+        valueFiles:
+          - $repo/hindsight/values.yaml
+    - repoURL: https://github.com/benkim0414/homelab.git
+      targetRevision: main
+      ref: repo
+    - repoURL: https://github.com/benkim0414/homelab.git
+      targetRevision: main
+      path: hindsight
+      directory:
+        include: '{namespace.yaml,api.yaml,storage.yaml,postgresql.yaml,tailscale-ingress.yaml,pg-backup-cronjob.yaml,initialize-bank-job.yaml,sealed-secret.yaml}'
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: hindsight
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true

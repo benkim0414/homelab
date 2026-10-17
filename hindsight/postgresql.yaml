@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: hindsight-postgres
+  namespace: hindsight
+spec:
+  serviceName: hindsight-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hindsight-postgres
+  template:
+    metadata:
+      labels:
+        app: hindsight-postgres
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsUser: 999
+        runAsGroup: 999
+        runAsNonRoot: true
+        fsGroup: 999
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+        - name: postgres
+          image: pgvector/pgvector:0.8.1-pg17-bookworm@sha256:3e8b3adfd27b5707128f60956f62a793c3c9326ea8cfaf0eab7adccb5d700b21
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          env:
+            - name: POSTGRES_USER
+              value: hindsight
+            - name: POSTGRES_DB
+              value: hindsight
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: hindsight-db-credentials
+                  key: POSTGRES_PASSWORD
+          ports:
+            - name: postgres
+              containerPort: 5432
+          startupProbe:
+            exec:
+              command: [pg_isready, -U, hindsight, -d, hindsight]
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            exec:
+              command: [pg_isready, -U, hindsight, -d, hindsight]
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: [pg_isready, -U, hindsight, -d, hindsight]
+            periodSeconds: 10
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: hindsight-postgres-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hindsight-postgres
+  namespace: hindsight
+spec:
+  clusterIP: None
+  selector:
+    app: hindsight-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres

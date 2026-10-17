@@ -1,0 +1,41 @@
+# Operator-run bootstrap only: deliberately excluded from ArgoCD discovery.
+# Run with the API stopped. Remove this pod before starting the API.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hindsight-subscription-login
+  namespace: hindsight
+spec:
+  automountServiceAccountToken: false
+  restartPolicy: Never
+  activeDeadlineSeconds: 3600
+  nodeSelector:
+    kubernetes.io/arch: arm64
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+    fsGroupChangePolicy: OnRootMismatch
+  containers:
+    - name: login
+      image: ghcr.io/vectorize-io/hindsight-api:0.10.3
+      command: [sleep, "3600"]
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: [ALL]
+      resources:
+        requests:
+          cpu: 10m
+          memory: 128Mi
+        limits:
+          cpu: "1"
+          memory: 512Mi
+      volumeMounts:
+        - name: codex-auth
+          mountPath: /home/hindsight/.codex
+  volumes:
+    - name: codex-auth
+      persistentVolumeClaim:
+        claimName: hindsight-codex-auth

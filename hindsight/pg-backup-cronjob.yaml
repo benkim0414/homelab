@@ -1,0 +1,71 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: hindsight-pg-backup
+  namespace: hindsight
+spec:
+  schedule: "30 2 * * *"
+  timeZone: Australia/Melbourne
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 1800
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          automountServiceAccountToken: false
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+            runAsGroup: 999
+          containers:
+            - name: pg-backup
+              image: pgvector/pgvector:0.8.1-pg17-bookworm@sha256:3e8b3adfd27b5707128f60956f62a793c3c9326ea8cfaf0eab7adccb5d700b21
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: [ALL]
+              command:
+                - /bin/bash
+                - -c
+                - |
+                  set -euo pipefail
+                  umask 077
+                  mkdir -p /backups/scheduled
+                  TIMESTAMP=$(date -u +%Y%m%dT%H%M%S%NZ)
+                  BACKUP_FILE="/backups/scheduled/hindsight-${TIMESTAMP}.dump"
+                  PARTIAL="${BACKUP_FILE}.partial"
+                  trap 'rm -f -- "$PARTIAL"' EXIT
+                  pg_dump -h hindsight-postgres -U hindsight -d hindsight -Fc -f "$PARTIAL"
+                  test -s "$PARTIAL"
+                  pg_restore --list "$PARTIAL" >/dev/null
+                  mv "$PARTIAL" "$BACKUP_FILE"
+                  sha256sum "$BACKUP_FILE"
+                  # Publish a verified dump before pruning only this job's files.
+                  mapfile -t BACKUPS < <(find /backups/scheduled -maxdepth 1 -type f \
+                    -regextype posix-extended -regex '.*/hindsight-[0-9]{8}T[0-9]{15}Z\.dump' | sort -r)
+                  for OLD in "${BACKUPS[@]:14}"; do rm -- "$OLD"; done
+              env:
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: hindsight-db-credentials
+                      key: POSTGRES_PASSWORD
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: "1"
+                  memory: 512Mi
+              volumeMounts:
+                - name: backups
+                  mountPath: /backups
+          volumes:
+            - name: backups
+              persistentVolumeClaim:
+                claimName: hindsight-backups

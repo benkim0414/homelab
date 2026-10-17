@@ -1,0 +1,32 @@
+# Official chart 0.10.3. The API is declared in api.yaml because the chart
+# cannot configure Recreate updates for the single OAuth credential owner.
+fullnameOverride: hindsight
+existingSecret: hindsight-ui-credentials
+api:
+  enabled: false
+worker:
+  enabled: false
+postgresql:
+  enabled: false
+controlPlane:
+  enabled: true
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+serviceAccount:
+  create: false
+podSecurityContext:
+  fsGroup: 1000
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: [ALL]
+ingress:
+  enabled: false

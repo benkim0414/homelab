@@ -1,0 +1,133 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hindsight-api
+  namespace: hindsight
+spec:
+  replicas: 1
+  # One process owns the subscription grant; never overlap on an upgrade.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: hindsight-api
+  template:
+    metadata:
+      labels:
+        app: hindsight-api
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+        - name: api
+          image: ghcr.io/vectorize-io/hindsight-api:0.10.3
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          ports:
+            - name: http
+              containerPort: 8888
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: hindsight-db-credentials
+                  key: POSTGRES_PASSWORD
+            - name: HINDSIGHT_API_DATABASE_URL
+              value: postgresql://hindsight:$(POSTGRES_PASSWORD)@hindsight-postgres:5432/hindsight
+            - name: HINDSIGHT_API_PORT
+              value: "8888"
+            - name: HINDSIGHT_API_WORKERS
+              value: "1"
+            - name: HINDSIGHT_API_WORKER_ENABLED
+              value: "true"
+            - name: HINDSIGHT_API_WORKER_ID
+              value: hindsight-api
+            - name: HINDSIGHT_API_WORKER_MAX_SLOTS
+              value: "2"
+            - name: HINDSIGHT_API_LLM_PROVIDER
+              value: openai-codex
+            - name: HINDSIGHT_API_LLM_MODEL
+              value: gpt-5.6-luna
+            - name: HINDSIGHT_API_LLM_CODEX_HOME
+              value: /home/hindsight/.codex
+            - name: HINDSIGHT_API_LLM_MAX_CONCURRENT
+              value: "2"
+            - name: HINDSIGHT_API_EMBEDDINGS_PROVIDER
+              value: local
+            - name: HINDSIGHT_API_EMBEDDINGS_LOCAL_MODEL
+              value: BAAI/bge-small-en-v1.5
+            - name: HINDSIGHT_API_RERANKER_PROVIDER
+              value: local
+            - name: HINDSIGHT_API_RERANKER_LOCAL_MODEL
+              value: cross-encoder/ms-marco-MiniLM-L-6-v2
+            - name: HINDSIGHT_API_RERANKER_LOCAL_MAX_CONCURRENT
+              value: "1"
+            - name: HINDSIGHT_API_TENANT_EXTENSION
+              value: hindsight_api.extensions.builtin.tenant:ApiKeyTenantExtension
+            - name: HINDSIGHT_API_TENANT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hindsight-api-credentials
+                  key: HINDSIGHT_API_TENANT_API_KEY
+            - name: HINDSIGHT_API_TENANT_MCP_AUTH_DISABLED
+              value: "false"
+            - name: HINDSIGHT_API_MCP_ENABLED
+              value: "true"
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+          startupProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            periodSeconds: 10
+            failureThreshold: 90
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: model-cache
+              mountPath: /home/hindsight/.cache
+            - name: codex-auth
+              mountPath: /home/hindsight/.codex
+      volumes:
+        - name: model-cache
+          persistentVolumeClaim:
+            claimName: hindsight-model-cache
+        - name: codex-auth
+          persistentVolumeClaim:
+            claimName: hindsight-codex-auth
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hindsight-api
+  namespace: hindsight
+spec:
+  selector:
+    app: hindsight-api
+  ports:
+    - name: http
+      port: 8888
+      targetPort: http
