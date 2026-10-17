@@ -237,6 +237,17 @@ class SafetyTests(unittest.TestCase):
         self.assertNotEqual(env['KUBECONFIG'], '/private/config')
         self.assertNotEqual(env['HELM_PLUGINS'], '/plugins')
 
+    def test_final_workflow_gate_requires_success(self):
+        workflow = v.parse((v.ROOT / '.github/workflows/verify.yml').read_text(), 'workflow')[0]
+        gate = workflow['jobs']['verify']
+        self.assertEqual(gate['if'], 'always()')
+        self.assertEqual(gate['needs'], ['checks'])
+        step = gate['steps'][0]
+        self.assertEqual(step['env']['CHECK_RESULT'], '${{ needs.checks.result }}')
+        for result in ('success', 'failure', 'skipped', 'cancelled', ''):
+            completed = subprocess.run(['bash', '-c', step['run']], env={'CHECK_RESULT': result}, capture_output=True)
+            self.assertEqual(completed.returncode == 0, result == 'success')
+
     def test_real_policies_catch_unsafe_inputs(self):
         if not (v.CACHE / 'bin/conftest').exists():
             self.skipTest('bootstrap required for policy integration')

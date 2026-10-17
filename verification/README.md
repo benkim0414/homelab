@@ -1,6 +1,7 @@
 # Verify
 
-Local verification checks the repository's declared deployment configuration without connecting to
+Verification runs locally and in GitHub Actions using the same entry point. It
+checks the repository's declared deployment configuration without connecting to
 Kubernetes, ArgoCD, a credential store, or the local mise environment.
 
 ## Run
@@ -26,12 +27,15 @@ all selected Applications and reports their resources as additions.
 
 For a network-free structure check, run `scripts/verify.py --offline` with a Python
 that has the pinned PyYAML dependency installed. This mode returns **2**, reports
-`partial`, and never reports a complete verification result. Normal verification returns 0
+`partial`, and never satisfies the full CI check. Normal verification returns 0
 only on success and 1 on failure.
 
 The candidate includes existing tracked and non-ignored untracked files, allowing
 checks before staging, including deletions and renames. Reports identify HEAD;
-local edits are not represented by that commit until committed.
+local edits are not represented by that commit until committed. CI uses the
+checked-out candidate (GitHub's merge commit for pull requests), and compares it
+with the PR base or previous main commit. Manual workflow runs compare against
+the merge base with `origin/main`.
 
 ## Coverage
 
@@ -61,10 +65,14 @@ local edits are not represented by that commit until committed.
   outside Application paths. Only well-formed SealedSecret ciphertext values are
   filtered from its scan copy; surrounding content remains scanned. One exact
   Hindsight URL expression has a documented false-positive allowlist.
+- Actionlint validates the CI workflow. The final `Verify` job requires its
+  prerequisite to succeed; failure, cancellation and skipped prerequisites fail.
 
 Summaries in `reports/summary.md` and `reports/summary.json` contain resource
 identities and change categories, never raw rendered manifests or Secret values.
-Tool stderr is withheld where it could contain sensitive values.
+GitHub Actions publishes the Markdown in its job summary and uploads only these
+two sanitized files as an artifact, retained for seven days, without PR-comment
+write permissions. Tool stderr is withheld where it could contain sensitive values.
 Secret findings report only rule, file and line. Temporary rendered files are
 removed at the end of each operation.
 
@@ -76,7 +84,7 @@ need explicit review alongside any rollout that changes these safeguards.
 
 ## Limits and rollout
 
-The verifier compares desired configurations; it does not inspect live drift, admission,
+CI compares desired configurations; it does not inspect live drift, admission,
 external Secret validity, backup success, image architecture support, database
 migration compatibility, or application behavior. Helm's available APIs may differ
 from the live cluster; API prerequisites remain part of pre-sync review. CRD CEL
@@ -86,6 +94,11 @@ chart pins; rendered packages are checked for matching names and versions. Chart
 are pinned; upstream republishing of an identical version is not prevented by this
 layer. GitHub dependencies and Helm downloads must remain available for a clean run.
 
+First establish a passing complete baseline and representative PR runs. Then,
+with separate approval for repository settings, require the stable `Verify` status
+on `main`, require pull requests and up-to-date branches, and restrict bypasses.
+This workflow does not configure repository protection.
+
 Research references:
 
 - [ArgoCD Helm inputs and precedence](https://argo-cd.readthedocs.io/en/stable/user-guide/helm/)
@@ -93,3 +106,4 @@ Research references:
 - [Kubeconform schema validation and limits](https://github.com/yannh/kubeconform)
 - [Conftest policies](https://www.conftest.dev/)
 - [ArgoCD server-side diff limitations](https://argo-cd.readthedocs.io/en/stable/user-guide/diff-strategies/)
+- [GitHub Actions security](https://docs.github.com/en/actions/reference/security/secure-use)

@@ -686,6 +686,7 @@ def main():
             actual = run([tool(name), flag], env=isolated_env())
             if not re.search(r'(?<![\d.])v?' + re.escape(expected) + r'(?![\d.])', actual):
                 raise Failure(f'{name}: expected version {expected}')
+        run([tool('actionlint'), ROOT / '.github/workflows/verify.yml'], env=isolated_env())
         scan_files(ROOT, documents)
         current = render_all(ROOT, charts, version, raw)
         report['schemas'] = validate_schemas(current, config, version)

@@ -29,7 +29,7 @@ def install(name, version):
     if binary.exists():
         return
     projects = {'kubeconform': 'yannh/kubeconform', 'conftest': 'open-policy-agent/conftest',
-                'gitleaks': 'gitleaks/gitleaks'}
+                'gitleaks': 'gitleaks/gitleaks', 'actionlint': 'rhysd/actionlint'}
     if name == 'helm':
         asset = f'helm-v{version}-linux-amd64.tar.gz'
         url = f'https://get.helm.sh/{asset}'
@@ -38,11 +38,13 @@ def install(name, version):
     else:
         asset = {'kubeconform': 'kubeconform-linux-amd64.tar.gz',
                  'conftest': f'conftest_{version}_Linux_x86_64.tar.gz',
-                 'gitleaks': f'gitleaks_{version}_linux_x64.tar.gz'}[name]
+                 'gitleaks': f'gitleaks_{version}_linux_x64.tar.gz',
+                 'actionlint': f'actionlint_{version}_linux_amd64.tar.gz'}[name]
         base = f'https://github.com/{projects[name]}/releases/download/v{version}'
         url = f'{base}/{asset}'
         checksum_file = {'kubeconform': 'CHECKSUMS', 'conftest': 'checksums.txt',
-                         'gitleaks': f'gitleaks_{version}_checksums.txt'}[name]
+                         'gitleaks': f'gitleaks_{version}_checksums.txt',
+                         'actionlint': f'actionlint_{version}_checksums.txt'}[name]
         checksums = download(f'{base}/{checksum_file}').decode()
         member = name
     expected = next((line.split()[0] for line in checksums.splitlines() if line.split()[-1].lstrip('*') == asset), None)

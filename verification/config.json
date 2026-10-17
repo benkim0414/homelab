@@ -6,7 +6,8 @@
     "helm": "3.19.0",
     "kubeconform": "0.7.0",
     "conftest": "0.66.0",
-    "gitleaks": "8.30.0"
+    "gitleaks": "8.30.0",
+    "actionlint": "1.7.11"
   },
   "schema_revision": "aff1ca44984cbbcfa376c1cb6fdc4bb6aa0381fd",
   "excluded": {
