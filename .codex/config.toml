@@ -1,6 +1,18 @@
 [features]
 hooks = true
 
+[mcp_servers.hindsight_homelab]
+url = "https://hindsight-api.tailbd291c.ts.net/mcp/homelab/"
+bearer_token_env_var = "HINDSIGHT_API_KEY"
+enabled_tools = ["recall", "reflect", "retain"]
+tool_timeout_sec = 330
+
+[mcp_servers.hindsight_reserve]
+url = "https://hindsight-api.tailbd291c.ts.net/mcp/reserve/"
+bearer_token_env_var = "HINDSIGHT_API_KEY"
+enabled_tools = ["recall", "reflect", "retain"]
+tool_timeout_sec = 330
+
 [mcp_servers.kubernetes]
 command = "npx"
 args = ["-y", "kubernetes-mcp-server@latest"]

@@ -17,3 +17,6 @@ immich-backup.dump
 # Local Python bytecode from backup/snapshot validation
 __pycache__/
 *.pyc
+
+# Repository-local Hindsight bearer token
+/.env.hindsight.local

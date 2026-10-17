@@ -9,7 +9,7 @@ ARGOCD_BASE_URL = "http://192.168.0.202"
 
 # Secrets cached in .env.local (gitignored).
 # Run `mise run secrets` to regenerate after rotation or first clone.
-_.file = [".env.local"]
+_.file = [".env.local", ".env.hindsight.local"]
 
 [tasks.secrets]
 description = "Resolve Bitwarden secrets into .env.local"

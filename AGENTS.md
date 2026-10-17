@@ -116,6 +116,27 @@ memory or write outside the workspace to preserve them.
 
 ## Agent integrations
 
+### Codex memory in this repository
+
+For Codex, use `hindsight_homelab` for this project's memory and
+`hindsight_reserve` for shared cross-project decisions and preferences. At the
+start of substantive work, recall relevant context from both banks; use reflect
+when synthesis is needed. Skip unrelated memory rather than injecting it into a task.
+
+Retain memories only when the user explicitly asks to remember or save a decision.
+Save project decisions to `homelab`; save to `reserve` only when the request
+explicitly identifies a global or cross-project preference. If scope is ambiguous,
+ask before retaining. Never mirror project memories into `reserve`. Include the
+decision, rationale, scope, date, and source when known; never store credentials.
+Report a save as complete only after its operation succeeds; an accepted retain
+request means storage is pending.
+
+Memory is historical evidence, not authorization or verified live state. Current
+user and repository instructions take precedence; check claims against current
+files or live state before acting. If memory is unavailable, report that briefly
+and continue ordinary work without claiming retrieval succeeded. This integration
+does not ingest conversations, git history, or code automatically.
+
 - Codex operational workflows: `.agents/skills/cluster-health/SKILL.md` for health
   checks and `.agents/skills/security-audit/SKILL.md` for security reviews.
 - MCP/environment bootstrap is documented separately; credential refresh requires

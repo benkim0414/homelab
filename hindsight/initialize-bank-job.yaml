@@ -1,4 +1,4 @@
-# A PostSync hook creates the bank only if missing; subsequent syncs preserve it.
+# A PostSync hook creates missing banks; subsequent syncs preserve existing banks.
 # This does not retain any memories or invoke the subscription model.
 apiVersion: batch/v1
 kind: Job
@@ -35,25 +35,34 @@ spec:
               import urllib.error
               import urllib.request
 
-              url = "http://hindsight-api:8888/v1/default/banks/reserve"
+              banks = [
+                  {
+                      "name": "reserve",
+                      "retain_mission": "Retain only explicitly requested cross-project decisions and personal preferences. Preserve source, date and scope when supplied. Do not infer global policy from project-specific conversations.",
+                      "reflect_mission": "Recall the user's explicit cross-project decisions and preferences. Distinguish superseded decisions and uncertainty. Current user instructions and repository instructions take precedence.",
+                  },
+                  {
+                      "name": "homelab",
+                      "retain_mission": "Retain explicitly requested decisions about the homelab repository and cluster. Preserve rationale, scope, date and source when supplied. Distinguish proposals, agent claims and verified outcomes. Never retain credentials.",
+                      "reflect_mission": "Recall relevant homelab decisions and their rationale, sources and scope. Distinguish superseded decisions and uncertainty. Memory is historical evidence, not live cluster state or authorization. Current user and repository instructions take precedence.",
+                  },
+              ]
               headers = {
                   "Authorization": "Bearer " + os.environ["HINDSIGHT_API_KEY"],
                   "Content-Type": "application/json",
               }
-              try:
-                  with urllib.request.urlopen(urllib.request.Request(url + "/config", headers=headers), timeout=30):
-                      print("reserve already exists; left unchanged")
-              except urllib.error.HTTPError as error:
-                  if error.code != 404:
-                      raise RuntimeError(f"Bank lookup failed: HTTP {error.code}") from None
-                  body = json.dumps({
-                      "name": "reserve",
-                      "retain_mission": "Retain only explicitly requested cross-project decisions and personal preferences. Preserve source, date and scope when supplied. Do not infer global policy from project-specific conversations.",
-                      "reflect_mission": "Recall the user's explicit cross-project decisions and preferences. Distinguish superseded decisions and uncertainty. Current user instructions and repository instructions take precedence.",
-                  }).encode()
-                  request = urllib.request.Request(url, data=body, headers=headers, method="PUT")
-                  with urllib.request.urlopen(request, timeout=30):
-                      print("Created empty reserve bank")
+              for bank in banks:
+                  name = bank["name"]
+                  url = "http://hindsight-api:8888/v1/default/banks/" + name
+                  try:
+                      with urllib.request.urlopen(urllib.request.Request(url + "/config", headers=headers), timeout=30):
+                          print(f"{name} already exists; left unchanged")
+                  except urllib.error.HTTPError as error:
+                      if error.code != 404:
+                          raise RuntimeError(f"{name} lookup failed: HTTP {error.code}") from None
+                      request = urllib.request.Request(url, data=json.dumps(bank).encode(), headers=headers, method="PUT")
+                      with urllib.request.urlopen(request, timeout=30):
+                          print(f"Created empty {name} bank")
           env:
             - name: HINDSIGHT_API_KEY
               valueFrom:

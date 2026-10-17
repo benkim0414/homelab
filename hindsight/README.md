@@ -1,8 +1,10 @@
 # Hindsight shared memory
 
 Hindsight provides a shared global bank named **`reserve`** for explicitly requested
-cross-project decisions and preferences. It starts empty. Agent installation and
-per-project banks are separate work; no conversation import is enabled here.
+cross-project decisions and preferences, plus **`homelab`** for explicitly saved
+project decisions. The bank initializer creates either bank only when absent.
+Codex connections are repository-scoped; see the
+[MCP setup](../docs/mcp/README.md#codex-memory). No conversation import is enabled.
 
 ## Deployment
 
@@ -98,7 +100,8 @@ publish to `main` only through the separately approved Git workflow.
 7. Remove the temporary login pod with approval and wait for its volume to detach.
    Publish the reviewed repository changes with approval. Sync the root Application
    to register Hindsight, then review and sync Hindsight **without pruning or force**.
-   Normal ArgoCD sync runs the PostSync `hindsight-initialize-reserve` hook.
+   Normal ArgoCD sync runs the PostSync `hindsight-initialize-reserve` hook,
+   which creates missing `reserve` and `homelab` banks without changing existing ones.
 8. Verify the acceptance checks below. Model-name recognition and HTTP health do
    not establish subscription entitlement: retain and reflect must actually work.
 
@@ -231,4 +234,5 @@ Checks confirmed the test bank and database were absent and `reserve` remained e
 The backup archive is retained under the normal backup policy. OAuth credentials
 persisted across restart and both their file and directory were writable;
 expiry-driven token rotation has not yet been observed.
-Agent clients still need their own connection configuration and injected API token.
+That rollout predates the repository-scoped Codex connections described above.
+Other agent clients still need their own configuration and injected API token.
