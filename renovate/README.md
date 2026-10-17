@@ -1,8 +1,10 @@
 # Renovate
 
-Renovate has an Application in `argocd/apps/renovate.yaml` using the official
-Renovate Helm chart. It is currently excluded from root discovery; secret creation
-does not authorize activation.
+Renovate is selected by the root Application in `argocd/apps.yaml`. Its Application
+uses the pinned official Renovate Helm chart and manual sync. Publishing these
+manifests does not establish that Renovate is running: register it by reviewing
+and syncing the root, then review and sync Renovate separately after verifying
+its token prerequisite. Neither sync should use pruning or force replacement.
 
 ## Update detection decisions
 
@@ -53,6 +55,9 @@ pin caused client login compatibility problems. Review release notes and app
 runbooks before merging any upgrade, then review the ArgoCD diff and explicitly
 sync that app. Renovate updates Git; it does not deploy cluster workloads.
 
+The chart pin was verified against the
+[official release](https://github.com/renovatebot/helm-charts/releases/tag/renovate-46.357.4).
+
 ## GitHub Token
 
 The CronJob expects a Kubernetes Secret named `renovate-token` in the `renovate` namespace with a `RENOVATE_TOKEN` key. Do not commit a plaintext Secret.
@@ -78,6 +83,12 @@ Commit `renovate/sealed-secret.yaml` after confirming it contains only encrypted
 
 ## Validation
 
+Before first activation, check the existing SealedSecret's synchronization status
+and the generated Secret's metadata/key names using an approved workflow. Do not
+print or decode the token to validate manifests. The encrypted file's presence
+does not prove the controller can decrypt it or that its GitHub token is valid.
+If recovery or rotation is needed, obtain separate credential authorization.
+
 Validate repository policy with `renovate-config-validator --strict renovate.json5`.
 A local Renovate extraction check should use `--platform=local --dry-run=extract`
 and an explicit `RENOVATE_CONFIG_FILE` pointing to this repository's
@@ -86,10 +97,16 @@ rules. Local extraction does not establish registry availability, token validity
 or a successful GitHub run. External lookups and tool downloads require network
 approval under repository working agreements.
 
-After the secret is synced, confirm the CronJob exists and inspect the latest run:
+After an approved rollout, confirm the CronJob and its timezone, then inspect the
+latest run (wait for the scheduled run, or obtain approval for a one-off Job):
 
 ```bash
 kubectl get cronjob -n renovate
 kubectl get jobs -n renovate --sort-by=.status.startTime
 kubectl logs -n renovate job/<job-name>
 ```
+
+Confirm the Job completes, lookup/authentication errors are resolved, and the
+GitHub Dependency Dashboard and expected update proposals appear. Do not treat
+an empty PR list as proof that all apps are current. Record local validation and
+live rollout results separately.

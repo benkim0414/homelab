@@ -10,8 +10,7 @@ spec:
     targetRevision: main
     path: argocd/apps
     directory:
-      # Keep optional apps disabled until separately reviewed.
-      exclude: 'renovate.yaml'
+      include: '*.yaml'
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd

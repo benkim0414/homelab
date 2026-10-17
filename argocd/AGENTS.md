@@ -11,8 +11,8 @@ historical rollout notes as live status.
   three sources. Preserve repository revisions on `main` and existing chart pins.
 - Raw manifests must be covered by the Application's `directory.include` glob.
   Check coverage whenever adding storage, SealedSecrets, rules, or ingresses.
-- Preserve the root exclusion for Renovate. Flannel cleanup is retired; do not
-  reintroduce its unsafe lease-deletion automation. Review
+- Renovate is selected by the root and uses manual sync. Flannel cleanup is
+  retired; do not reintroduce its unsafe lease-deletion automation. Review
   `apps.yaml` selection as well as child Applications when adding an app.
 - For a new app, add its values/raw manifests and Application together. Check its
   AppProject, namespace, chart identity, value-file paths, and raw-file selection.

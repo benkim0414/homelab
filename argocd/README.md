@@ -101,12 +101,21 @@ produce an initial difference. See the adoption sequence below and the
 
 ## How upgrades work with Renovate
 
-1. Renovate detects a new Immich version and opens a PR bumping `tag:` in `immich/values.yaml` and/or `targetRevision:` in `argocd/apps/immich.yaml`
+1. Once activated, Renovate runs daily at 04:00 Melbourne time and opens stable
+   chart, image and K3s update proposals. For example, an Immich proposal bumps
+   `tag:` in `immich/values.yaml` and/or `targetRevision:` in its Application.
 2. You review and merge the PR
 3. ArgoCD detects the change on `main`; review the diff and explicitly sync while
    the Application uses manual sync. Automatic deployment applies only if that
    Application's policy is separately changed to enable it.
 4. Verify a recent successful PostgreSQL backup before syncing an upgrade. The scheduled CronJob is not a pre-upgrade gate.
+
+Renovate itself is selected by the root and uses manual sync. Review and sync the
+root to register it, then review its token prerequisite and child diff before
+syncing Renovate without pruning. See the [Renovate runbook](../renovate/README.md)
+for dependency coverage, database constraints and activation verification.
+K3s proposals update the inventory only; node upgrades require a separately
+authorized Ansible operation.
 
 ## Adopting existing Helm releases
 
@@ -154,8 +163,10 @@ seven Longhorn volumes healthy. Root and selected children remain manual.
 
 Honcho, Flannel cleanup and Renovate were initially excluded, leaving 13 child
 Applications. Honcho, Nextcloud and Flannel cleanup sources have since been
-removed because they are retired; the selected set is unchanged. Renovate remains
-excluded. Removing repository sources did not delete cluster resources or data.
+removed because they are retired. Renovate was excluded during that adoption;
+the current root manifest now selects it for a separately reviewed manual rollout.
+That selection change is not evidence of live activation. Removing retired
+repository sources did not delete cluster resources or data.
 Historical configuration is available in Git history.
 
 Adoption preserved Helm release identity, pins, external credentials and volume
@@ -227,8 +238,10 @@ original Grafana and Longhorn names. Longhorn DNS resolved after rename, but the
 post-rename workstation HTTPS check timed out; the earlier suffixed URL passed.
 Do not report the renamed endpoint as verified or remove devices without approval.
 
-Renovate and S3 activation remain dependent on approved replacement/recovered
-credentials. Continue reviewing each app's full diff before sync; changing
-manual sync or enabling pruning requires separate review. See the
+At rebuild time, Renovate and S3 activation remained dependent on approved
+replacement/recovered credentials. For current Renovate activation prerequisites,
+see its runbook; S3 remains separately gated. Continue reviewing each app's full
+diff before sync; changing manual sync or enabling pruning requires separate
+review. See the
 [rebuild record](../docs/superpowers/plans/2026-10-14-cluster-rebuild.md) for backup
 and controller-key recovery evidence.

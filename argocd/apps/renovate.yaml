@@ -9,17 +9,17 @@ spec:
     # Helm chart
     - repoURL: ghcr.io/renovatebot/charts
       chart: renovate
-      targetRevision: '*'
+      targetRevision: '46.357.4'
       helm:
         valueFiles:
           - $repo/renovate/values.yaml
     # Git repo for values file reference
     - repoURL: https://github.com/benkim0414/homelab.git
-      targetRevision: HEAD
+      targetRevision: main
       ref: repo
     # Raw manifests (SealedSecret)
     - repoURL: https://github.com/benkim0414/homelab.git
-      targetRevision: HEAD
+      targetRevision: main
       path: renovate
       directory:
         include: '{sealed-secret.yaml}'
@@ -27,8 +27,5 @@ spec:
     server: https://kubernetes.default.svc
     namespace: renovate
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
     syncOptions:
       - CreateNamespace=true
