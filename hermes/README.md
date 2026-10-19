@@ -16,7 +16,7 @@ This directory declares the deployment; it is not evidence of a live rollout.
 | Provider | `openai-codex`; select an account-supported model during bootstrap |
 | Data | `hermes-data`, 10 GiB Longhorn RWO, mounted at `/opt/data` |
 | Workspace | `/opt/data/workspace`; tool HOME is `/opt/data/home` |
-| Resources | Request 250m CPU / 512 MiB; limit 2 CPU / 2 GiB |
+| Resources | Request 250m CPU / 1 GiB; limit 2 CPU / 2 GiB |
 
 The image index digest is
 `sha256:36099926da316742423544e055d4734777105ffe6341873af5459b957d0c2919`.
@@ -74,6 +74,11 @@ files persist on the PVC. Updating the ConfigMap does not overwrite an existing
 installation. Apply reviewed ongoing changes with `hermes config set` or the
 dashboard and record the corresponding seed/runbook changes in Git. Do not delete
 the live config to apply an update.
+
+The seed records the assigned dashboard origin and the declined shared-metrics
+offer (`enabled: false`, `send: false`, `offer_version: 2`). In 0.22.2, the offer
+version is needed to keep the first dashboard visit from asking again despite
+metrics already being disabled.
 
 The initial CLI/browser-chat toolsets cover local commands, files, skills, memory,
 session search and task lists. Optional paid web/image/voice tools, remote MCP
@@ -227,11 +232,53 @@ state. Networking was disabled and no ports were published. It confirmed:
 - A changed model setting, synthetic SQLite history, and a workspace file survive
   rerunning the config seed and stopping/starting the container.
 
-This test used temporary dashboard credentials and made no model requests. It
-does not verify Codex entitlement, OAuth refresh, browser rendering, Tailscale,
-Longhorn, K3s startup, or network-policy enforcement; complete the rollout checks
-above on the cluster. The default 512 MiB memory request is close to the roughly
-500 MiB idle usage observed locally; review real workload usage after bootstrap.
+This local test used temporary dashboard credentials and made no model requests.
+The subsequent cluster rollout is recorded below. Neither test establishes
+long-term OAuth refresh, quota availability, or backup recovery.
+
+## Initial cluster rollout: 2026-10-19
+
+The approved rollout registered and manually synced only Hermes, without pruning
+or force/replace. The existing root Application exclusions and all manual sync
+policies were preserved. The ArgoCD MCP connector rejected its existing token;
+the rollout used Kubernetes Application operations without refreshing that token.
+
+The live dashboard is [hermes.tailbd291c.ts.net](https://hermes.tailbd291c.ts.net),
+available over the tailnet with separate dashboard authentication. Its credentials
+were sealed with the existing controller's public certificate; the dedicated
+Codex grant was created through browser-approved device login on the PVC.
+`hermes model` offered and selected `gpt-6.1-sol` with medium reasoning through
+`openai-codex`. No API key or paid fallback was configured. Keep the first-boot
+model seed unset so a new installation selects a currently entitled model.
+
+Acceptance checks on K3s confirmed:
+
+- The pinned ARM64 image starts on `k3s-01`; application processes use UID/GID
+  10000. The install tree is not writable by that user, the workspace is writable,
+  port 8642 is closed, and cluster tokens/runtime sockets are absent.
+- The 10 GiB Longhorn claim is bound and healthy. Its original volume identity is
+  `pvc-d4c53ad4-a9a2-4d28-91a9-0c4e3c884383`.
+- Chromium loads the actual Tailscale HTTPS login and dashboard. Missing sessions
+  and invalid passwords receive 401; valid login succeeds. Authenticated RPC,
+  event and terminal WebSockets upgrade with 101 and exchange frames. Browser
+  chat returns the expected answer through the terminal WebSocket.
+- A Codex model request creates and reads back `workspace/hermes-acceptance.txt`.
+  After a Recreate restart, the grant, model, six-message acceptance history,
+  browser history and file remain present, and another model request succeeds.
+  The grant is not world-readable; the mounted volume presents its mode as 0660
+  after restart, owned by the dedicated Hermes user/group.
+- Cluster DNS and public TLS on 443 work. Connections to the Kubernetes Service
+  and an existing LAN HTTPS service fail from Hermes while both succeed from a
+  temporary control pod. Public HTTP on port 80 is denied. The control pod cannot
+  reach Hermes by Pod IP or ClusterIP, while the Tailscale proxy can.
+
+The initial 512 MiB request was below observed usage with chat. The request is
+now 1 GiB with the 2 GiB limit retained; multiple browser terminals reached about
+1.5 GiB during acceptance. Review usage before adding concurrent sessions.
+Metadata-address denial was not independently verified against a reachable
+control, and this cluster has no IPv6 pod network to test. Node-traffic policy
+exceptions still apply. No recurring backup or successful restore has been
+established by this rollout; follow the backup procedure before upgrades.
 
 - [Official Docker guide](https://hermes-agent.nousresearch.com/docs/user-guide/docker)
 - [Hermes providers and subscription limitations](https://hermes-agent.nousresearch.com/docs/integrations/providers)

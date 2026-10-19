@@ -28,6 +28,8 @@ data:
         enabled: false
     agent:
       max_turns: 50
+    dashboard:
+      public_url: https://hermes.tailbd291c.ts.net
     auxiliary:
       compression:
         provider: openai-codex
@@ -46,3 +48,4 @@ data:
       shared_metrics:
         enabled: false
         send: false
+        offer_version: 2
