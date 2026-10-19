@@ -23,6 +23,9 @@ data:
       home_mode: profile
     platform_toolsets:
       cli: [terminal, file, skills, memory, session_search, todo]
+    platforms:
+      api_server:
+        enabled: false
     agent:
       max_turns: 50
     auxiliary:

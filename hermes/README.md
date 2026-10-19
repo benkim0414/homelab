@@ -87,7 +87,12 @@ of unlimited usage.
 
 The Service is ClusterIP and the Ingress uses the existing Tailscale operator.
 Keep dashboard authentication enabled even on the tailnet. Port 8642's API server
-is disabled; no public ingress, Funnel, NodePort, or LAN LoadBalancer is declared.
+is disabled through `platforms.api_server.enabled: false` in the seed config;
+`API_SERVER_ENABLED=false` has no effect in 0.22.2. The official entrypoint still
+generates a local API key in `.env`, but the explicit config setting prevents
+the listener from starting. Gateway features that need that listener, including
+cron fire dispatch, are unavailable. No public ingress, Funnel, NodePort, or LAN
+LoadBalancer is declared.
 
 The NetworkPolicy permits dashboard ingress only from pods in namespace
 `tailscale` labeled for the `hermes` Ingress in namespace `hermes`. Namespace and
@@ -205,6 +210,26 @@ git diff --check
 
 These checks validate declared state, schemas and policy behavior; they do not
 authenticate, deploy, test the container startup, or prove live network isolation.
+
+A local Docker smoke test on 2026-10-19 used the pinned AMD64 image, the declared
+capabilities, no-new-privileges, the 2 CPU / 2 GiB limits, and temporary bind-mounted
+state. Networking was disabled and no ports were published. It confirmed:
+
+- s6 starts one gateway and the dashboard as UID/GID 10000; the install tree is
+  not writable by that user and the workspace is writable.
+- Status reports `auth_required: true` with `basic`. Protected APIs reject missing
+  sessions, invalid passwords fail, authenticated requests succeed, and WebSocket
+  RPC works with a single-use ticket. Missing and reused tickets are rejected.
+- Port 8642 stays closed with the explicit config setting above. No OAuth grant,
+  Kubernetes token, or Docker socket was supplied to Hermes.
+- A changed model setting, synthetic SQLite history, and a workspace file survive
+  rerunning the config seed and stopping/starting the container.
+
+This test used temporary dashboard credentials and made no model requests. It
+does not verify Codex entitlement, OAuth refresh, browser rendering, Tailscale,
+Longhorn, K3s startup, or network-policy enforcement; complete the rollout checks
+above on the cluster. The default 512 MiB memory request is close to the roughly
+500 MiB idle usage observed locally; review real workload usage after bootstrap.
 
 - [Official Docker guide](https://hermes-agent.nousresearch.com/docs/user-guide/docker)
 - [Hermes providers and subscription limitations](https://hermes-agent.nousresearch.com/docs/integrations/providers)

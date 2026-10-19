@@ -83,8 +83,6 @@ spec:
               value: 0.0.0.0
             - name: HERMES_DASHBOARD_PORT
               value: "9119"
-            - name: API_SERVER_ENABLED
-              value: "false"
             - name: HERMES_DASHBOARD_BASIC_AUTH_USERNAME
               valueFrom:
                 secretKeyRef:
