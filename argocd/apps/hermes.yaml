@@ -10,7 +10,7 @@ spec:
     targetRevision: main
     path: hermes
     directory:
-      include: '{namespace.yaml,configmap.yaml,deployment.yaml,storage.yaml,network-policy.yaml,tailscale-ingress.yaml,dashboard-sealed-secret.yaml}'
+      include: '{namespace.yaml,configmap.yaml,deployment.yaml,storage.yaml,network-policy.yaml,tailscale-ingress.yaml,dashboard-sealed-secret.yaml,backup-*.yaml}'
   destination:
     server: https://kubernetes.default.svc
     namespace: hermes

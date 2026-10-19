@@ -1,0 +1,113 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: hermes-backup
+  namespace: hermes
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: hermes-backup-recovery
+  namespace: hermes
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: hermes-backup-control
+  namespace: hermes
+rules:
+  - apiGroups: [apps]
+    resources: [deployments]
+    resourceNames: [hermes]
+    verbs: [get]
+  - apiGroups: [apps]
+    resources: [deployments/scale]
+    resourceNames: [hermes]
+    verbs: [patch]
+  # The lease is runtime state, created by the first runner.
+  - apiGroups: [coordination.k8s.io]
+    resources: [leases]
+    verbs: [create]
+  - apiGroups: [coordination.k8s.io]
+    resources: [leases]
+    resourceNames: [hermes-backup]
+    verbs: [get, update]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: hermes-backup-control
+  namespace: hermes
+subjects:
+  - kind: ServiceAccount
+    name: hermes-backup
+    namespace: hermes
+  - kind: ServiceAccount
+    name: hermes-backup-recovery
+    namespace: hermes
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: hermes-backup-control
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: hermes-backup-source
+  namespace: hermes
+rules:
+  - apiGroups: [""]
+    resources: [persistentvolumeclaims]
+    resourceNames: [hermes-data]
+    verbs: [get]
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: hermes-backup-source
+  namespace: hermes
+subjects:
+  - kind: ServiceAccount
+    name: hermes-backup
+    namespace: hermes
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: hermes-backup-source
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: hermes-backup
+  namespace: longhorn-system
+rules:
+  - apiGroups: [longhorn.io]
+    resources: [volumes]
+    resourceNames: [pvc-d4c53ad4-a9a2-4d28-91a9-0c4e3c884383]
+    verbs: [get]
+  - apiGroups: [longhorn.io]
+    resources: [backuptargets]
+    resourceNames: [default]
+    verbs: [get]
+  # RBAC cannot constrain create by resourceNames or restrict list/delete by
+  # labels. The runner additionally validates the exact source and policy.
+  - apiGroups: [longhorn.io]
+    resources: [snapshots, backups]
+    verbs: [get, list, create, delete]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: hermes-backup
+  namespace: longhorn-system
+subjects:
+  - kind: ServiceAccount
+    name: hermes-backup
+    namespace: hermes
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: hermes-backup
