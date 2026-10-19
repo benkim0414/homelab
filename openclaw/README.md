@@ -119,6 +119,14 @@ remain required. The exact public origin and allowed browser origin are seeded
 from this repository's current tailnet suffix; confirm the assigned hostname.
 No public Ingress, Funnel, NodePort, or LAN LoadBalancer is declared.
 
+Gateway authentication limits failed attempts to 10 per 60 seconds, with a
+five-minute lockout. The pinned image's security audit flags an exposed gateway
+without this setting. For existing state, apply `gateway.auth.rateLimit` through
+`openclaw config set` and validate it before an authorized restart; changing the
+bootstrap ConfigMap alone does not update the live configuration. Requests from
+the Tailscale proxy can share a rate-limit bucket until narrowly scoped proxy
+trust is configured. Keep the limit suited to this single-operator deployment.
+
 Do not trust the whole pod CIDR as a proxy. Start with no trusted proxies; remote
 requests must authenticate and pair. If correct forwarded-client attribution
 requires proxy trust, inspect the actual source addresses and header handling,
