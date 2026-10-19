@@ -176,6 +176,11 @@ approvals, not authorization to execute them.
 
 ## Reauthentication, backup, and recovery
 
+Nightly backups are declared for 04:00 Australia/Melbourne with seven successful
+NAS copies retained. See the [backup runbook](BACKUP.md) for the consistency
+boundary, recovery watchdog, permissions, immediate execution and isolated
+restore procedure. A schedule declaration is not evidence that a backup exists.
+
 If OAuth is revoked or terminally expired, stop active chat/cron work and repeat
 the dedicated `hermes auth add openai-codex` flow, then verify one small request.
 Do not refresh another application's grant or silently switch to paid API use.
@@ -191,8 +196,9 @@ Before an upgrade, take a consistent offline Longhorn backup:
    Protect access to the archive: `/opt/data` contains credentials and personal
    history. A snapshot or scheduled backup definition alone is not proof that a
    recoverable backup exists.
-3. Restore the replica count to one and repeat dashboard/chat checks. No recurring
-   backup schedule is introduced by this initial deployment.
+3. Restore the replica count to one and repeat dashboard/chat checks. The initial
+   deployment introduced no schedule; the subsequent backup configuration above
+   adds the nightly job and a separate recovery watchdog.
 
 For recovery, keep Hermes stopped and restore the selected successful Longhorn
 backup to a **new** volume/claim, preserving the original. Use an isolated
@@ -277,8 +283,9 @@ now 1 GiB with the 2 GiB limit retained; multiple browser terminals reached abou
 1.5 GiB during acceptance. Review usage before adding concurrent sessions.
 Metadata-address denial was not independently verified against a reachable
 control, and this cluster has no IPv6 pod network to test. Node-traffic policy
-exceptions still apply. No recurring backup or successful restore has been
-established by this rollout; follow the backup procedure before upgrades.
+exceptions still apply. At the end of the initial rollout, no recurring backup
+or successful restore had been established; see the backup runbook for the
+subsequent configuration and verification record.
 
 - [Official Docker guide](https://hermes-agent.nousresearch.com/docs/user-guide/docker)
 - [Hermes providers and subscription limitations](https://hermes-agent.nousresearch.com/docs/integrations/providers)
