@@ -42,9 +42,11 @@ Replication is not a backup.
 
 ## Credentials and configuration
 
-Provision this external Secret in namespace `hermes` before starting the workload.
-Use local injection or the [Sealed Secrets workflow](../docs/operations/sealed-secrets.md).
-No plaintext credentials or placeholder Secret payloads belong in Git.
+The namespace-scoped `dashboard-sealed-secret.yaml` provisions the dashboard
+Secret in namespace `hermes`. It requires the existing controller's sealing key;
+follow the [Sealed Secrets workflow](../docs/operations/sealed-secrets.md) for
+rotation or recovery. No plaintext credentials or placeholder Secret payloads
+belong in Git.
 
 | Secret | Required key | Value |
 | --- | --- | --- |
@@ -54,10 +56,10 @@ No plaintext credentials or placeholder Secret payloads belong in Git.
 
 Use the pinned image's `plugins.dashboard_auth.basic.hash_password` function to
 generate the hash, with the password read interactively rather than placed in
-shell history or process arguments. Pass resulting values to Kubernetes through
-a protected local file or stdin, without printing them. If adopting Sealed
-Secrets later, add the encrypted manifest to the Application include glob in
-the same change. Rotate the signing key deliberately; it invalidates sessions.
+shell history or process arguments. Pass resulting values to the sealing workflow
+through a protected local file or stdin, without printing them. Preserve the
+encrypted manifest in the Application include glob. Rotate the signing key
+deliberately; it invalidates sessions.
 
 Hermes stores its dedicated OAuth grant in `/opt/data/auth.json` and updates it
 as tokens rotate. Do not mount a read-only Secret snapshot there, copy a
