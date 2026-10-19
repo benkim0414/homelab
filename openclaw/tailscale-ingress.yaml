@@ -1,0 +1,16 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: openclaw
+  namespace: openclaw
+  annotations:
+    argocd.argoproj.io/sync-wave: '1'
+spec:
+  ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: openclaw
+      port:
+        number: 18789
+  tls:
+    - hosts: [openclaw]

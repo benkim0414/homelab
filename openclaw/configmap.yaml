@@ -1,0 +1,85 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openclaw-bootstrap
+  namespace: openclaw
+  annotations:
+    argocd.argoproj.io/sync-wave: '-1'
+data:
+  # Seeded only when absent. The writable PVC copy owns subsequent changes.
+  # See README.md before changing an existing installation's configuration.
+  openclaw.json: |
+    {
+      "gateway": {
+        "mode": "local",
+        "bind": "lan",
+        "port": 18789,
+        "publicOrigin": "https://openclaw.tailbd291c.ts.net",
+        "auth": {
+          "mode": "token",
+          "token": "${OPENCLAW_GATEWAY_TOKEN}",
+          "allowTailscale": false
+        },
+        "controlUi": {
+          "enabled": true,
+          "allowedOrigins": ["https://openclaw.tailbd291c.ts.net"]
+        }
+      },
+      "agents": {
+        "defaults": {
+          "workspace": "/home/node/.openclaw/workspace",
+          "model": {
+            "primary": "openai/gpt-6.1-sol",
+            "fallbacks": []
+          },
+          "modelPolicy": { "allow": ["openai/gpt-6.1-sol"] },
+          "models": {
+            "openai/gpt-6.1-sol": {
+              "agentRuntime": { "id": "codex" }
+            }
+          },
+          "heartbeat": { "every": "0m" }
+        }
+      },
+      "plugins": {
+        "allow": ["openai", "codex"],
+        "slots": { "memory": "none" },
+        "entries": {
+          "openai": { "enabled": true },
+          "codex": {
+            "enabled": true,
+            "config": {
+              "appServer": { "transport": "stdio", "homeScope": "agent" }
+            }
+          }
+        }
+      },
+      "tools": {
+        "profile": "coding",
+        "deny": [
+          "group:automation", "group:messaging", "group:media", "group:web",
+          "browser", "canvas", "nodes", "gateway", "sessions_spawn", "sessions_send",
+          "conversations_send", "conversations_turn", "skill_workshop"
+        ],
+        "fs": { "workspaceOnly": true },
+        "exec": { "mode": "full" },
+        "elevated": { "enabled": false },
+        "sessions": { "visibility": "agent" },
+        "agentToAgent": { "enabled": false }
+      },
+      "browser": { "enabled": false },
+      "cron": { "enabled": false },
+      "discovery": { "mdns": { "mode": "off" } },
+      "update": { "checkOnStart": false, "auto": { "enabled": false } }
+    }
+  AGENTS.md: |
+    # Personal OpenClaw assistant
+
+    You serve one trusted operator. Your working directory is
+    /home/node/.openclaw/workspace. Keep ordinary file work there.
+    Shell execution runs without approval inside this container. Do not inspect,
+    print, copy, or transmit authentication material, gateway tokens, or private
+    agent state. This instruction is guidance, not a shell security boundary.
+    Do not administer Kubernetes, change your own configuration or permissions,
+    install integrations, schedule background work, or send messages elsewhere
+    unless the operator explicitly requests a separately reviewed change.
