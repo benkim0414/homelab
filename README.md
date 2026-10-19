@@ -73,6 +73,10 @@ metrics token remain user tasks.
 
 ## GitOps workflow
 
+[Hermes Agent](hermes/README.md) declares a personal Codex subscription agent with
+persistent storage and an authenticated browser dashboard over Tailscale. Its
+first rollout requires separate dashboard credentials and a dedicated OAuth login.
+
 Make changes on a feature branch and review them before merging to `main`.
 Applications combine Helm, repository values and raw manifest sources as needed;
 see the [ArgoCD instructions](argocd/AGENTS.md).

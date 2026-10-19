@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hermes-bootstrap
+  namespace: hermes
+data:
+  # Seeded only when absent. Hermes must be able to update its live config.
+  # See README.md before changing an existing installation's configuration.
+  config.yaml: |
+    model:
+      provider: openai-codex
+      # Complete `hermes model` before the first conversation.
+      default: ""
+    fallback_model: []
+    auth:
+      adopt_external_logins: false
+      codex_login_flow: device_code
+    database:
+      journal_mode: wal
+    terminal:
+      backend: local
+      cwd: /opt/data/workspace
+      home_mode: profile
+    platform_toolsets:
+      cli: [terminal, file, skills, memory, session_search, todo]
+    agent:
+      max_turns: 50
+    auxiliary:
+      compression:
+        provider: openai-codex
+      title_generation:
+        provider: openai-codex
+      session_search:
+        provider: openai-codex
+      background_review:
+        provider: openai-codex
+    tool_loop_guardrails:
+      non_interactive_hard_stop_enabled: true
+    security:
+      allow_private_urls: false
+      allow_lazy_installs: false
+    telemetry:
+      shared_metrics:
+        enabled: false
+        send: false
