@@ -13,7 +13,7 @@
     "managerFilePatterns": ["/^argocd/.+\\.ya?ml$/"]
   },
   "kubernetes": {
-    "managerFilePatterns": ["/^(?:argocd|hermes|hindsight|home-assistant|immich|kube-vip|longhorn|metallb|monitoring|renovate|tailscale|traefik|vaultwarden)/.+\\.ya?ml$/"]
+    "managerFilePatterns": ["/^(?:argocd|hermes|hindsight|home-assistant|immich|kube-vip|longhorn|metallb|monitoring|openclaw|renovate|tailscale|traefik|vaultwarden)/.+\\.ya?ml$/"]
   },
   "ignorePaths": ["**/examples/**", "**/node_modules/**", "**/.worktrees/**", "**/.renovate-validation/**"],
   "customManagers": [
