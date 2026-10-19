@@ -179,7 +179,9 @@ approvals, not authorization to execute them.
 Nightly backups are declared for 04:00 Australia/Melbourne with seven successful
 NAS copies retained. See the [backup runbook](BACKUP.md) for the consistency
 boundary, recovery watchdog, permissions, immediate execution and isolated
-restore procedure. A schedule declaration is not evidence that a backup exists.
+restore procedure. The [20 October verification record](BACKUP.md#verification-record-20-october-2026)
+documents the first successful NAS backup and isolated restore. Inspect recent
+execution results before upgrades; the schedule alone does not prove success.
 
 If OAuth is revoked or terminally expired, stop active chat/cron work and repeat
 the dedicated `hermes auth add openai-codex` flow, then verify one small request.

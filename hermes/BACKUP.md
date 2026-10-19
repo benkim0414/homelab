@@ -133,6 +133,70 @@ device login, verify a small model request, and recheck history and workspace
 data before declaring recovery complete. An offline restore exercise does not
 verify future account entitlement or guarantee unlimited subscription quota.
 
+## Verification record: 20 October 2026
+
+The configuration in `ecc266d147ab2d36c1b791019a5e0a0ae8a6321c` passed
+[CI verification](https://github.com/benkim0414/homelab/actions/runs/39333926540)
+and was manually synced without pruning. Both `apps` and `hermes` were
+Synced/Healthy. The nightly and recovery CronJobs were enabled with the declared
+Melbourne schedules. The Deployment template, ingress and PVC were unchanged by
+the sync.
+
+The first immediate run exercised the nightly CronJob's template:
+
+| Evidence | Observed result |
+| --- | --- |
+| Job | `hermes-backup-manual-20261019-221959`, succeeded |
+| Job interval (UTC) | `2026-10-19T22:19:59Z` to `2026-10-19T22:20:34Z` (35 seconds) |
+| NAS Backup | `hermes-20261019-222000-6802fb67`, `Completed`, progress 100, no error |
+| Backup completion | `2026-10-19T22:20:28Z` / 20 October, 09:20:28 Melbourne |
+| Source volume | `pvc-d4c53ad4-a9a2-4d28-91a9-0c4e3c884383`, 10 GiB, V1, two replicas |
+| Backup data size | 320,864,256 bytes; Longhorn reported 8,109,303 bytes newly uploaded |
+| Resume | One ready replica at `2026-10-19T22:21:12Z`; original volume healthy on `k3s-03` |
+| Concurrent recovery run | Observed the active Lease and skipped without resuming Hermes early |
+| Application check | HTTPS status required authentication; a fresh Codex model request returned `HERMES_BACKUP_OK` |
+
+The completed backup URL was:
+
+```text
+nfs://192.168.0.40:/longhorn-backups?backup=hermes-20261019-222000-6802fb67&volume=pvc-d4c53ad4-a9a2-4d28-91a9-0c4e3c884383
+```
+
+An isolated restore used the reserved resources above, a new Longhorn volume,
+a static PV with reclaim policy `Retain`, and the same reviewed image:
+
+```text
+nousresearch/hermes-agent:v0.22.2@sha256:36099926da316742423544e055d4734777105ffe6341873af5459b957d0c2919
+```
+
+The inspection Job succeeded between `2026-10-19T22:21:17Z` and
+`2026-10-19T22:22:29Z`. Its container bypassed the Hermes entrypoint, had no
+service-account token, and was selected by a deny-all ingress/egress policy.
+It removed two cloned credential files without reading their contents and never
+started Hermes or reused the copied OAuth grant. Its results matched the
+pre-backup baseline:
+
+- SQLite `integrity_check`: `ok`.
+- Seven sessions, 32 messages, including all six acceptance-session messages.
+- Provider `openai-codex`, model `gpt-6.1-sol`.
+- Workspace acceptance-file SHA-256:
+  `a07941bf4f885dad4671242c57867497a20a743b6bfbd78426213ab66bbe3127`.
+- Restored volume healthy with two replicas before cleanup.
+
+After explicit cleanup approval, only the named test Job, NetworkPolicy, PVC,
+retained PV and cloned Longhorn volume were removed. The successful NAS backup
+was preserved, and production remained ready on its original claim and volume.
+Transient attachment errors during restore settled without forced detach or
+storage changes.
+
+Live RBAC checks confirmed the backup account could patch only the Deployment's
+scale subresource and could not patch its template or read Secrets. The recovery
+account could not create Longhorn Backups. Failure recovery and seven-copy
+retention passed the controller tests; a node-crash recovery and live deletion
+of an eighth successful backup were not exercised. This first execution does not
+establish that future scheduled runs have succeeded; inspect their Job and
+Backup results before upgrades.
+
 Implementation references, pinned to the installed Longhorn release:
 
 - [Snapshot controller and detached-volume attachment](https://github.com/longhorn/longhorn-manager/blob/v1.13.0/controller/snapshot_controller.go)
