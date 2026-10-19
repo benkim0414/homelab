@@ -18,7 +18,12 @@ data:
         "auth": {
           "mode": "token",
           "token": "${OPENCLAW_GATEWAY_TOKEN}",
-          "allowTailscale": false
+          "allowTailscale": false,
+          "rateLimit": {
+            "maxAttempts": 10,
+            "windowMs": 60000,
+            "lockoutMs": 300000
+          }
         },
         "controlUi": {
           "enabled": true,
