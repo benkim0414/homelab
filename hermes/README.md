@@ -75,6 +75,14 @@ installation. Apply reviewed ongoing changes with `hermes config set` or the
 dashboard and record the corresponding seed/runbook changes in Git. Do not delete
 the live config to apply an update.
 
+The same init container seeds workspace `AGENTS.md` only when absent, including
+on an existing installation's next rollout. It uses exclusive creation to
+preserve an existing file or symlink. These instructions cover credential
+handling, workspace use, subscription-only inference, and changes requiring the
+operator's approval. They guide behavior and do not restrict shell access.
+Updates to the seed do not replace an existing workspace instruction file;
+review and apply later instruction changes separately.
+
 The seed records the assigned dashboard origin and the declined shared-metrics
 offer (`enabled: false`, `send: false`, `offer_version: 2`). In 0.22.2, the offer
 version is needed to keep the first dashboard visit from asking again despite
