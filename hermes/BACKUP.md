@@ -59,6 +59,26 @@ API endpoints; node-traffic exceptions still apply.
 
 ## Operation
 
+The monitoring Application declares two Hermes-specific alerts:
+
+- `HermesBackupJobFailed`: any failed `hermes-backup-*` Job in namespace `hermes`,
+  including the recovery watchdog and manual runs, for five minutes.
+- `HermesBackupStale`: the nightly CronJob records no success within 36 hours, with
+  a one-hour pending period. A never-successful CronJob gets the same 36-hour
+  grace from creation; a missing CronJob alerts after one hour. Watchdog successes
+  do not reset backup age. The window tolerates the Melbourne daylight-saving
+  transition and a delayed run, while detecting a missed nightly backup.
+
+These depend on kube-state-metrics and on manually syncing the monitoring
+Application; committing the rules does not activate them. CronJob success is an
+operational signal, not independent proof of a new backup or successful restore.
+A runner that acquires the lease waits for NAS completion and requests Hermes
+resumption; it does not wait for the new pod to become ready. A lock-contended
+runner can also exit successfully without creating a backup. Continue checking
+Longhorn completion and Hermes readiness, and periodically repeat an isolated
+restore. A manual Job's success does not update the nightly CronJob's success
+timestamp.
+
 These commands describe separately authorized operations; they do not authorize
 running them. First finish the repository's verification and manual-sync review.
 Review the Hermes Application include glob and the default AppProject's access

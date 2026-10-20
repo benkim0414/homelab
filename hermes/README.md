@@ -246,7 +246,12 @@ git diff --check
 
 Probe regression tests cover HTTP-200 HTML, malformed/oversized responses,
 authentication drift and component failures. The seeding test checks that
-existing config, instructions and symlinks are preserved.
+existing config, instructions and symlinks are preserved. With `promtool` on
+`PATH` or at `verification/cache/bin/promtool`, unit discovery also evaluates
+the Hermes backup alert rules against fresh, stale, never-successful and missing
+schedules, plus backup/recovery Job failures. Without that optional binary the
+alert evaluation test is explicitly skipped; YAML/schema checks do not evaluate
+PromQL. Use a checksum-verified official Prometheus release for `promtool`.
 
 These checks validate declared state, schemas and policy behavior; they do not
 authenticate, deploy, test the container startup, or prove live network isolation.
