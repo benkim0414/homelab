@@ -75,6 +75,24 @@ installation. Apply reviewed ongoing changes with `hermes config set` or the
 dashboard and record the corresponding seed/runbook changes in Git. Do not delete
 the live config to apply an update.
 
+The same init container seeds workspace `AGENTS.md` only when absent, including
+on an existing installation's next rollout. It uses exclusive creation to
+preserve an existing file or symlink. These instructions cover credential
+handling, workspace use, subscription-only inference, and changes requiring the
+operator's approval. They guide behavior and do not restrict shell access.
+Updates to the seed do not replace an existing workspace instruction file;
+review and apply later instruction changes separately.
+
+Startup and liveness use the lightweight, local `/api/health` endpoint and
+validate its JSON `ok` and `version` fields. Readiness validates `/api/status`:
+authentication must be required with the `basic` provider, and the dashboard and
+storage components must report `ok`. The probe script is mounted read-only from
+the ConfigMap, bypasses HTTP proxies and redirects, bounds response size and
+uses no credential or model request. Authentication drift makes the pod unready
+without causing a liveness restart loop. Gateway/channel state, resource advisory
+fields and upstream OAuth/quota are outside this readiness decision: browser
+chat has its own PTY process and must not be disabled by a messaging outage.
+
 The seed records the assigned dashboard origin and the declined shared-metrics
 offer (`enabled: false`, `send: false`, `offer_version: 2`). In 0.22.2, the offer
 version is needed to keep the first dashboard visit from asking again despite
@@ -159,7 +177,10 @@ approvals, not authorization to execute them.
 6. Visit the HTTPS URL. Verify unauthenticated protected routes and WebSockets
    are rejected, invalid passwords fail, and `/api/status` advertises
    `auth_required: true` with the `basic` provider. This public status endpoint is
-   also used by probes; HTTP 200 alone does not verify login or inference.
+   used by readiness; HTTP 200 alone does not verify login or inference. Confirm
+   startup/liveness succeed on `/api/health`, readiness succeeds with dashboard
+   and storage health, and gateway state is inspected separately. Do not test
+   auth-disabled or storage-failure scenarios against the running installation.
 7. Log in and open Chat. Send a small prompt and test a harmless workspace file
    operation. Check WebSocket streaming, selected provider/model, and persistent
    history. Confirm cluster credentials and runtime sockets are absent.
@@ -222,6 +243,15 @@ verification/cache/bin/conftest verify --policy verification/policy
 verification/venv/bin/python scripts/verify.py --all --base main
 git diff --check
 ```
+
+Probe regression tests cover HTTP-200 HTML, malformed/oversized responses,
+authentication drift and component failures. The seeding test checks that
+existing config, instructions and symlinks are preserved. With `promtool` on
+`PATH` or at `verification/cache/bin/promtool`, unit discovery also evaluates
+the Hermes backup alert rules against fresh, stale, never-successful and missing
+schedules, plus backup/recovery Job failures. Without that optional binary the
+alert evaluation test is explicitly skipped; YAML/schema checks do not evaluate
+PromQL. Use a checksum-verified official Prometheus release for `promtool`.
 
 These checks validate declared state, schemas and policy behavior; they do not
 authenticate, deploy, test the container startup, or prove live network isolation.

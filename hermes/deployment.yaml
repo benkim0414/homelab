@@ -26,14 +26,22 @@ spec:
       initContainers:
         - name: seed-config
           image: nousresearch/hermes-agent:v0.22.2@sha256:36099926da316742423544e055d4734777105ffe6341873af5459b957d0c2919
-          command: [/bin/sh, -ec]
+          command: [/opt/hermes/.venv/bin/python, -B, -c]
           args:
             - |
-              umask 077
-              mkdir -p /opt/data/workspace
-              if [ ! -e /opt/data/config.yaml ]; then
-                cp /bootstrap/config.yaml /opt/data/config.yaml
-              fi
+              import os
+              from pathlib import Path
+              os.umask(0o077)
+              Path('/opt/data/workspace').mkdir(parents=True, exist_ok=True)
+              for source, destination in (
+                  ('/bootstrap/config.yaml', '/opt/data/config.yaml'),
+                  ('/bootstrap/AGENTS.md', '/opt/data/workspace/AGENTS.md'),
+              ):
+                  try:
+                      with open(source, 'rb') as src, open(destination, 'xb') as dst:
+                          dst.write(src.read())
+                  except FileExistsError:
+                      pass
           securityContext:
             runAsNonRoot: true
             runAsUser: 10000
@@ -106,28 +114,28 @@ spec:
               cpu: "2"
               memory: 2Gi
           startupProbe:
-            httpGet:
-              path: /api/status
-              port: dashboard
+            exec:
+              command: [/opt/hermes/.venv/bin/python, -B, /healthcheck/healthcheck.py, live]
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 60
           readinessProbe:
-            httpGet:
-              path: /api/status
-              port: dashboard
+            exec:
+              command: [/opt/hermes/.venv/bin/python, -B, /healthcheck/healthcheck.py, ready]
             periodSeconds: 10
             timeoutSeconds: 5
           livenessProbe:
-            httpGet:
-              path: /api/status
-              port: dashboard
+            exec:
+              command: [/opt/hermes/.venv/bin/python, -B, /healthcheck/healthcheck.py, live]
             periodSeconds: 30
             timeoutSeconds: 5
             failureThreshold: 5
           volumeMounts:
             - name: data
               mountPath: /opt/data
+            - name: healthcheck
+              mountPath: /healthcheck
+              readOnly: true
       volumes:
         - name: data
           persistentVolumeClaim:
@@ -135,6 +143,12 @@ spec:
         - name: bootstrap
           configMap:
             name: hermes-bootstrap
+        - name: healthcheck
+          configMap:
+            name: hermes-bootstrap
+            items:
+              - key: healthcheck.py
+                path: healthcheck.py
 ---
 apiVersion: v1
 kind: Service
