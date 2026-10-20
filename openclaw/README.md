@@ -1,4 +1,4 @@
-# OpenClaw with a Codex subscription
+# OpenClaw with a Grok subscription
 
 One trusted user's personal assistant, with web chat, workspace files, and shell
 commands inside its pod. The Application tracks `main`, uses manual sync, and has
@@ -12,8 +12,9 @@ Hermes, Hindsight, and workstation Codex keep their own state and grants.
 | Namespace / Application | `openclaw` |
 | Image | Official `ghcr.io/openclaw/openclaw:2026.10.5`, pinned by index digest |
 | Architectures | Registry index inspected 2026-10-19: Linux AMD64 and ARM64 |
-| Model | `openai/gpt-6.1-sol`, explicitly using the `codex` runtime |
-| Provider authentication | Dedicated ChatGPT/Codex device-code login |
+| Model | `xai/grok-4.7`, explicitly using the built-in `openclaw` runtime |
+| Thinking | `medium`; use `/think low` for quick tasks or `/think high` for difficult work |
+| Provider authentication | Dedicated xAI OAuth device-code login with an eligible SuperGrok or X Premium subscription |
 | Gateway | ClusterIP port 18789; Tailscale HTTPS with token auth and device pairing |
 | Expected URL | `https://openclaw.tailbd291c.ts.net` |
 | State | `openclaw-data`, 10 GiB Longhorn RWO, at `/home/node/.openclaw` |
@@ -23,7 +24,7 @@ Hermes, Hindsight, and workstation Codex keep their own state and grants.
 The reviewed multiarch image digest is
 `sha256:f40d1e66fd14d8c5b49c832f4100f83b53fdc01f5108f7db11de38fd0ee6dbe5`.
 Both containers use it. Renovate proposes image changes; updates require review
-and explicit sync. The standard image bundles the Codex plugin. Preserve the
+and explicit sync. The standard image bundles the xAI plugin. Preserve the
 official tini/Node entrypoint: it coordinates exclusive state maintenance and
 Doctor migrations before starting the gateway. A lower image version alone does
 not reverse database migrations.
@@ -32,8 +33,10 @@ The initial 2 GiB limit passed the unauthenticated startup smoke test but was
 exceeded during the first authenticated GPT-6.1 Sol/Codex test, which also ran
 the OpenClaw CLI inside the gateway container. Kubernetes recorded `OOMKilled`
 and restarted the gateway. Reserve 2 GiB and allow 4 GiB for the gateway, Codex
-runtime, and operator commands together. Confirm node capacity before syncing
-this resource change and measure authenticated turns separately from startup.
+runtime, and operator commands together. This limit is retained for the Grok
+switch; authenticated Grok resource use has not been measured. Confirm node
+capacity before syncing this resource change and measure authenticated turns
+separately from startup.
 
 The pod runs as UID/GID 1000 with no added capabilities, no privilege escalation,
 RuntimeDefault seccomp, and a read-only root filesystem. Only the state PVC and
@@ -63,15 +66,23 @@ configuration change. Apply individual settings through `openclaw config set`,
 validate them, and restart only with authorization if necessary. Keep intended
 bootstrap settings in Git too. Never delete or overwrite the entire live config
 to pick up a ConfigMap change. Check effective model/runtime after login and
-upgrades; reject a different model rather than silently substituting Astra.
+upgrades; reject a different model rather than silently substituting another
+provider or using billable API credentials.
 
 `tools.exec.mode: full` deliberately runs commands without approval prompts.
 The coding profile enables shell and file work; explicit denies remove ordinary
 browser, web, media, messaging, automation, and control-plane tools. Heartbeats,
 cron, browser automation, memory embeddings, and self-updates are disabled.
-Only the OpenAI provider and Codex runtime plugins are allowed. There are no
-configured external channels, MCP servers, paired worker nodes, API keys, or
-fallback models.
+Only the bundled xAI provider plugin is allowed. Its `x_search` and remote
+`code_execution` tools are explicitly disabled, preserving the existing tool
+permissions. There are no configured external channels, MCP servers, paired
+worker nodes, API keys, or fallback models.
+
+Grok OAuth uses the subscription route and refreshes its grant on the PVC. It
+does not require the Grok Build app or an xAI Console API key. Available models,
+thinking levels, and quota depend on the signed-in account; check them after
+login. Console API credits and subscription quota are separate. Do not add an API
+key as a fallback when subscription auth or quota fails.
 
 This is a trusted personal agent, not a sandbox for untrusted users. Shell can
 read its own OAuth grant, gateway environment, transcripts, and configuration,
@@ -79,6 +90,38 @@ and can change its writable state. `workspaceOnly` confines file tools, not
 arbitrary commands. Tool denies and AGENTS.md guidance are not OS isolation.
 The pod has no Kubernetes token, host mount, Docker/containerd socket, or cluster
 RBAC binding. Do not mount personal home directories or other apps' credentials.
+
+## Switching an existing Codex installation
+
+The bootstrap is copied only when absent. ArgoCD sync cannot migrate the existing
+PVC configuration. Keep the existing state and old grants; do not replace the
+entire configuration, delete sessions, or run Doctor repairs for this switch.
+
+With authorization for the live change, back up state and stop active assistant
+turns. Use `openclaw config set --batch-json` to update only the reviewed paths,
+first with `--dry-run --strict-json`. Enable `plugins.entries.xai.enabled`, add
+`xai` to `plugins.allow`, and disable
+`plugins.entries.xai.config.xSearch.enabled` and
+`plugins.entries.xai.config.codeExecution.enabled`. Keep the existing OpenAI and
+Codex plugin entries during login so the current assistant remains available.
+Validate configuration before writing. Plugin changes can require an authorized
+restart; confirm readiness before login.
+
+Run the xAI OAuth login from rollout step 4. It preserves the existing primary,
+so complete login and check the available model and effort levels before switching
+`agents.defaults.model.primary` to `xai/grok-4.7`. In the same reviewed batch, set
+`agents.defaults.modelPolicy.allow` to `["xai/grok-4.7"]`, retain empty fallbacks,
+set `agents.defaults.models["xai/grok-4.7"].agentRuntime.id` to `openclaw`, and set
+`agents.defaults.thinkingDefault` to `medium`. Disable the OpenAI/Codex plugin
+entries and set `plugins.allow` to `["xai"]` after successful xAI login. Preserve
+other model metadata and all gateway, tool, workspace, pairing, and storage
+settings. Never inspect or print the saved grant to validate the migration.
+
+Run `openclaw config validate`, inspect only the changed nonsecret paths, and
+confirm reload or restart readiness before beginning a new chat. Existing chats
+can retain model, thinking, or native runtime overrides; use a new chat for the
+Grok acceptance test. Check `/status` and quota, then test one small response and
+a harmless workspace operation. Do not claim completion from configuration alone.
 
 ## Gateway token prerequisite
 
@@ -211,37 +254,40 @@ not authorize publishing, secrets changes, deployment, restarts, or cleanup.
 
    ```sh
    kubectl -n openclaw exec -it deployment/openclaw -c gateway -- \
-     openclaw models auth login --provider openai --device-code
+     openclaw models auth login --provider xai --method oauth
    ```
 
    The operator completes browser authorization. If account/workspace policy
    disables device login, obtain permission before changing it. Do not copy a
-   workstation auth cache. Use the documented browser flow with a local callback
-   port-forward if device login is unavailable; never expose the callback by Ingress.
+   workstation auth cache. This xAI flow prints a URL and short code and does not
+   require a localhost callback. The consent screen may mention Grok Build; the
+   app is not required. Do not rerun onboarding for an existing deployment.
 5. Inspect provider/model status without printing credentials:
 
    ```sh
    kubectl -n openclaw exec deployment/openclaw -c gateway -- \
-     openclaw models list --provider openai
+     openclaw models list --provider xai
    kubectl -n openclaw exec deployment/openclaw -c gateway -- \
      openclaw config get agents.defaults.model --json
    kubectl -n openclaw exec deployment/openclaw -c gateway -- \
      openclaw config get agents.defaults.models --json
    ```
 
-   Require `openai/gpt-6.1-sol` with explicit `codex` runtime. Model inventory alone
-   does not prove entitlement. Stop if unavailable; do not select Astra or add an
-   API key. Subscription limits are shared with the account's other Codex use.
+   Require `xai/grok-4.7` with explicit `openclaw` runtime and `medium` thinking
+   (`openclaw config get agents.defaults.thinkingDefault`). Model inventory alone
+   does not prove entitlement. Stop if unavailable; do not add an API key or
+   substitute another model. Inspect subscription quota with `openclaw status --usage`.
 6. Open the assigned HTTPS URL, authenticate with the gateway token, and complete
    device pairing using `openclaw devices list` and the specific reviewed
    `openclaw devices approve <request-id>` request through pod exec. Verify missing
    and wrong tokens fail protected RPC/WebSocket authentication and an unapproved
    browser cannot operate the assistant. A public HTML page or health 200 is not
    proof of authentication. Confirm an unrelated Origin is rejected.
-7. Send one small prompt. Check `/status` and `/codex status`: require GPT-6.1 Sol
-   and `Runtime: OpenAI Codex`. Test streaming, a harmless workspace file operation,
-   and a shell command without prompts. Run `openclaw security audit` and review
-   findings against the intentional trusted-user/full-command posture. Do not
+7. Start a new chat so an existing Codex session or model override cannot retain
+   the old selection. Send one small prompt. Check `/status`: require Grok 4.7,
+   OpenClaw runtime, and medium thinking. Test streaming, a harmless workspace
+   file operation, and a shell command without prompts. Run `openclaw security audit`
+   and review findings against the intentional trusted-user/full-command posture. Do not
    run `--fix` or broaden permissions merely to silence findings.
 8. From the pod, verify DNS and public TLS succeed while the Kubernetes Service
    and a reachable LAN HTTPS destination fail. Use an approved control context
@@ -256,8 +302,8 @@ not authorize publishing, secrets changes, deployment, restarts, or cleanup.
 ## Reauthentication, backup, and recovery
 
 If the grant expires terminally or is revoked, stop active work and repeat the
-dedicated login. Verify GPT-6.1 Sol again. Do not refresh another app's grant or
-fall back to billable API use when quota/authentication fails.
+dedicated login. Verify Grok 4.7 and medium thinking again. Do not refresh
+another app's grant or fall back to billable API use when quota/authentication fails.
 
 Before upgrading, obtain approval to stop the gateway and take a consistent
 Longhorn backup. Scale to zero, wait for termination and volume detachment, and
@@ -268,10 +314,12 @@ A snapshot or scheduled job definition is not evidence of a recoverable backup.
 Resume the single replica with approval and repeat acceptance checks. No recurring
 backup schedule is introduced here.
 
-This image's Doctor reports that the Codex plugin has no declared migration
-backup inventory. Its automatic recovery capture cannot establish complete Codex
-rollback coverage. Back up the entire claim, including both directories, before
-an upgrade and verify recovery separately.
+Existing deployments can retain earlier Codex state and grants. Disabling the
+plugin does not revoke its grant or erase its history. This image's Doctor reports
+that the Codex plugin has no declared migration backup inventory, so automatic
+recovery captures cannot establish complete rollback coverage for that old state.
+Back up the entire claim, including both directories, before an upgrade and
+verify recovery separately. Grant revocation is a separate authorized action.
 
 Restore into a **new** volume/claim, preserving the original and keeping both
 gateways stopped. Inspect the restore in a network-isolated maintenance context.
@@ -294,9 +342,9 @@ verification/venv/bin/python scripts/verify.py --all --base main
 git diff --check
 ```
 
-Local container check, 2026-10-20: the pinned AMD64 image accepted the bootstrap
-configuration and started with its official entrypoint, UID/GID 1000, a read-only
-root, dropped capabilities, and a 2 GiB limit. The test used rootless Podman,
+Historical Codex container check, 2026-10-20 (before the Grok switch): the pinned
+AMD64 image accepted the bootstrap configuration and started with its official
+entrypoint, UID/GID 1000, a read-only root, dropped capabilities, and a 2 GiB limit. The test used rootless Podman,
 synthetic gateway credentials, no published ports, and disabled container
 networking. All three manifest probes passed. Protected HTTP requests without a
 token or with a wrong token returned 401; WebSocket requests rejected a wrong
@@ -305,7 +353,27 @@ reported only `codex` and `openai` runtime plugins and GPT-6.1 Sol. Recovery
 captures succeeded on the persistent sibling mount. Re-running the actual init
 script preserved the migrated config, workspace fixture, and state database;
 the gateway became ready after restart with the model/runtime selection intact.
-No subscription credentials or model inference were used.
+No subscription credentials or model inference were used. This historical test
+does not validate the Grok bootstrap or OAuth route.
+
+Grok switch, 2026-10-20: full repository verification passed for 18 Applications
+and 439 resources using cached dependencies. The running pinned image accepted
+both configuration dry runs and final `config validate`. xAI OAuth completed
+against the subscription proxy, and `status --usage` showed SuperGrok quota.
+The live default is `xai/grok-4.7`, runtime `openclaw`, with medium thinking and
+no fallbacks. Both configuration batches applied without a gateway restart.
+A fresh Gateway session returned the expected response, then successfully used
+`write`, `read`, and `exec` against a dedicated workspace test file. Request
+metadata confirmed medium thinking and OAuth profile authentication. The
+subscription service returned response model `grok-4.7-build` for the selected
+`grok-4.7`; OpenClaw reported that provider route in the terminal receipt.
+
+Existing Codex chats and grants were preserved. Start a new chat for Grok;
+historical sessions still show the runtime that created them. The CLI retained
+its configuration backup on the PVC; this was not a full state backup or restore
+test. The bootstrap ConfigMap still requires Git publication and manual ArgoCD
+sync; it does not overwrite existing PVC configuration. OAuth expiry/refresh and
+post-restart persistence were not tested during this switch.
 
 Offline verification is partial. Neither schema/policy checks nor a container
 smoke test prove live rollout, subscription entitlement, network-policy enforcement,
@@ -313,12 +381,13 @@ OAuth refresh, or backup recovery. Record those results only after performing th
 
 - [Official Kubernetes baseline](https://docs.openclaw.ai/install/kubernetes)
 - [Pinned container and entrypoint behavior](https://github.com/openclaw/openclaw/blob/v2026.10.5/docs/install/docker.md)
-- [OpenAI subscription setup](https://docs.openclaw.ai/providers/openai/setup)
+- [Grok subscription setup](https://docs.openclaw.ai/providers/xai)
+- [Pinned xAI provider behavior](https://github.com/openclaw/openclaw/blob/v2026.10.5/docs/providers/xai.md)
+- [Thinking levels](https://docs.openclaw.ai/tools/thinking)
+- [Grok 4.7 model capabilities](https://docs.x.ai/developers/models/grok-4.7)
 - [Runtime selection](https://docs.openclaw.ai/concepts/agent-runtimes)
 - [Permission modes](https://docs.openclaw.ai/tools/permission-modes)
 - [Gateway exposure](https://docs.openclaw.ai/gateway/security/network-exposure)
 - [Pinned proxy attribution requirements](https://github.com/openclaw/openclaw/blob/v2026.10.5/docs/gateway/security/rate-limiting.md)
 - [Tailscale v1.104.1 forwarded-header rebuilding](https://github.com/tailscale/tailscale/blob/v1.104.1/ipn/ipnlocal/serve.go#L1014-L1022)
 - [JSON health contracts](https://docs.openclaw.ai/gateway/health)
-- [OpenAI model availability](https://learn.chatgpt.com/docs/models)
-- [OpenAI headless login](https://learn.chatgpt.com/docs/auth#login-on-headless-devices)
