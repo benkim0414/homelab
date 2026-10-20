@@ -114,28 +114,28 @@ spec:
               cpu: "2"
               memory: 2Gi
           startupProbe:
-            httpGet:
-              path: /api/status
-              port: dashboard
+            exec:
+              command: [/opt/hermes/.venv/bin/python, -B, /healthcheck/healthcheck.py, live]
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 60
           readinessProbe:
-            httpGet:
-              path: /api/status
-              port: dashboard
+            exec:
+              command: [/opt/hermes/.venv/bin/python, -B, /healthcheck/healthcheck.py, ready]
             periodSeconds: 10
             timeoutSeconds: 5
           livenessProbe:
-            httpGet:
-              path: /api/status
-              port: dashboard
+            exec:
+              command: [/opt/hermes/.venv/bin/python, -B, /healthcheck/healthcheck.py, live]
             periodSeconds: 30
             timeoutSeconds: 5
             failureThreshold: 5
           volumeMounts:
             - name: data
               mountPath: /opt/data
+            - name: healthcheck
+              mountPath: /healthcheck
+              readOnly: true
       volumes:
         - name: data
           persistentVolumeClaim:
@@ -143,6 +143,12 @@ spec:
         - name: bootstrap
           configMap:
             name: hermes-bootstrap
+        - name: healthcheck
+          configMap:
+            name: hermes-bootstrap
+            items:
+              - key: healthcheck.py
+                path: healthcheck.py
 ---
 apiVersion: v1
 kind: Service
