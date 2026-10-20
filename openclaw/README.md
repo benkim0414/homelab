@@ -18,7 +18,7 @@ Hermes, Hindsight, and workstation Codex keep their own state and grants.
 | Expected URL | `https://openclaw.tailbd291c.ts.net` |
 | State | `openclaw-data`, 10 GiB Longhorn RWO, at `/home/node/.openclaw` |
 | Workspace | `/home/node/.openclaw/workspace` |
-| Resources | Request 250m CPU / 1 GiB; limit 2 CPU / 2 GiB |
+| Resources | Request 250m CPU / 2 GiB; limit 2 CPU / 4 GiB |
 
 The reviewed multiarch image digest is
 `sha256:f40d1e66fd14d8c5b49c832f4100f83b53fdc01f5108f7db11de38fd0ee6dbe5`.
@@ -27,6 +27,13 @@ and explicit sync. The standard image bundles the Codex plugin. Preserve the
 official tini/Node entrypoint: it coordinates exclusive state maintenance and
 Doctor migrations before starting the gateway. A lower image version alone does
 not reverse database migrations.
+
+The initial 2 GiB limit passed the unauthenticated startup smoke test but was
+exceeded during the first authenticated GPT-6.1 Sol/Codex test, which also ran
+the OpenClaw CLI inside the gateway container. Kubernetes recorded `OOMKilled`
+and restarted the gateway. Reserve 2 GiB and allow 4 GiB for the gateway, Codex
+runtime, and operator commands together. Confirm node capacity before syncing
+this resource change and measure authenticated turns separately from startup.
 
 The pod runs as UID/GID 1000 with no added capabilities, no privilege escalation,
 RuntimeDefault seccomp, and a read-only root filesystem. Only the state PVC and
