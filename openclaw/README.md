@@ -130,16 +130,54 @@ Gateway authentication limits failed attempts to 10 per 60 seconds, with a
 five-minute lockout. The pinned image's security audit flags an exposed gateway
 without this setting. For existing state, apply `gateway.auth.rateLimit` through
 `openclaw config set` and validate it before an authorized restart; changing the
-bootstrap ConfigMap alone does not update the live configuration. Requests from
-the Tailscale proxy can share a rate-limit bucket until narrowly scoped proxy
-trust is configured. Keep the limit suited to this single-operator deployment.
+bootstrap ConfigMap alone does not update the live configuration. Validated
+forwarding attributes these limits to each tailnet client's address. Keep the
+limit suited to this single-operator deployment.
 
-Do not trust the whole pod CIDR as a proxy. Start with no trusted proxies; remote
-requests must authenticate and pair. If correct forwarded-client attribution
-requires proxy trust, inspect the actual source addresses and header handling,
-then configure only those proxy addresses. Preserve token auth. Update the
-trusted addresses after proxy replacement and verify rejection of forged headers.
-Do not disable device authentication or allow wildcard origins to resolve errors.
+The bootstrap trusts only `10.42.3.23/32`, the observed address of the dedicated
+`ts-openclaw-w82kg-0` proxy on 2026-10-20. Gateway logs confirmed this socket
+source. Tailscale v1.104.1's Serve implementation overwrites `X-Forwarded-For`
+with the tailnet connection's client address and rebuilds the forwarded host and
+protocol headers. OpenClaw uses this trust for client attribution and rate limits;
+token authentication and browser device pairing remain required.
+
+Without this setting, the pinned OpenClaw image rejects externally managed Serve
+traffic with HTTP 403 `proxy_attribution_required` before authentication. Direct
+CLI calls and health probes can succeed while the tailnet UI remains blocked.
+Include a request carrying forwarded headers from the actual proxy in acceptance.
+
+Pod IPs can change. Before a fresh install or after proxy replacement, inspect
+the labeled proxy and confirm the socket source in gateway logs:
+
+```sh
+kubectl -n tailscale get pods \
+  -l 'tailscale.com/parent-resource-type=ingress,tailscale.com/parent-resource=openclaw,tailscale.com/parent-resource-ns=openclaw' \
+  -o wide
+```
+
+With approval, update the exact `/32` in this bootstrap and the existing writable
+config through the supported CLI. For the currently observed address:
+
+```sh
+kubectl -n openclaw exec deployment/openclaw -c gateway -- \
+  openclaw config set gateway.trustedProxies '["10.42.3.23/32"]' \
+  --strict-json --dry-run --json
+```
+
+For an approved write, replace `--dry-run --json` with
+`--expect-current-absent` if the setting is absent. When replacing an existing
+list, use `--expect-current-json` with its reviewed prior value instead.
+Conditional expectations cannot be combined with dry-run in this version.
+The pinned image supports live reload of this setting;
+confirm reload and reconnect clients. ConfigMap sync alone does not update the
+writable copy. A changed proxy address fails closed until reviewed and updated;
+never trust the whole pod CIDR or leave retired proxy IPs in the list.
+
+Verify the UI through HTTPS, missing/wrong-token rejection on protected routes,
+unapproved-browser and unrelated-Origin rejection, and rejection of forwarded
+headers from untrusted sources. Do not disable device authentication or allow
+wildcard origins to resolve errors. Recheck header rebuilding after a Tailscale
+upgrade; this address pin does not manage proxy identity automatically.
 
 Ingress permits only port 18789 from pods in namespace `tailscale` labeled for
 this `openclaw` Ingress. Namespace and pod selectors are combined in one peer.
@@ -279,6 +317,8 @@ OAuth refresh, or backup recovery. Record those results only after performing th
 - [Runtime selection](https://docs.openclaw.ai/concepts/agent-runtimes)
 - [Permission modes](https://docs.openclaw.ai/tools/permission-modes)
 - [Gateway exposure](https://docs.openclaw.ai/gateway/security/network-exposure)
+- [Pinned proxy attribution requirements](https://github.com/openclaw/openclaw/blob/v2026.10.5/docs/gateway/security/rate-limiting.md)
+- [Tailscale v1.104.1 forwarded-header rebuilding](https://github.com/tailscale/tailscale/blob/v1.104.1/ipn/ipnlocal/serve.go#L1014-L1022)
 - [JSON health contracts](https://docs.openclaw.ai/gateway/health)
 - [OpenAI model availability](https://learn.chatgpt.com/docs/models)
 - [OpenAI headless login](https://learn.chatgpt.com/docs/auth#login-on-headless-devices)
