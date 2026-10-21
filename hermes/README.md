@@ -4,6 +4,10 @@ One personal Hermes agent with browser chat over Tailscale HTTPS. The ArgoCD
 Application tracks `main`, uses manual sync, and has no cascading-delete finalizer.
 This directory declares the deployment; it is not evidence of a live rollout.
 
+[Hermex mobile access](HERMEX.md) adds a WebUI sidecar and separate private
+Tailscale endpoint while retaining this dashboard. Complete its password
+prerequisite, dependency-download checks and rollout review before syncing.
+
 ## Runtime and storage
 
 | Setting | Declaration |
@@ -101,9 +105,10 @@ the listener from starting. Gateway features that need that listener, including
 cron fire dispatch, are unavailable. No public ingress, Funnel, NodePort, or LAN
 LoadBalancer is declared.
 
-The NetworkPolicy permits dashboard ingress only from pods in namespace
+The NetworkPolicy permits dashboard ingress on 9119 only from pods in namespace
 `tailscale` labeled for the `hermes` Ingress in namespace `hermes`. Namespace and
-pod selectors are combined in one peer. Egress permits CoreDNS on TCP/UDP 53 and
+pod selectors are combined in one peer. The separate `hermex` proxy is allowed
+only on WebUI port 8787. Egress permits CoreDNS on TCP/UDP 53 and
 public IPv4 HTTPS on TCP 443, excluding private, link-local, loopback, CGNAT,
 benchmark and multicast/reserved ranges. Other ports and IPv6 egress are denied.
 

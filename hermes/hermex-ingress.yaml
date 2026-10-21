@@ -1,0 +1,14 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hermex
+  namespace: hermes
+spec:
+  ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: hermex
+      port:
+        number: 8787
+  tls:
+    - hosts: [hermex]
