@@ -37,6 +37,16 @@ a 20-minute deadline and no automatic retries that could pause Hermes again.
 Manual ArgoCD sync must remain enabled: syncing Hermes while intentionally
 quiesced can restart writers before the snapshot is captured.
 
+The [Hermex WebUI sidecar](HERMEX.md) belongs to this same Deployment. Scaling to
+zero stops both gateway/dashboard and WebUI before detachment, including WebUI's
+own session writes. Its `/opt/data/webui` state is included in the volume backup;
+temporary source, application, Python and package-cache volumes are not. On
+resume, a new pod downloads WebUI's runtime dependencies again, which can extend
+the outage or prevent readiness while package servers are unavailable. The backup
+runner requests resume but does not prove that WebUI or its dependencies are ready.
+Verify both interfaces after a backup or recovery; do not run a separate WebUI
+Deployment that would keep the source volume mounted during quiescence.
+
 The separate `hermes-backup-recovery` CronJob runs every five minutes. If a runner
 or its node crashes, it can take over only after the 120-second Lease plus a
 30-second grace expires. It resumes only a pause recorded by this controller,

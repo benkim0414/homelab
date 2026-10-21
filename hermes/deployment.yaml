@@ -62,6 +62,37 @@ spec:
             - name: bootstrap
               mountPath: /bootstrap
               readOnly: true
+        - name: webui-agent-source
+          # Match the gateway image. Kubernetes emptyDir volumes do not get
+          # Docker's automatic image-directory copy on first mount.
+          image: nousresearch/hermes-agent:v0.22.2@sha256:36099926da316742423544e055d4734777105ffe6341873af5459b957d0c2919
+          command: [/bin/bash, -euc]
+          args:
+            - |
+              set -o pipefail
+              tar -C /opt/hermes --exclude='./.venv' --exclude='./.git' \
+                --exclude='__pycache__' --exclude='.install.lock' \
+                --exclude='./.playwright' -cf - . |
+                tar -C /agent-source --no-same-owner -xf -
+              test -f /agent-source/pyproject.toml
+              test -f /agent-source/run_agent.py
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10000
+            runAsGroup: 10000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: "1"
+              memory: 256Mi
+          volumeMounts:
+            - name: webui-agent-source
+              mountPath: /agent-source
       containers:
         - name: hermes
           image: nousresearch/hermes-agent:v0.22.2@sha256:36099926da316742423544e055d4734777105ffe6341873af5459b957d0c2919
@@ -136,6 +167,103 @@ spec:
             - name: healthcheck
               mountPath: /healthcheck
               readOnly: true
+        - name: webui
+          image: ghcr.io/nesquena/hermes-webui:0.52.492@sha256:e507cafa7b112de9abd58348423ded28a8182539e6ebb5f95be603f20aff52e6
+          # Upstream init aligns UID/GID, installs dependencies in /app, then
+          # drops privileges. Only this sidecar uses the WebUI entrypoint.
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+              add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+          ports:
+            - name: webui
+              containerPort: 8787
+          env:
+            - name: WANTED_UID
+              value: "10000"
+            - name: WANTED_GID
+              value: "10000"
+            - name: HERMES_HOME
+              value: /opt/data
+            - name: HERMES_WRITE_SAFE_ROOT
+              value: /opt/data
+            - name: HERMES_WEBUI_HOST
+              value: 0.0.0.0
+            - name: HERMES_WEBUI_PORT
+              value: "8787"
+            - name: HERMES_WEBUI_SECURE
+              value: "1"
+            - name: HERMES_WEBUI_STATE_DIR
+              value: /opt/data/webui
+            - name: HERMES_WEBUI_DEFAULT_WORKSPACE
+              value: /opt/data/workspace
+            - name: HERMES_WEBUI_AGENT_DIR
+              value: /opt/hermes
+            - name: HERMES_WEBUI_PYTHON
+              value: /app/venv/bin/python3
+            # Hermes 0.22.2 gates its core dependencies on Python >=3.14.
+            # The upstream WebUI image otherwise creates a Python 3.12 venv.
+            - name: UV_PYTHON
+              value: "3.14.8"
+            - name: UV_PYTHON_INSTALL_DIR
+              value: /app/python
+            - name: HERMES_WEBUI_AUTO_INSTALL
+              value: "0"
+            - name: HERMES_WEBUI_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: hermex-auth
+                  key: password
+          resources:
+            requests:
+              cpu: 250m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          startupProbe:
+            # /health alone can succeed with missing agent dependencies.
+            # Import once at startup; never make model calls from probes.
+            exec:
+              command:
+                - /bin/su
+                - -s
+                - /bin/sh
+                - -c
+                - >-
+                  exec /app/venv/bin/python3 -c
+                  "from run_agent import AIAgent; import urllib.request;
+                  urllib.request.urlopen('http://127.0.0.1:8787/health', timeout=3).close()"
+                - hermeswebui
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: webui
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: webui
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 5
+          volumeMounts:
+            - name: data
+              mountPath: /opt/data
+            - name: webui-agent-source
+              mountPath: /opt/hermes
+              readOnly: true
+            - name: webui-app
+              mountPath: /app
+            - name: webui-cache
+              mountPath: /uv_cache
       volumes:
         - name: data
           persistentVolumeClaim:
@@ -143,6 +271,12 @@ spec:
         - name: bootstrap
           configMap:
             name: hermes-bootstrap
+        - name: webui-agent-source
+          emptyDir: {}
+        - name: webui-app
+          emptyDir: {}
+        - name: webui-cache
+          emptyDir: {}
         - name: healthcheck
           configMap:
             name: hermes-bootstrap
