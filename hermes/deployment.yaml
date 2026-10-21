@@ -70,9 +70,12 @@ spec:
           args:
             - |
               set -o pipefail
-              tar -C /opt/hermes --exclude='./.venv' --exclude='./.git' \
+              # Copy entries, not '.', whose metadata belongs to the volume.
+              cd /opt/hermes
+              shopt -s dotglob nullglob
+              tar --exclude='./.venv' --exclude='./.git' \
                 --exclude='__pycache__' --exclude='.install.lock' \
-                --exclude='./.playwright' -cf - . |
+                --exclude='./.playwright' -cf - ./* |
                 tar -C /agent-source --no-same-owner -xf -
               test -f /agent-source/pyproject.toml
               test -f /agent-source/run_agent.py
