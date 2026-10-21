@@ -42,6 +42,12 @@ gateway starts. An unprivileged init container copies agent source into an
 `emptyDir`, excluding the virtualenv, Git metadata, bytecode, browser cache and
 build-time `.install.lock` files. WebUI mounts it read-only at `/opt/hermes`.
 Kubernetes does not automatically populate image-directory volumes like Docker.
+The copy archives source entries, including hidden files, rather than the `.`
+directory. An `emptyDir` root remains owned by root with group access from
+`fsGroup`; archiving `.` makes unprivileged tar fail while restoring that
+directory's timestamps or permissions, even after copying its files. The source
+copy regression test verifies exclusions, hidden files and preservation of the
+destination directory's setgid mode.
 
 The upstream WebUI entrypoint starts as root for user/filesystem preparation and
 drops to UID/GID 10000. It stages agent code under `/app/hermes-agent-src` for an
