@@ -204,6 +204,40 @@ spec:
               kubectl get cronjobs -A -l component=offsite-backup
               kubectl describe cronjob -n {{ $labels.namespace }} {{ $labels.cronjob }}
 
+    - name: hermes-backup
+      rules:
+        - alert: HermesBackupJobFailed
+          expr: kube_job_status_failed{namespace="hermes",job_name=~"hermes-backup-.+"} > 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Hermes backup or recovery job {{ $labels.job_name }} failed"
+            description: >
+              Inspect the Job and its logs, then confirm Hermes has resumed.
+              Do not delete the original PVC or force a volume attachment.
+            runbook: "https://github.com/benkim0414/homelab/blob/main/hermes/BACKUP.md#operation"
+
+        - alert: HermesBackupStale
+          expr: >
+            (time() - (kube_cronjob_status_last_successful_time{namespace="hermes",cronjob="hermes-backup"} > 0) > 129600)
+            or
+            ((time() - kube_cronjob_created{namespace="hermes",cronjob="hermes-backup"} > 129600)
+              unless on(namespace, cronjob)
+              (kube_cronjob_status_last_successful_time{namespace="hermes",cronjob="hermes-backup"} > 0))
+            or
+            absent(kube_cronjob_info{namespace="hermes",cronjob="hermes-backup"})
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: "Hermes nightly backup is missing or has no success within 36 hours"
+            description: >
+              Check the hermes-backup CronJob, Job logs and Longhorn backup completion.
+              Recovery watchdog successes do not count as a successful backup.
+              A suspended or missing schedule also needs investigation.
+            runbook: "https://github.com/benkim0414/homelab/blob/main/hermes/BACKUP.md#operation"
+
     - name: node-stability
       rules:
         - alert: NodeContainerRestartStorm

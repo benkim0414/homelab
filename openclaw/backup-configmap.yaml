@@ -1,0 +1,290 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openclaw-backup
+  namespace: openclaw
+data:
+  backup.py: |
+    """Quiesce OpenClaw, back up its detached Longhorn volume, and resume it."""
+    import copy
+    import datetime as dt
+    import json
+    import os
+    from pathlib import Path
+    import signal
+    import ssl
+    import time
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+    import uuid
+
+    CONTROL = '/apis/apps/v1/namespaces/openclaw/deployments/openclaw'
+    LEASE = '/apis/coordination.k8s.io/v1/namespaces/openclaw/leases'
+    LONGHORN = '/apis/longhorn.io/v1beta2/namespaces/longhorn-system'
+    LEASE_NAME = 'openclaw-backup'
+    PREFIX = 'backup.homelab/'
+    POLICY = 'openclaw-nightly'
+    TARGET = 'nfs://192.168.0.40:/longhorn-backups'
+
+    def utcnow():
+        return dt.datetime.now(dt.timezone.utc)
+
+    def stamp(value):
+        return value.isoformat(timespec='microseconds').replace('+00:00', 'Z')
+
+    def expired(lease, now):
+        spec = lease.get('spec', {})
+        if not spec.get('holderIdentity'):
+            return True
+        renewed = spec.get('renewTime') or spec.get('acquireTime')
+        if not renewed:
+            return False  # Do not steal an unrecognised lease.
+        deadline = dt.datetime.fromisoformat(renewed.replace('Z', '+00:00'))
+        return now > deadline + dt.timedelta(seconds=spec.get('leaseDurationSeconds', 120) + 30)
+
+    class ApiError(RuntimeError):
+        def __init__(self, code, path):
+            super().__init__(f'Kubernetes HTTP {code}: {path}')
+            self.code = code
+
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, request, fp, code, msg, headers, newurl):
+            return None
+
+    class API:
+        def __init__(self):
+            service = Path('/var/run/secrets/kubernetes.io/serviceaccount')
+            self.token = service / 'token'
+            host = os.environ['KUBERNETES_SERVICE_HOST']
+            port = os.environ.get('KUBERNETES_SERVICE_PORT_HTTPS', '443')
+            self.base = f'https://{host}:{port}'
+            context = ssl.create_default_context(cafile=str(service / 'ca.crt'))
+            self.opener = urllib.request.build_opener(
+                NoRedirect(), urllib.request.HTTPSHandler(context=context))
+
+        def call(self, method, path, body=None, content_type='application/json'):
+            data = None if body is None else json.dumps(body).encode()
+            request = urllib.request.Request(self.base + path, data=data, method=method,
+                headers={'Authorization': 'Bearer ' + self.token.read_text().strip(),
+                         'Content-Type': content_type})
+            try:
+                with self.opener.open(request, timeout=10) as response:
+                    return json.load(response)
+            except urllib.error.HTTPError as error:
+                # Never log response bodies, bearer tokens, or user data.
+                raise ApiError(error.code, path) from None
+
+        def patch(self, path, body):
+            return self.call('PATCH', path, body, 'application/merge-patch+json')
+
+    class Runner:
+        def __init__(self, api, identity, volume, keep=7):
+            self.api, self.identity, self.volume, self.keep = api, identity, volume, keep
+            self.lease = None
+            self.renewed = 0
+            self.deadline = time.monotonic() + 900
+            if not identity or not volume.startswith('pvc-') or keep < 1:
+                raise ValueError('Invalid backup identity, volume, or retention')
+
+        def acquire(self):
+            path = LEASE + '/' + LEASE_NAME
+            try:
+                old = self.api.call('GET', path)
+            except ApiError as error:
+                if error.code != 404:
+                    raise
+                old = {'apiVersion': 'coordination.k8s.io/v1', 'kind': 'Lease',
+                       'metadata': {'name': LEASE_NAME, 'namespace': 'openclaw'}}
+            if not expired(old, utcnow()):
+                return False
+            self.previous_holder = old.get('spec', {}).get('holderIdentity', '')
+            new = copy.deepcopy(old)
+            new['spec'] = {'holderIdentity': self.identity, 'leaseDurationSeconds': 120,
+                           'acquireTime': stamp(utcnow()), 'renewTime': stamp(utcnow())}
+            try:
+                if old['metadata'].get('resourceVersion'):
+                    self.lease = self.api.call('PUT', path, new)
+                else:
+                    self.lease = self.api.call('POST', LEASE, new)
+            except ApiError as error:
+                if error.code == 409:
+                    return False
+                raise
+            self.renewed = time.monotonic()
+            return True
+
+        def heartbeat(self):
+            if time.monotonic() > self.deadline:
+                raise TimeoutError('Backup exceeded its 15-minute run budget')
+            if time.monotonic() - self.renewed < 20:
+                return
+            path = LEASE + '/' + LEASE_NAME
+            current = self.api.call('GET', path)
+            if current['spec'].get('holderIdentity') != self.identity:
+                raise RuntimeError('Backup lease was lost')
+            current['spec']['renewTime'] = stamp(utcnow())
+            self.lease = self.api.call('PUT', path, current)
+            self.renewed = time.monotonic()
+
+        def release(self):
+            current = self.api.call('GET', LEASE + '/' + LEASE_NAME)
+            if (current['spec'].get('holderIdentity') == self.identity
+                    and not current['metadata'].get('annotations', {}).get(PREFIX + 'holder')):
+                current['spec']['holderIdentity'] = ''
+                self.api.call('PUT', LEASE + '/' + LEASE_NAME, current)
+
+        def wait(self, description, read, ready, seconds=240):
+            end = time.monotonic() + seconds
+            while True:
+                self.heartbeat()
+                value = read()
+                if ready(value):
+                    return value
+                if time.monotonic() >= end:
+                    raise TimeoutError(description)
+                time.sleep(3)
+
+        def resume(self, holder):
+            lease = self.api.call('GET', LEASE + '/' + LEASE_NAME)
+            annotations = lease['metadata'].get('annotations', {})
+            if (annotations.get(PREFIX + 'holder') != holder
+                    or lease['spec'].get('holderIdentity') != self.identity):
+                return False
+            if annotations.get(PREFIX + 'replicas') != '1':
+                raise RuntimeError('Unrecognised maintenance replica count; manual review required')
+            deployment = self.api.call('GET', CONTROL)
+            # Preserve an operator's positive replica count; restore only our pause.
+            if deployment['spec']['replicas'] == 0:
+                self.api.patch(CONTROL + '/scale', {'spec': {'replicas': 1}})
+            # Keep the marker if the scale request fails, so the watchdog can retry.
+            for key in ('holder', 'replicas', 'started'):
+                annotations.pop(PREFIX + key, None)
+            self.lease = self.api.call('PUT', LEASE + '/' + LEASE_NAME, lease)
+            print('OpenClaw resume requested', flush=True)
+            return True
+
+        def preflight(self):
+            pvc = self.api.call('GET', '/api/v1/namespaces/openclaw/persistentvolumeclaims/openclaw-data')
+            if pvc['spec'].get('volumeName') != self.volume or pvc['status']['phase'] != 'Bound':
+                raise RuntimeError('OpenClaw PVC identity changed; review backup configuration')
+            target = self.api.call('GET', LONGHORN + '/backuptargets/default')
+            if target['spec']['backupTargetURL'] != TARGET or not target['status'].get('available'):
+                raise RuntimeError('Expected NAS backup target is unavailable')
+            volume = self.api.call('GET', LONGHORN + '/volumes/' + self.volume)
+            if volume['status'].get('robustness') != 'healthy':
+                raise RuntimeError('Source volume is not healthy')
+            deployment = self.api.call('GET', CONTROL)
+            if deployment['spec']['replicas'] != 1 or deployment['status'].get('readyReplicas') != 1:
+                raise RuntimeError('OpenClaw must have one ready replica before backup')
+
+        def completed(self, backup):
+            status = backup.get('status', {})
+            if status.get('state') in ('Error', 'Unknown'):
+                raise RuntimeError('Longhorn backup failed; inspect its status')
+            if status.get('state') != 'Completed':
+                return False
+            if (status.get('error') or status.get('volumeName') != self.volume
+                    or not status.get('url', '').startswith(TARGET + '?')):
+                raise RuntimeError('Completed backup metadata did not match the source and target')
+            return True
+
+        def prune(self):
+            query = urllib.parse.urlencode({'labelSelector':
+                f'backup-volume={self.volume},backup-target=default,backup.homelab/policy={POLICY}'})
+            backups = self.api.call('GET', LONGHORN + '/backups?' + query)['items']
+            completed = [b for b in backups if b.get('status', {}).get('state') == 'Completed'
+                         and self.completed(b)]
+            completed.sort(key=lambda b: b['status']['backupCreatedAt'], reverse=True)
+            for old in completed[self.keep:]:
+                labels = old['metadata'].get('labels', {})
+                if (labels.get('backup-volume') != self.volume
+                        or labels.get(PREFIX + 'policy') != POLICY
+                        or labels.get('backup-target') != 'default'):
+                    raise RuntimeError('Refusing to prune a backup outside this policy')
+                self.heartbeat()
+                self.api.call('DELETE', LONGHORN + '/backups/' + old['metadata']['name'],
+                    {'preconditions': {'uid': old['metadata']['uid']}})
+            # NAS copies are independent; remove only this policy's old local snapshots.
+            snapshots = self.api.call('GET', LONGHORN + '/snapshots?' + urllib.parse.urlencode({
+                'labelSelector': f'backup.homelab/policy={POLICY}'}))['items']
+            keep_names = {b['spec'].get('snapshotName') or b['status'].get('snapshotName')
+                          for b in completed[:self.keep]}
+            completed_names = {b['spec'].get('snapshotName') or b['status'].get('snapshotName')
+                               for b in completed}
+            for snapshot in snapshots:
+                name = snapshot['metadata']['name']
+                if (snapshot['spec']['volume'] == self.volume
+                        and snapshot['metadata'].get('labels', {}).get(PREFIX + 'policy') == POLICY
+                        and name in completed_names - keep_names):
+                    self.api.call('DELETE', LONGHORN + '/snapshots/' + name,
+                        {'preconditions': {'uid': snapshot['metadata']['uid']}})
+
+        def backup(self):
+            # Repair an abandoned pause before attempting a fresh backup.
+            holder = self.api.call('GET', LEASE + '/' + LEASE_NAME)['metadata'].get('annotations', {}).get(PREFIX + 'holder')
+            if holder:
+                self.resume(holder)
+            self.preflight()
+            name = 'openclaw-' + utcnow().strftime('%Y%m%d-%H%M%S-') + uuid.uuid4().hex[:8]
+            print('Starting backup ' + name, flush=True)
+            try:
+                lease = self.api.call('GET', LEASE + '/' + LEASE_NAME)
+                if lease['spec'].get('holderIdentity') != self.identity:
+                    raise RuntimeError('Backup lease was lost before pausing')
+                lease['metadata'].setdefault('annotations', {}).update({
+                    PREFIX + 'holder': self.identity, PREFIX + 'replicas': '1',
+                    PREFIX + 'started': stamp(utcnow())})
+                self.lease = self.api.call('PUT', LEASE + '/' + LEASE_NAME, lease)
+                self.api.patch(CONTROL + '/scale', {'spec': {'replicas': 0}})
+                self.wait('OpenClaw pods did not terminate',
+                    lambda: self.api.call('GET', '/api/v1/namespaces/openclaw/pods?labelSelector=app%3Dopenclaw'),
+                    lambda result: not result['items'])
+                self.wait('Source volume did not detach',
+                    lambda: self.api.call('GET', LONGHORN + '/volumes/' + self.volume),
+                    lambda result: result['status']['state'] == 'detached')
+                labels = {PREFIX + 'policy': POLICY}
+                self.api.call('POST', LONGHORN + '/snapshots', {
+                    'apiVersion': 'longhorn.io/v1beta2', 'kind': 'Snapshot',
+                    'metadata': {'name': name, 'namespace': 'longhorn-system', 'labels': labels},
+                    'spec': {'volume': self.volume, 'createSnapshot': True, 'labels': labels}})
+                self.wait('Offline snapshot did not become ready',
+                    lambda: self.api.call('GET', LONGHORN + '/snapshots/' + name),
+                    lambda result: result.get('status', {}).get('readyToUse') is True)
+                self.api.call('POST', LONGHORN + '/backups', {
+                    'apiVersion': 'longhorn.io/v1beta2', 'kind': 'Backup',
+                    'metadata': {'name': name, 'namespace': 'longhorn-system', 'labels': {
+                        **labels, 'backup-volume': self.volume, 'backup-target': 'default'}},
+                    'spec': {'snapshotName': name, 'backupMode': 'incremental', 'labels': labels}})
+                backup = self.wait('NAS backup did not complete',
+                    lambda: self.api.call('GET', LONGHORN + '/backups/' + name),
+                    self.completed, seconds=480)
+                print('NAS backup completed: ' + backup['metadata']['name'], flush=True)
+            finally:
+                # A failure retains the marker and lease for the recovery CronJob.
+                self.resume(self.identity)
+            self.prune()  # Retention runs only after a new successful NAS backup.
+
+    def main():
+        api = API()
+        runner = Runner(api, os.environ['POD_UID'], os.environ['OPENCLAW_VOLUME'],
+                        int(os.environ.get('BACKUP_KEEP', '7')))
+        if not runner.acquire():
+            print('Another backup runner holds the lease; skipping', flush=True)
+            return
+        def terminate(signum, frame):
+            raise RuntimeError('Backup runner received a termination signal')
+        signal.signal(signal.SIGTERM, terminate)
+        try:
+            if os.environ.get('BACKUP_MODE') == 'recover':
+                holder = api.call('GET', LEASE + '/' + LEASE_NAME)['metadata'].get('annotations', {}).get(PREFIX + 'holder')
+                if holder:
+                    runner.resume(holder)
+            else:
+                runner.backup()
+        finally:
+            # Do not clear the lease if a failed resume still needs recovery.
+            runner.release()
+
+    if __name__ == '__main__':
+        main()
