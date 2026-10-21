@@ -81,14 +81,58 @@ version is needed to keep the first dashboard visit from asking again despite
 metrics already being disabled.
 
 The initial CLI/browser-chat toolsets cover local commands, files, skills, memory,
-session search and task lists. Optional paid web/image/voice tools, remote MCP
-servers and lazy dependency installation are not configured. The main provider
-and configured auxiliary tasks use Codex OAuth, with no fallback chain. Leave the
+session search and task lists, plus the `hindsight_reserve` MCP tools described
+below. Optional paid web/image/voice tools and lazy dependency installation are
+not configured. The main provider and configured auxiliary tasks use Codex OAuth,
+with no fallback chain. Leave the
 model unset until completing `hermes model`; do not send the first prompt before
 selection. Background reviews and session summaries can consume additional quota.
 Hermes documents the subscription integration, but not exact eligible tiers or
 quota accounting; verify entitlement with a small request. There is no promise
 of unlimited usage.
+
+### Shared Hindsight reserve bank
+
+The seed connects `hindsight_reserve` to
+`http://hindsight-api.hindsight.svc.cluster.local:8888/mcp/reserve/` using the
+existing Hindsight API bearer token. Only `recall`, `reflect` and `retain` are
+exposed; MCP sampling is disabled. The connection works with either Codex or
+Grok. Hermes's built-in memory remains available. The native Hindsight memory
+provider and automatic conversation ingestion are not enabled.
+
+With explicit credential-access approval, inject the existing
+`hindsight/hindsight-api-credentials` key `HINDSIGHT_API_TENANT_API_KEY` into
+`/opt/data/.env` as `HINDSIGHT_API_KEY`, preserving other entries. Use a protected
+stdin workflow, ownership `10000:10000`, and mode `0600`; never print the value
+or place it in process arguments or Git. The config uses environment substitution,
+so it contains no token. The token authorizes all Hindsight banks: the reserve
+URL and tool filter guide the client, rather than enforcing bank-level access.
+An API token rotation also requires updating Hermes's injected copy.
+
+The first-boot workspace `AGENTS.md` instructs Hermes to recall relevant shared
+context and save global decisions only on explicit request. This file is seeded
+only when absent. Existing installations need the reviewed MCP entry, CLI toolset
+addition and memory instructions applied to their writable PVC without replacing
+unrelated configuration or instructions. Start a new dashboard chat after setup.
+Repository changes alone do not update an existing PVC.
+
+Activation requires approval to apply the narrow NetworkPolicy change, inject the
+token and update the live config/instructions. Verify with `hermes mcp test
+hindsight_reserve`, then a read-only `recall` through Hermes. Do not write test
+memories to reserve. Record the actual rollout and verification separately from
+this declaration. The API connection uses HTTP within the cluster; the existing
+Tailscale HTTPS endpoint remains available for external clients.
+
+On 2026-10-21, the approved activation injected the existing API token into
+Hermes's private `.env`, added the MCP config/toolset and workspace instructions
+to the PVC, and applied this task's ConfigMap, NetworkPolicy and Deployment
+(including the unchanged Service). Server dry-run succeeded before application.
+The Recreate rollout became available with one ready replica. `hermes mcp test
+hindsight_reserve` passed; an authenticated MCP initialization, tool discovery and
+read-only `recall` using Hermes's resolved configuration also succeeded. No test
+memory was retained. The live token copy must be kept current on rotation.
+These resources were applied directly with approval; this does not establish
+that ArgoCD's `main` source contains the change or reports Synced.
 
 ## Network boundary
 
@@ -105,7 +149,9 @@ The NetworkPolicy permits dashboard ingress only from pods in namespace
 `tailscale` labeled for the `hermes` Ingress in namespace `hermes`. Namespace and
 pod selectors are combined in one peer. Egress permits CoreDNS on TCP/UDP 53 and
 public IPv4 HTTPS on TCP 443, excluding private, link-local, loopback, CGNAT,
-benchmark and multicast/reserved ranges. Other ports and IPv6 egress are denied.
+benchmark and multicast/reserved ranges. One additional peer combines namespace
+`hindsight` and pod label `app: hindsight-api`, permitting only TCP 8888 for MCP.
+Other ports and IPv6 egress are denied.
 
 Validate enforcement on the actual K3s network-policy controller. Kubernetes
 policies have node-traffic and address-translation exceptions; they are not a

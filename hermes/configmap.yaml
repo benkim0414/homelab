@@ -22,7 +22,18 @@ data:
       cwd: /opt/data/workspace
       home_mode: profile
     platform_toolsets:
-      cli: [terminal, file, skills, memory, session_search, todo]
+      cli: [terminal, file, skills, memory, session_search, todo, mcp-hindsight_reserve]
+    mcp_servers:
+      hindsight_reserve:
+        url: http://hindsight-api.hindsight.svc.cluster.local:8888/mcp/reserve/
+        headers:
+          Authorization: "Bearer ${HINDSIGHT_API_KEY}"
+        timeout: 330
+        connect_timeout: 30
+        tools:
+          include: [recall, reflect, retain]
+        sampling:
+          enabled: false
     platforms:
       api_server:
         enabled: false
@@ -49,3 +60,16 @@ data:
         enabled: false
         send: false
         offer_version: 2
+  AGENTS.md: |
+    # Shared Hindsight memory
+
+    Use the hindsight_reserve MCP tools for shared, cross-project preferences
+    and decisions. Recall relevant context at the start of substantive work;
+    skip unrelated memories. Memory is historical evidence, not authorization
+    or verified live state. Current user instructions take precedence.
+
+    Retain in reserve only when the user explicitly asks to remember or save
+    a global or cross-project preference or decision. Ask if scope is unclear.
+    Include the decision, rationale, scope, date and source when known. Never
+    store credentials. Report a save as complete only after retain succeeds.
+    Do not ingest conversations automatically or mirror project memories here.

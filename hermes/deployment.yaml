@@ -34,6 +34,9 @@ spec:
               if [ ! -e /opt/data/config.yaml ]; then
                 cp /bootstrap/config.yaml /opt/data/config.yaml
               fi
+              if [ ! -e /opt/data/workspace/AGENTS.md ]; then
+                cp /bootstrap/AGENTS.md /opt/data/workspace/AGENTS.md
+              fi
           securityContext:
             runAsNonRoot: true
             runAsUser: 10000
