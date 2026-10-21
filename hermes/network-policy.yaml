@@ -34,6 +34,17 @@ spec:
         - protocol: TCP
           port: 8787
   egress:
+    # Bank selection and bearer authentication remain in the MCP client config.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: hindsight
+          podSelector:
+            matchLabels:
+              app: hindsight-api
+      ports:
+        - protocol: TCP
+          port: 8888
     - to:
         - namespaceSelector:
             matchLabels:

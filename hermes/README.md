@@ -79,20 +79,82 @@ installation. Apply reviewed ongoing changes with `hermes config set` or the
 dashboard and record the corresponding seed/runbook changes in Git. Do not delete
 the live config to apply an update.
 
+The same init container seeds workspace `AGENTS.md` only when absent, including
+on an existing installation's next rollout. It uses exclusive creation to
+preserve an existing file or symlink. These instructions cover credential
+handling, workspace use, subscription-only inference, and changes requiring the
+operator's approval. They guide behavior and do not restrict shell access.
+Updates to the seed do not replace an existing workspace instruction file;
+review and apply later instruction changes separately.
+
+Startup and liveness use the lightweight, local `/api/health` endpoint and
+validate its JSON `ok` and `version` fields. Readiness validates `/api/status`:
+authentication must be required with the `basic` provider, and the dashboard and
+storage components must report `ok`. The probe script is mounted read-only from
+the ConfigMap, bypasses HTTP proxies and redirects, bounds response size and
+uses no credential or model request. Authentication drift makes the pod unready
+without causing a liveness restart loop. Gateway/channel state, resource advisory
+fields and upstream OAuth/quota are outside this readiness decision: browser
+chat has its own PTY process and must not be disabled by a messaging outage.
+
 The seed records the assigned dashboard origin and the declined shared-metrics
 offer (`enabled: false`, `send: false`, `offer_version: 2`). In 0.22.2, the offer
 version is needed to keep the first dashboard visit from asking again despite
 metrics already being disabled.
 
 The initial CLI/browser-chat toolsets cover local commands, files, skills, memory,
-session search and task lists. Optional paid web/image/voice tools, remote MCP
-servers and lazy dependency installation are not configured. The main provider
-and configured auxiliary tasks use Codex OAuth, with no fallback chain. Leave the
+session search and task lists, plus the `hindsight_reserve` MCP tools described
+below. Optional paid web/image/voice tools and lazy dependency installation are
+not configured. The main provider and configured auxiliary tasks use Codex OAuth,
+with no fallback chain. Leave the
 model unset until completing `hermes model`; do not send the first prompt before
 selection. Background reviews and session summaries can consume additional quota.
 Hermes documents the subscription integration, but not exact eligible tiers or
 quota accounting; verify entitlement with a small request. There is no promise
 of unlimited usage.
+
+### Shared Hindsight reserve bank
+
+The seed connects `hindsight_reserve` to
+`http://hindsight-api.hindsight.svc.cluster.local:8888/mcp/reserve/` using the
+existing Hindsight API bearer token. Only `recall`, `reflect` and `retain` are
+exposed; MCP sampling is disabled. The connection works with either Codex or
+Grok. Hermes's built-in memory remains available. The native Hindsight memory
+provider and automatic conversation ingestion are not enabled.
+
+With explicit credential-access approval, inject the existing
+`hindsight/hindsight-api-credentials` key `HINDSIGHT_API_TENANT_API_KEY` into
+`/opt/data/.env` as `HINDSIGHT_API_KEY`, preserving other entries. Use a protected
+stdin workflow, ownership `10000:10000`, and mode `0600`; never print the value
+or place it in process arguments or Git. The config uses environment substitution,
+so it contains no token. The token authorizes all Hindsight banks: the reserve
+URL and tool filter guide the client, rather than enforcing bank-level access.
+An API token rotation also requires updating Hermes's injected copy.
+
+The first-boot workspace `AGENTS.md` instructs Hermes to recall relevant shared
+context and save global decisions only on explicit request. This file is seeded
+only when absent. Existing installations need the reviewed MCP entry, CLI toolset
+addition and memory instructions applied to their writable PVC without replacing
+unrelated configuration or instructions. Start a new dashboard chat after setup.
+Repository changes alone do not update an existing PVC.
+
+Activation requires approval to apply the narrow NetworkPolicy change, inject the
+token and update the live config/instructions. Verify with `hermes mcp test
+hindsight_reserve`, then a read-only `recall` through Hermes. Do not write test
+memories to reserve. Record the actual rollout and verification separately from
+this declaration. The API connection uses HTTP within the cluster; the existing
+Tailscale HTTPS endpoint remains available for external clients.
+
+On 2026-10-21, the approved activation injected the existing API token into
+Hermes's private `.env`, added the MCP config/toolset and workspace instructions
+to the PVC, and applied this task's ConfigMap, NetworkPolicy and Deployment
+(including the unchanged Service). Server dry-run succeeded before application.
+The Recreate rollout became available with one ready replica. `hermes mcp test
+hindsight_reserve` passed; an authenticated MCP initialization, tool discovery and
+read-only `recall` using Hermes's resolved configuration also succeeded. No test
+memory was retained. The live token copy must be kept current on rotation.
+These resources were applied directly with approval; this does not establish
+that ArgoCD's `main` source contains the change or reports Synced.
 
 ## Network boundary
 
@@ -110,7 +172,9 @@ The NetworkPolicy permits dashboard ingress on 9119 only from pods in namespace
 pod selectors are combined in one peer. The separate `hermex` proxy is allowed
 only on WebUI port 8787. Egress permits CoreDNS on TCP/UDP 53 and
 public IPv4 HTTPS on TCP 443, excluding private, link-local, loopback, CGNAT,
-benchmark and multicast/reserved ranges. Other ports and IPv6 egress are denied.
+benchmark and multicast/reserved ranges. One additional peer combines namespace
+`hindsight` and pod label `app: hindsight-api`, permitting only TCP 8888 for MCP.
+Other ports and IPv6 egress are denied.
 
 Validate enforcement on the actual K3s network-policy controller. Kubernetes
 policies have node-traffic and address-translation exceptions; they are not a
@@ -164,7 +228,10 @@ approvals, not authorization to execute them.
 6. Visit the HTTPS URL. Verify unauthenticated protected routes and WebSockets
    are rejected, invalid passwords fail, and `/api/status` advertises
    `auth_required: true` with the `basic` provider. This public status endpoint is
-   also used by probes; HTTP 200 alone does not verify login or inference.
+   used by readiness; HTTP 200 alone does not verify login or inference. Confirm
+   startup/liveness succeed on `/api/health`, readiness succeeds with dashboard
+   and storage health, and gateway state is inspected separately. Do not test
+   auth-disabled or storage-failure scenarios against the running installation.
 7. Log in and open Chat. Send a small prompt and test a harmless workspace file
    operation. Check WebSocket streaming, selected provider/model, and persistent
    history. Confirm cluster credentials and runtime sockets are absent.
@@ -227,6 +294,15 @@ verification/cache/bin/conftest verify --policy verification/policy
 verification/venv/bin/python scripts/verify.py --all --base main
 git diff --check
 ```
+
+Probe regression tests cover HTTP-200 HTML, malformed/oversized responses,
+authentication drift and component failures. The seeding test checks that
+existing config, instructions and symlinks are preserved. With `promtool` on
+`PATH` or at `verification/cache/bin/promtool`, unit discovery also evaluates
+the Hermes backup alert rules against fresh, stale, never-successful and missing
+schedules, plus backup/recovery Job failures. Without that optional binary the
+alert evaluation test is explicitly skipped; YAML/schema checks do not evaluate
+PromQL. Use a checksum-verified official Prometheus release for `promtool`.
 
 These checks validate declared state, schemas and policy behavior; they do not
 authenticate, deploy, test the container startup, or prove live network isolation.

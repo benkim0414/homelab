@@ -1,0 +1,30 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: openclaw-backup
+  namespace: openclaw
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: openclaw-backup
+  policyTypes: [Ingress, Egress]
+  ingress: []
+  egress:
+    # Permit the Kubernetes Service and its observed K3s API endpoints.
+    # DNAT ordering depends on the CNI; neither public Internet nor DNS is needed.
+    - to:
+        - ipBlock:
+            cidr: 10.43.0.1/32
+      ports:
+        - protocol: TCP
+          port: 443
+    - to:
+        - ipBlock:
+            cidr: 192.168.0.11/32
+        - ipBlock:
+            cidr: 192.168.0.12/32
+        - ipBlock:
+            cidr: 192.168.0.13/32
+      ports:
+        - protocol: TCP
+          port: 6443

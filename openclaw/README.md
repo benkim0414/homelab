@@ -259,14 +259,27 @@ If the grant expires terminally or is revoked, stop active work and repeat the
 dedicated login. Verify GPT-6.1 Sol again. Do not refresh another app's grant or
 fall back to billable API use when quota/authentication fails.
 
-Before upgrading, obtain approval to stop the gateway and take a consistent
-Longhorn backup. Scale to zero, wait for termination and volume detachment, and
-do not ArgoCD-sync while intentionally quiesced. Back up `openclaw-data` through
-the configured Longhorn backup target. Record successful completion, backup ID,
-image digest, and model. Protect the archive as credentials and personal history.
-A snapshot or scheduled job definition is not evidence of a recoverable backup.
-Resume the single replica with approval and repeat acceptance checks. No recurring
-backup schedule is introduced here.
+The `openclaw-backup` CronJob runs daily at 04:00 Australia/Melbourne. It
+acquires a lease, checks the exact PVC, volume health, target, and single ready
+replica, then scales the gateway to zero and waits for pod termination and volume
+detachment. It creates an offline Longhorn snapshot and waits for a completed copy
+to the configured NAS target before resuming the gateway. A five-minute recovery
+watchdog retries resuming after a controller failure. The controller has a
+restricted service account, read-only root filesystem, and egress only to the
+Kubernetes API endpoints. It receives no OpenClaw PVC or OAuth grant.
+
+Retention keeps the seven newest successfully completed copies and only prunes
+backups and snapshots labeled for this source volume and policy. Retention runs
+after a new successful copy. The NAS archive contains OAuth state and personal
+history; protect access to the backup target. Backup success is not proof of
+recoverability: verify the first scheduled copy and test an isolated restore into
+a new volume before relying on this schedule. Record the completed backup ID,
+image digest, and model. Keep the original volume and both state directories until
+a restore has been reviewed.
+
+Before upgrading, stop active work and confirm a recent completed backup. Do not
+ArgoCD-sync while intentionally quiesced. Resume the single replica and repeat
+acceptance checks. The backup CronJob itself does not authorize rollout or restore.
 
 This image's Doctor reports that the Codex plugin has no declared migration
 backup inventory. Its automatic recovery capture cannot establish complete Codex
