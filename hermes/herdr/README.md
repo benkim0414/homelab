@@ -29,9 +29,9 @@ herdr machine add hermes-herdr --label 'Cluster Hermes' --remote-session default
 Open its workspace in Herdr, then run:
 
 ```bash
-hermes-cluster
+hermes
 # To reopen a known conversation after a connection ends:
-hermes-cluster --resume SESSION_ID
+hermes --resume SESSION_ID
 ```
 
 The wrapper discovers exactly one Ready, non-terminating `app=hermes` pod,
@@ -140,7 +140,7 @@ remote `default` session. Its dedicated private key remains only at
 Verified against the live workload:
 
 - Public-key SSH as UID 10000 and headless Herdr 0.9.5 protocol compatibility.
-- Interactive `hermes-cluster` launch into `/opt/data/workspace`, with the existing
+- Interactive `hermes` launch into `/opt/data/workspace`, with the existing
   browser tool available; exited without sending a model prompt.
 - A temporary Herdr terminal process survived separate SSH connections; the test
   tab was then closed. The host key survived two controlled Herdr pod replacements.

@@ -4,7 +4,7 @@ import subprocess
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE = ROOT / "hermes/herdr/hermes-cluster.py"
+SOURCE = ROOT / "hermes/herdr/hermes.py"
 spec = importlib.util.spec_from_file_location("hermes_cluster", SOURCE)
 wrapper = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(wrapper)

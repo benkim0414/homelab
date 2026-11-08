@@ -20,11 +20,11 @@ RUN set -eu; case "$TARGETARCH" in \
     printf '%s  %s\n' "$kubectl_sha" /usr/local/bin/kubectl | sha256sum -c -; \
     chmod 0755 /usr/local/libexec/herdr /usr/local/bin/kubectl
 COPY herdr.sh /usr/local/bin/herdr
-COPY hermes-cluster.py /usr/local/bin/hermes-cluster
+COPY hermes.py /usr/local/bin/hermes
 COPY supervise.py healthcheck.py /usr/local/libexec/
 COPY config.toml /etc/herdr-default.toml
 COPY sshd_config /etc/ssh/sshd_config
-RUN chmod 0755 /usr/local/bin/herdr /usr/local/bin/hermes-cluster
+RUN chmod 0755 /usr/local/bin/herdr /usr/local/bin/hermes
 ENV HOME=/data/home SHELL=/bin/bash LANG=C.UTF-8
 EXPOSE 2222
 ENTRYPOINT ["/usr/bin/tini", "--", "/usr/bin/python3", "-B", "/usr/local/libexec/supervise.py"]
