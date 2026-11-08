@@ -13,6 +13,11 @@ package from PyPI. Obtain network authorization when required by repository rule
 Caches, isolated tool homes, the virtual environment and reports stay under this
 worktree's `verification/` directory and are ignored by Git.
 
+If a GitHub release download returns HTTP 5xx, bootstrap resolves the same release
+tag and asset name through GitHub's unauthenticated official asset API. The normal
+checksum verification still applies. Other HTTP errors and non-GitHub downloads
+do not use this fallback.
+
 ```bash
 python3 verification/bootstrap.py
 verification/venv/bin/python -m unittest discover -s verification/tests -v

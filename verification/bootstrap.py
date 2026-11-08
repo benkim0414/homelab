@@ -10,18 +10,40 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import subprocess
 import sys
 import tarfile
 import urllib.request
+import urllib.error
+import urllib.parse
 
 ROOT = Path(__file__).resolve().parent
 CACHE = ROOT / 'cache'
 
 
 def download(url):
-    with urllib.request.urlopen(url, timeout=90) as response:
-        return response.read()
+    try:
+        with urllib.request.urlopen(url, timeout=90) as response:
+            return response.read()
+    except urllib.error.HTTPError as exc:
+        # Some release-download CDN paths return 5xx while the official asset
+        # API remains available. Preserve the same release/name and checksum.
+        match = re.fullmatch(r'https://github.com/([^/]+)/([^/]+)/releases/download/([^/]+)/([^/]+)', url)
+        if exc.code < 500 or not match:
+            raise
+        owner, repo, tag, asset = match.groups()
+        base = f'https://api.github.com/repos/{owner}/{repo}'
+        with urllib.request.urlopen(f'{base}/releases/tags/{tag}', timeout=90) as response:
+            release = json.load(response)
+        candidates = [a for a in release['assets']
+                      if a['name'] == urllib.parse.unquote(asset)]
+        if len(candidates) != 1 or not isinstance(candidates[0]['id'], int):
+            raise RuntimeError('official release asset missing or ambiguous') from exc
+        request = urllib.request.Request(f"{base}/releases/assets/{candidates[0]['id']}",
+                                         headers={'Accept': 'application/octet-stream'})
+        with urllib.request.urlopen(request, timeout=90) as response:
+            return response.read()
 
 
 def install(name, version):
