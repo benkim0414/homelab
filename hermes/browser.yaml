@@ -1,0 +1,165 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hermes-browser
+  namespace: hermes
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: hermes-browser
+  template:
+    metadata:
+      labels:
+        app: hermes-browser
+      annotations:
+        checksum/server: 591c131088948bdfef2f789f5535f543e4d237d5d6769ee8d065c21171d7d467
+        checksum/seccomp: c530d9dfb73a870d2b38cb907fbc32d3e483f149cb19d4b4b1e6c938732d2b41
+    spec:
+      hostUsers: false
+      automountServiceAccountToken: false
+      nodeSelector:
+        kubernetes.io/hostname: k3s-05
+        kubernetes.io/arch: amd64
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10000
+        runAsGroup: 10000
+        fsGroup: 10000
+        seccompProfile:
+          type: Localhost
+          localhostProfile: hermes/browser-amd64-v1.json
+      containers:
+      - name: browser
+        image: nousresearch/hermes-agent:v0.22.2@sha256:36099926da316742423544e055d4734777105ffe6341873af5459b957d0c2919
+        command:
+        - /opt/hermes/.venv/bin/python
+        - -B
+        - /browser/browser-server.py
+        env:
+        - name: HOME
+          value: /tmp
+        - name: XDG_CACHE_HOME
+          value: /tmp/cache
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        ports:
+        - name: cdp
+          containerPort: 9222
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+            ephemeral-storage: 256Mi
+          limits:
+            cpu: '2'
+            memory: 2Gi
+            ephemeral-storage: 1Gi
+        startupProbe:
+          httpGet:
+            path: /healthz
+            port: cdp
+          periodSeconds: 2
+          failureThreshold: 30
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: cdp
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: cdp
+          periodSeconds: 30
+        volumeMounts:
+        - name: server
+          mountPath: /browser
+          readOnly: true
+        - name: temporary
+          mountPath: /tmp
+        - name: shared-memory
+          mountPath: /dev/shm
+      volumes:
+      - name: server
+        configMap:
+          name: hermes-browser
+      - name: temporary
+        emptyDir:
+          sizeLimit: 768Mi
+      - name: shared-memory
+        emptyDir:
+          medium: Memory
+          sizeLimit: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hermes-browser
+  namespace: hermes
+spec:
+  type: ClusterIP
+  selector:
+    app: hermes-browser
+  ports:
+  - name: cdp
+    port: 9222
+    targetPort: cdp
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: hermes-browser
+  namespace: hermes
+spec:
+  podSelector:
+    matchLabels:
+      app: hermes-browser
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: hermes
+    ports:
+    - protocol: TCP
+      port: 9222
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except:
+        - 0.0.0.0/8
+        - 10.0.0.0/8
+        - 100.64.0.0/10
+        - 127.0.0.0/8
+        - 169.254.0.0/16
+        - 172.16.0.0/12
+        - 192.0.0.0/24
+        - 192.168.0.0/16
+        - 198.18.0.0/15
+        - 224.0.0.0/4
+        - 240.0.0.0/4
+    ports:
+    - protocol: TCP
+      port: 443

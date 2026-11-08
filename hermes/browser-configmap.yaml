@@ -1,0 +1,184 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hermes-browser
+  namespace: hermes
+data:
+  browser-server.py: |
+    """Private CDP bridge for one trusted Hermes operator; no credentials or disk state."""
+    import asyncio
+    from contextlib import suppress
+    import glob
+    import os
+    import shutil
+    import signal
+    import tempfile
+    import time
+
+    from aiohttp import ClientSession, WSMsgType, web
+
+
+    PUBLIC_ROOT = 'http://hermes-browser.hermes.svc.cluster.local:9222'
+    LOCAL_ROOT = 'http://127.0.0.1:9223'
+    IDLE_SECONDS = 600
+
+
+    class Browser:
+        def __init__(self):
+            self.process = None
+            self.profile = None
+            self.ws_url = None
+            self.last_used = time.monotonic()
+            self.lock = asyncio.Lock()
+
+        async def stop(self):
+            if self.process:
+                with suppress(ProcessLookupError):
+                    os.killpg(self.process.pid, signal.SIGTERM)
+                if self.process.returncode is None:
+                    try:
+                        await asyncio.wait_for(self.process.wait(), 10)
+                    except asyncio.TimeoutError:
+                        with suppress(ProcessLookupError):
+                            os.killpg(self.process.pid, signal.SIGKILL)
+                        await self.process.wait()
+            self.process = self.ws_url = None
+            # PID 1 adopts Chromium's orphaned grandchildren. Reap them only after
+            # asyncio has collected the tracked browser process, to avoid wait races.
+            for _ in range(20):
+                try:
+                    while os.waitpid(-1, os.WNOHANG)[0]:
+                        pass
+                except ChildProcessError:
+                    break
+                await asyncio.sleep(.05)
+            if self.profile:
+                shutil.rmtree(self.profile, ignore_errors=True)
+                self.profile = None
+
+        async def start(self, client):
+            if self.process and self.process.returncode is None:
+                return
+            await self.stop()
+            candidates = sorted(glob.glob('/opt/hermes/tools/chromium-*/**/chrome', recursive=True))
+            if len(candidates) != 1:
+                raise RuntimeError('Expected exactly one packaged Chromium executable')
+            self.profile = tempfile.mkdtemp(prefix='chromium-', dir='/tmp')
+            self.process = await asyncio.create_subprocess_exec(
+                candidates[0], '--headless', '--no-first-run', '--no-default-browser-check',
+                '--remote-debugging-address=127.0.0.1', '--remote-debugging-port=9223',
+                '--user-data-dir=' + self.profile, 'about:blank', start_new_session=True,
+                stdout=asyncio.subprocess.DEVNULL,
+            )
+            for _ in range(100):
+                if self.process.returncode is not None:
+                    break
+                try:
+                    async with client.get(LOCAL_ROOT + '/json/version', timeout=1) as response:
+                        response.raise_for_status()
+                        self.ws_url = (await response.json())['webSocketDebuggerUrl']
+                        self.last_used = time.monotonic()
+                        return
+                except (OSError, asyncio.TimeoutError):
+                    await asyncio.sleep(.1)
+            await self.stop()
+            raise RuntimeError('Sandboxed Chromium did not become ready')
+
+
+    async def lifecycle(app):
+        browser = app['browser'] = Browser()
+        async with ClientSession(trust_env=False) as client:
+            app['client'] = client
+            async with browser.lock:
+                await browser.start(client)
+
+            async def expire():
+                while True:
+                    await asyncio.sleep(10)
+                    async with browser.lock:
+                        if time.monotonic() - browser.last_used > IDLE_SECONDS:
+                            await browser.stop()
+
+            reaper = asyncio.create_task(expire())
+            try:
+                yield
+            finally:
+                reaper.cancel()
+                with suppress(asyncio.CancelledError):
+                    await reaper
+                await browser.stop()
+
+
+    async def health(request):
+        # An idle, stopped browser is healthy; the next discovery launches a fresh profile.
+        browser = request.app['browser']
+        if browser.process and browser.process.returncode is not None:
+            raise web.HTTPServiceUnavailable()
+        return web.Response(text='ok')
+
+
+    async def version(request):
+        browser, client = request.app['browser'], request.app['client']
+        async with browser.lock:
+            await browser.start(client)
+            browser.last_used = time.monotonic()
+            async with client.get(LOCAL_ROOT + '/json/version', timeout=5) as response:
+                payload = await response.json()
+        payload['webSocketDebuggerUrl'] = PUBLIC_ROOT.replace('http:', 'ws:') + '/devtools/browser'
+        return web.json_response(payload)
+
+
+    async def websocket(request):
+        browser, client = request.app['browser'], request.app['client']
+        async with browser.lock:
+            await browser.start(client)
+            browser.last_used = time.monotonic()
+            upstream_url = browser.ws_url
+        # Only the fixed local browser endpoint can be reached through this bridge.
+        async with client.ws_connect(upstream_url, max_msg_size=16 * 1024 * 1024) as upstream:
+            downstream = web.WebSocketResponse(max_msg_size=16 * 1024 * 1024)
+            await downstream.prepare(request)
+
+            async def forward(source, destination):
+                async for message in source:
+                    if message.type == WSMsgType.TEXT:
+                        # Browser-generated background events must not extend the idle lease.
+                        if source is downstream:
+                            browser.last_used = time.monotonic()
+                        await destination.send_str(message.data)
+                    elif message.type == WSMsgType.BINARY:
+                        await destination.send_bytes(message.data)
+                await destination.close()
+
+            tasks = [asyncio.create_task(forward(downstream, upstream)),
+                     asyncio.create_task(forward(upstream, downstream))]
+            try:
+                await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+            finally:
+                for task in tasks:
+                    task.cancel()
+                await asyncio.gather(*tasks, return_exceptions=True)
+            return downstream
+
+
+    @web.middleware
+    async def reject_browser_origins(request, handler):
+        # Websites can reach their own pod's loopback regardless of NetworkPolicy.
+        # Browser WebSockets send Origin; Hermes's server-to-server CDP clients do not.
+        if 'Origin' in request.headers:
+            raise web.HTTPForbidden(text='Browser-origin requests are not permitted')
+        return await handler(request)
+
+
+    def make_app():
+        app = web.Application(middlewares=[reject_browser_origins])
+        app.cleanup_ctx.append(lifecycle)
+        app.router.add_get('/healthz', health)
+        app.router.add_get('/json/version', version)
+        app.router.add_get('/devtools/browser', websocket)
+        return app
+
+
+    if __name__ == '__main__':
+        os.umask(0o077)
+        web.run_app(make_app(), host='0.0.0.0', port=9222, access_log=None, shutdown_timeout=10)

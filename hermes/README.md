@@ -99,7 +99,7 @@ version is needed to keep the first dashboard visit from asking again despite
 metrics already being disabled.
 
 The initial CLI/browser-chat toolsets cover local commands, files, skills, memory,
-session search and task lists, plus the `hindsight_reserve` MCP tools described
+session search, task lists and headless browsing, plus the `hindsight_reserve` MCP tools described
 below. Optional paid web/image/voice tools and lazy dependency installation are
 not configured. The main provider and configured auxiliary tasks use Codex OAuth,
 with no fallback chain. Leave the
@@ -108,6 +108,196 @@ selection. Background reviews and session summaries can consume additional quota
 Hermes documents the subscription integration, but not exact eligible tiers or
 quota accounting; verify entitlement with a small request. There is no promise
 of unlimited usage.
+
+### Native browser in an isolated pod
+
+Hermes uses its native `browser_exec` interface (`browser.backend: browser-use`)
+with a private CDP connection to `hermes-browser.hermes.svc.cluster.local:9222`.
+`browser.cloud_provider: local` prevents cloud autodetection; no browser API key,
+desktop or extra MCP server is required. The browser workload reuses Chromium
+from the same digest-pinned Hermes image, but overrides its root/s6 entrypoint
+and runs only the browser bridge as UID/GID 10000. The local `agent-browser`
+helper is not needed with this CDP override.
+
+The browser pod runs on `k3s-05` with `hostUsers: false`, all capabilities
+dropped, no privilege escalation, a read-only root filesystem and the
+`Localhost` seccomp profile `hermes/browser-amd64-v1.json`. No Chromium sandbox
+disable flags are used. The pod mounts no PVC, credentials, host files or service
+account token. `/tmp` and `/dev/shm` are bounded emptyDir volumes; browser memory
+is limited to 2 GiB independently of Hermes. The native tools still execute
+model-written Python in Hermes's existing environment; separating Chromium does
+not isolate Hermes's Python or terminal tools.
+
+`browser.yaml` exposes only a ClusterIP service. Ingress permits the Hermes pod
+on TCP 9222; egress permits CoreDNS and public IPv4 HTTPS, excluding private,
+link-local and other reserved ranges. No Ingress resource, Tailscale exposure,
+HTTP egress or Hindsight exception is added. Kubernetes NetworkPolicy is not
+an absolute host boundary: traffic to the hosting node and loopback can be
+exceptions, and permitted DNS traffic remains possible. Validate policies with
+the installed CNI; do not treat `security.allow_private_urls` as a firewall.
+
+The bridge exposes only CDP discovery, WebSocket forwarding and a local health
+endpoint. Chromium listens on loopback port 9223; the bridge rewrites discovery
+to the private service address, without trusting the request Host header.
+Requests carrying an Origin header
+are rejected, including browser WebSocket attempts from webpages that can reach
+the pod’s loopback. This protects the bridge in addition to its NetworkPolicy.
+Profiles are temporary. After 600 seconds without client CDP messages, the bridge
+terminates Chromium and deletes its profile. Browser-generated events and health
+probes do not renew the lease. Active use can retain cookies for longer; no
+absolute session lifetime is enforced. Do not import personal profiles or logins.
+The fixed CDP endpoint represents **one shared browser for one trusted operator**:
+named Hermes sessions do not establish independent browser profiles here. Serialize
+unrelated or sensitive tasks and explicitly close/reset the browser between them;
+do not use this deployment as a multi-user or concurrent tenant service.
+
+#### Node prerequisite and rollout
+
+Install the profile before creating the browser pod. From a task worktree, with
+node-change and SSH authorization plus a verified guest host key:
+
+```bash
+ANSIBLE_LOCAL_TEMP="$PWD/verification/cache/ansible-tmp" \
+ANSIBLE_SSH_ARGS='-C -o ControlMaster=no' \
+ansible-playbook -i k3s-ansible/inventory.yml k3s-ansible/browser-seccomp.yml \
+  --limit 192.168.0.22
+```
+
+The playbook installs only `/var/lib/kubelet/seccomp/hermes/browser-amd64-v1.json`
+with root ownership and mode 0644. It does not restart K3s, change runtime defaults,
+or affect other pods. Rebuilt or replacement nodes need this prerequisite again;
+a missing profile fails container creation. See the
+[profile provenance](../k3s-ansible/files/README.md). Review profile compatibility
+when updating the image, kernel or runtime. Image digest pinning ensures
+reproducibility, not security freshness: maintain browser security updates with
+the upstream Hermes release and recheck renderer sandboxing after upgrades.
+
+`browser-configmap.yaml` embeds `browser-server.py`; keep the two identical.
+Regenerate the ConfigMap from the source with the verifier's PyYAML environment:
+
+```bash
+verification/venv/bin/python hermes/render-browser.py
+```
+
+The Hermes Application includes `browser*.yaml` and keeps manual sync. Rollout
+must install the browser NetworkPolicy before its Deployment; apply the ConfigMap
+and service, then verify the browser before adding Hermes's egress rule and CDP
+setting. The generator updates pod-template checksums for script/profile changes;
+a Deployment apply recreates the browser pod to load them.
+Do not sync unrelated Hermes resources or enable pruning during this rollout.
+
+The bootstrap ConfigMap seeds only absent files. For an existing installation,
+preserve `/opt/data/config.yaml` in an owner-only backup, then update only the
+CLI browser toolset and the browser fields shown in `configmap.yaml`, preserving
+all model, MCP, credential and security settings. Retain UID/GID 10000 ownership
+and mode 0600. Start a new chat; restart Hermes only if configuration reload needs
+it. Never replace the live configuration with the bootstrap seed.
+
+Bridge regression checks run locally for the generated manifests and inside the
+browser image for aiohttp behavior. With authorized live pod-exec access:
+
+```bash
+kubectl -n hermes exec -i deployment/hermes-browser -- \
+  env HERMES_BROWSER_SOURCE=/browser/browser-server.py \
+  /opt/hermes/.venv/bin/python -B -c \
+  '__file__="/tmp/verification/tests/test_hermes_browser.py"; import sys; exec(compile(sys.stdin.read(), __file__, "exec"))' \
+  < verification/tests/test_hermes_browser.py
+```
+
+Acceptance requires a native-tool public HTTPS navigation and reading test,
+a harmless interaction, active renderer namespace/seccomp inspection, network
+restriction tests, and idle-profile cleanup. No model request is needed for these
+checks. To roll back, first remove only the CDP setting and browser toolset changes
+from live config using the protected backup as a field-level reference, then
+remove the new browser workload/service/policy and Hermes egress rule. Removing
+the CDP setting alone restores the blocked in-pod launch path. Stop browser pods
+before removing their node profile. Preserve subsequent unrelated config edits.
+
+References: [Hermes v0.22.2 browser guide](https://github.com/NousResearch/hermes-agent/blob/v0.22.2/website/docs/user-guide/features/browser.md),
+[Playwright sandbox guidance](https://playwright.dev/docs/docker),
+[Kubernetes user namespaces](https://kubernetes.io/docs/concepts/workloads/pods/user-namespaces/),
+[Kubernetes seccomp](https://kubernetes.io/docs/reference/node/seccomp/).
+
+#### Activation investigation — 8 November 2026
+
+The live PVC config was backed up as
+`/opt/data/config.before-browser-20261108T053010Z.yaml`, then updated with the
+browser toolset and the original four local-browser fields (backend, cloud
+provider, headed mode and real-profile selection). Config and backup retain UID/GID 10000
+ownership and mode 0600. `hermes pm install agent-browser` installed the
+release-pinned 0.26.0 ARM64 helper under `/opt/data/tools`, without enabling lazy
+installs or changing the image. Existing model, MCP and security settings were
+preserved. No ArgoCD sync, pod restart or GitHub publication was performed.
+
+Native `browser_exec` was exercised directly as UID 10000 without a model
+request. Chromium failed with **No usable sandbox**; `unshare -Ur true` also
+failed with **Operation not permitted** under the pod's RuntimeDefault seccomp
+profile. At this stage browsing was **not accepted as operational**. No sandbox bypass
+or privilege increase was applied. The operator selected investigation of a
+separate browser workload that keeps Chromium sandboxing. The failed test's
+agent-browser daemon was closed explicitly.
+
+Local checks passed for all 18 Applications and 451 resources; 13 Hermes tests
+passed and the Prometheus alert test was skipped because `promtool` was absent.
+These checks do not establish live browser functionality.
+
+The approved disposable probe on `k3s-05` used `hostUsers: false`, UID/GID 10000,
+all capabilities dropped, `allowPrivilegeEscalation: false`, a read-only root
+filesystem and an Unconfined outer seccomp profile. Its NetworkPolicy denied
+all ingress and egress, and it mounted no credentials or persistent volumes.
+Unprivileged user-namespace creation succeeded. Chromium started without
+`--no-sandbox`: renderer processes had zero effective capabilities,
+`NoNewPrivs: 1`, `Seccomp: 2`, one seccomp filter, and nested PID/user namespaces.
+This verifies renderer sandboxing in that isolated pod configuration, not
+end-to-end browsing. The internal `chrome://sandbox` DOM dump did not complete
+before cleanup, so no page-render acceptance is claimed. The probe pod and its
+NetworkPolicy were deleted after inspection; the original Hermes pod and node
+settings were unchanged. No permanent browser workload had been deployed at
+this investigation stage.
+
+#### Separate browser rollout — 8 November 2026
+
+The operator approved the tailored-profile approach. The `k3s-05` guest's SSH
+host key was verified against its console fingerprint using a task-local known
+hosts file. The scoped Ansible playbook installed the profile; a repeat run
+reported zero changes. No node restart, runtime-default change or added pod
+capability was required. The capability-free adaptation needed an explicit
+`chroot` syscall rule for Chromium's nested user-namespace sandbox.
+
+The browser NetworkPolicy was applied before its ConfigMap, service and
+Deployment. Hermes's policy gained only the browser TCP 9222 exception. The live
+config was backed up privately as
+`/opt/data/config.before-browser-cdp-20261108T075927Z.yaml`, then its browser
+fields were updated without replacing other configuration. Ownership remains
+10000:10000, mode 0600. The bootstrap ConfigMap was updated for future installs.
+No Hermes restart, ArgoCD sync, GitHub publication or main-branch merge occurred.
+The Application include change and browser declarations remain on the task branch;
+main must receive them through review before ArgoCD can manage the new resources.
+
+Live acceptance passed:
+
+- Native `browser_exec` under UID 10000 navigated to a public HTTPS page, read it,
+  populated an in-page test input and clicked an in-page test button. No model
+  requests or paid browser service were used.
+- Chromium renderers showed nested PID namespaces, zero effective capabilities,
+  `NoNewPrivs: 1`, `Seccomp: 2`, and two filters (outer profile plus Chromium).
+- Browser public HTTPS succeeded; public HTTP, Kubernetes API, Hermes dashboard
+  and Hindsight TCP checks failed as expected. Hermes retained its Hindsight
+  connection. An unrelated temporary pod reached public IPv4 HTTPS while its
+  browser-service connection was blocked; temporary probe pods were removed.
+- The real 600-second idle period removed the profile. Inspection revealed adopted
+  zombie processes; the bridge was corrected to reap children after awaiting the
+  browser. A separate real Chromium start/stop test then removed its profile and
+  left no live or unreaped children. The bridge's idle-reaper, shutdown ordering,
+  discovery rewrite, browser-Origin rejection and health-lease tests passed in
+  the deployed image. A fresh profile had no earlier test cookie.
+
+Local verification passed for 18 Applications and 455 resources. Hermes's local
+suite passes with the alert-evaluation test skipped without `promtool`; aiohttp
+bridge cases run separately inside the deployed image because the pinned local
+verifier environment has no aiohttp dependency. The source/ConfigMap and both
+rollout-checksum checks run locally. These results cover the single-operator
+configuration, not concurrent-user isolation or every destination/CNI exception.
 
 ### Shared Hindsight reserve bank
 

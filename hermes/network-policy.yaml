@@ -22,6 +22,13 @@ spec:
         - protocol: TCP
           port: 9119
   egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: hermes-browser
+      ports:
+        - protocol: TCP
+          port: 9222
     # Bank selection and bearer authentication remain in the MCP client config.
     - to:
         - namespaceSelector:

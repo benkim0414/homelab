@@ -1,0 +1,38 @@
+---
+# Installs one workload-specific profile; no K3s restart or global default change.
+- name: Install the Hermes browser seccomp profile
+  hosts: agent
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Require the reviewed amd64 browser node
+      ansible.builtin.assert:
+        that: inventory_hostname == '192.168.0.22'
+        fail_msg: Run this playbook with --limit 192.168.0.22
+
+    - name: Check the K3s kubelet directory
+      ansible.builtin.stat:
+        path: /var/lib/kubelet
+      register: browser_kubelet
+
+    - name: Require the expected kubelet root
+      ansible.builtin.assert:
+        that: browser_kubelet.stat.isdir | default(false)
+        fail_msg: Verify the live kubelet root before installing a Localhost profile
+
+    - name: Create the workload profile directory
+      ansible.builtin.file:
+        path: /var/lib/kubelet/seccomp/hermes
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Install the reviewed browser profile
+      ansible.builtin.copy:
+        src: files/hermes-browser-amd64.json
+        dest: /var/lib/kubelet/seccomp/hermes/browser-amd64-v1.json
+        owner: root
+        group: root
+        mode: '0644'
+        backup: true

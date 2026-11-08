@@ -379,3 +379,13 @@ The approved host DNS override uses 1.1.1.1 with the default DNS routing domain
 scripts default to the same resolver for future runs. The existing Proxmox
 cloud-init DNS metadata still contains .1; the guest override takes precedence.
 A direct containerd pull of tailscale/tailscale:v1.104.1 succeeded afterward.
+
+## Hermes browser seccomp prerequisite
+
+The isolated Hermes browser uses a workload-specific Localhost profile on
+`k3s-05`. [browser-seccomp.yml](browser-seccomp.yml) installs it without
+restarting K3s or changing other workloads. Read the
+[profile provenance](files/README.md) and
+[Hermes rollout procedure](../hermes/README.md#node-prerequisite-and-rollout)
+before an approved install or node rebuild. Do not run the general preparation
+or cluster-join playbooks to update this profile.
