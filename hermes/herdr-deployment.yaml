@@ -27,15 +27,15 @@ spec:
           type: RuntimeDefault
       containers:
         - name: herdr
-          # Replaced with the tested published digest before rollout.
-          image: ghcr.io/benkim0414/hermes-herdr:pending
+          # Source 01ddddae0b8679cd9cba2fc65193a3c0f2e2c46c; SSH/restart smoke tested.
+          image: ghcr.io/benkim0414/hermes-herdr@sha256:2af4c7ef0257eff25be35df357802f67532767a223e7ef1fc0d499021518e424
           securityContext:
             runAsUser: 0
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
             capabilities:
               drop: [ALL]
-              add: [CHOWN, DAC_OVERRIDE, FOWNER, KILL, SETGID, SETUID, SYS_CHROOT]
+              add: [AUDIT_WRITE, CHOWN, DAC_OVERRIDE, FOWNER, KILL, SETGID, SETUID, SYS_CHROOT]
           workingDir: /data
           ports:
             - name: ssh
@@ -74,7 +74,12 @@ spec:
             - name: tmp
               mountPath: /tmp
             - name: access
-              mountPath: /etc/herdr-access
+              mountPath: /etc/herdr-access/authorized_keys
+              subPath: authorized_keys
+              readOnly: true
+            - name: access
+              mountPath: /etc/herdr-access/kubeconfig
+              subPath: kubeconfig
               readOnly: true
       volumes:
         - name: data

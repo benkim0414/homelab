@@ -14,6 +14,10 @@ operator credentials are reused without modification. The server accepts only
 the dedicated workstation public key declared in `../herdr-access.yaml`, as user
 `herdr`. Password/root login and forwarding are disabled. Tailnet policy should
 also limit access to this workstation; SSH key authentication remains mandatory.
+The two access ConfigMap files use `subPath` mounts so OpenSSH sees a root-owned,
+non-writable parent directory; a full ConfigMap directory mount has modes that
+fail StrictModes. ConfigMap changes therefore require a controlled Herdr restart
+to take effect, including public-key revocation. Hermes needs no restart.
 
 After verifying the host fingerprint through Kubernetes and configuring a strict
 SSH alias named `hermes-herdr`, register the existing remote server:
@@ -66,7 +70,8 @@ Internet or direct Hermes/browser egress. Kubernetes exec travels via the API.
 Kubernetes NetworkPolicy does not promise host or loopback isolation.
 
 One supervised container runs the SSH daemon and Herdr server. Bootstrap and SSH
-privilege separation use a bounded capability set; Herdr, shells, and kubectl
+privilege separation use a bounded capability set, including `AUDIT_WRITE` for
+OpenSSH terminal-login audit records; Herdr, shells, and kubectl
 run as UID/GID 10000. The root filesystem is read-only, privilege escalation is
 disabled, and seccomp is RuntimeDefault. The pod has no host mounts or runtime
 socket. The projected namespace-scoped service-account token is intentionally
@@ -121,3 +126,38 @@ conversation recovery uses Hermes's own persistent sessions.
 References: [Herdr remote access](https://herdr.dev/tui/docs/persistence-remote/),
 [agent wrappers](https://herdr.dev/tui/docs/agents/#vms-and-sandbox-wrappers),
 [Tailscale TCP Service exposure](https://tailscale.com/docs/kubernetes-operator/ingress).
+
+## Initial rollout record (2026-11-08)
+
+The dedicated workload is deployed and reachable from this workstation. The
+saved Herdr machine is **Cluster Hermes**, using SSH alias `hermes-herdr` and the
+remote `default` session. Its dedicated private key remains only at
+`~/.ssh/id_ed25519_herdr`. The independently verified server fingerprint is
+`SHA256:Twm8nmzlGJ/bptn4JUBpk0xa3OHDmg6/aQM7Ysi5qgM`, pinned in
+`~/.ssh/herdr_known_hosts`. The SSH alias was appended through the existing
+`~/.ssh/config` symlink into the workstation's dotfiles checkout.
+
+Verified against the live workload:
+
+- Public-key SSH as UID 10000 and headless Herdr 0.9.5 protocol compatibility.
+- Interactive `hermes-cluster` launch into `/opt/data/workspace`, with the existing
+  browser tool available; exited without sending a model prompt.
+- A temporary Herdr terminal process survived separate SSH connections; the test
+  tab was then closed. The host key survived two controlled Herdr pod replacements.
+- The actual Herdr service account can exec in `hermes`, but cannot read Secrets
+  or list pods in `default`. API access succeeds; public TCP egress and SSH ingress
+  from the existing Hermes pod are rejected.
+- Hermes and browser pods retained their original identities and zero restarts.
+
+The image build and initial SSH/restart smoke test passed in
+[Actions run 42468202041](https://github.com/benkim0414/homelab/actions/runs/42468202041).
+Interactive SSH additionally requires `AUDIT_WRITE`; the smoke test now checks
+PTY login as well. Access files must use the declared individual ConfigMap mounts
+for strict host-directory permissions. Neither fix changes the image contents.
+The independent CI verification job encountered an upstream Helm download error;
+local full rendering uses the pinned cached dependencies. This is not evidence
+of a passing clean-cache CI run.
+
+The live resources await adoption from remote `main`; manual sync remains in
+place. The new PVC has no configured archive yet. Process continuity across an
+SSH disconnect was checked; running terminals do not survive pod replacement.

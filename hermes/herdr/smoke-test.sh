@@ -29,7 +29,7 @@ docker run --rm --entrypoint /bin/sh \
   -v "$access_volume:/access" -v "$test_dir/authorized_keys:/incoming:ro" \
   "$image" -c 'cp /incoming /access/authorized_keys; chmod 0644 /access/authorized_keys'
 docker run -d --name "$container_name" --read-only --cap-drop ALL \
-  --cap-add CHOWN --cap-add DAC_OVERRIDE --cap-add FOWNER --cap-add KILL \
+  --cap-add AUDIT_WRITE --cap-add CHOWN --cap-add DAC_OVERRIDE --cap-add FOWNER --cap-add KILL \
   --cap-add SETGID --cap-add SETUID --cap-add SYS_CHROOT \
   --security-opt no-new-privileges:true \
   --tmpfs /run --tmpfs /tmp \
@@ -54,6 +54,7 @@ ssh_options=(-p "$port" -i "$test_dir/client" -o IdentitiesOnly=yes \
   -o BatchMode=yes -o StrictHostKeyChecking=yes -o UpdateHostKeys=no \
   -o "UserKnownHostsFile=$test_dir/known_hosts")
 test "$(ssh "${ssh_options[@]}" herdr@127.0.0.1 id -u)" = 10000
+test "$(ssh -tt "${ssh_options[@]}" herdr@127.0.0.1 id -u 2>/dev/null | tr -d '\r')" = 10000
 ssh "${ssh_options[@]}" herdr@127.0.0.1 herdr status server
 # Closing the SSH connection must not stop the supervised Herdr server.
 ssh "${ssh_options[@]}" herdr@127.0.0.1 herdr status server
