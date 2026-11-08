@@ -172,7 +172,10 @@ The launcher is now `/usr/local/bin/hermes` in the Herdr image, with source at
 The renamed image passed wrapper tests, SSH command discovery, PTY login, server
 persistence and host-key restart checks in
 [Actions run 42475352946](https://github.com/benkim0414/homelab/actions/runs/42475352946).
-The Deployment pins this image. The user chose to defer rollout to preserve the
-running remote Hermes CLI; replacing Herdr disconnects that terminal. Until a
-separately authorized replacement, the live command remains `hermes-cluster`.
+The Deployment pins this image. After initially deferring to preserve a running
+terminal, the user authorized rollout. Herdr pod `herdr-68dc48cbcc-grdgv` is Ready
+with the renamed launcher at `/usr/local/bin/hermes`. Strict SSH verification,
+`hermes --help`, and headless-server compatibility passed after replacement; the
+existing host key and data volume were retained. Reconnect to **Cluster Hermes**
+and run `hermes`, or `hermes --resume SESSION_ID` for an existing conversation.
 The complete CI verification run also passed, including all Application renders.
