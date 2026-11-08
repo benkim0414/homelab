@@ -164,3 +164,15 @@ evidence of a passing clean-cache CI run.
 The live resources await adoption from remote `main`; manual sync remains in
 place. The new PVC has no configured archive yet. Process continuity across an
 SSH disconnect was checked; running terminals do not survive pod replacement.
+
+## Launcher rename (2026-11-08)
+
+The launcher is now `/usr/local/bin/hermes` in the Herdr image, with source at
+`hermes.py`. Its destination remains the existing Hermes CLI in the Hermes pod.
+The renamed image passed wrapper tests, SSH command discovery, PTY login, server
+persistence and host-key restart checks in
+[Actions run 42475352946](https://github.com/benkim0414/homelab/actions/runs/42475352946).
+The Deployment pins this image. The user chose to defer rollout to preserve the
+running remote Hermes CLI; replacing Herdr disconnects that terminal. Until a
+separately authorized replacement, the live command remains `hermes-cluster`.
+The complete CI verification run also passed, including all Application renders.

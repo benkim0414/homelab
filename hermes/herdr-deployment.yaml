@@ -27,8 +27,8 @@ spec:
           type: RuntimeDefault
       containers:
         - name: herdr
-          # Source 01ddddae0b8679cd9cba2fc65193a3c0f2e2c46c; SSH/restart smoke tested.
-          image: ghcr.io/benkim0414/hermes-herdr@sha256:2af4c7ef0257eff25be35df357802f67532767a223e7ef1fc0d499021518e424
+          # Source 9fc1855da5d44f0cdd7f791f4c14db0e529fcf97; SSH/restart smoke tested.
+          image: ghcr.io/benkim0414/hermes-herdr@sha256:28ecbe0df6e6a6124cc6c35cfce3f70d2b38085e56ebdb75fb0af0909b3ec265
           securityContext:
             runAsUser: 0
             allowPrivilegeEscalation: false
