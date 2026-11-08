@@ -1,5 +1,9 @@
 # Hermes Agent
 
+Persistent terminal access through a separate Herdr pod is described in
+[the Herdr runbook](herdr/README.md). It uses Kubernetes exec and does not require
+rebuilding the official Hermes image.
+
 One personal Hermes agent with browser chat over Tailscale HTTPS. The ArgoCD
 Application tracks `main`, uses manual sync, and has no cascading-delete finalizer.
 This directory declares the deployment; it is not evidence of a live rollout.

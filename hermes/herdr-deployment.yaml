@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: herdr
+  namespace: hermes
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: herdr
+  template:
+    metadata:
+      labels:
+        app: herdr
+    spec:
+      serviceAccountName: herdr
+      automountServiceAccountToken: true
+      terminationGracePeriodSeconds: 30
+      nodeSelector:
+        kubernetes.io/arch: amd64
+      securityContext:
+        fsGroup: 10000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: herdr
+          # Replaced with the tested published digest before rollout.
+          image: ghcr.io/benkim0414/hermes-herdr:pending
+          securityContext:
+            runAsUser: 0
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+              add: [CHOWN, DAC_OVERRIDE, FOWNER, KILL, SETGID, SETUID, SYS_CHROOT]
+          workingDir: /data
+          ports:
+            - name: ssh
+              containerPort: 2222
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+              ephemeral-storage: 128Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+              ephemeral-storage: 512Mi
+          startupProbe:
+            exec:
+              command: [python3, -B, /usr/local/libexec/healthcheck.py]
+            periodSeconds: 5
+            timeoutSeconds: 8
+            failureThreshold: 24
+          readinessProbe:
+            exec:
+              command: [python3, -B, /usr/local/libexec/healthcheck.py]
+            periodSeconds: 10
+            timeoutSeconds: 8
+          livenessProbe:
+            exec:
+              command: [python3, -B, /usr/local/libexec/healthcheck.py]
+            periodSeconds: 30
+            timeoutSeconds: 8
+            failureThreshold: 3
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: run
+              mountPath: /run
+            - name: tmp
+              mountPath: /tmp
+            - name: access
+              mountPath: /etc/herdr-access
+              readOnly: true
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: herdr-data
+        - name: run
+          emptyDir:
+            sizeLimit: 64Mi
+        - name: tmp
+          emptyDir:
+            sizeLimit: 128Mi
+        - name: access
+          configMap:
+            name: herdr-access
+            defaultMode: 0444

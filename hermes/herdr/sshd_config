@@ -1,0 +1,24 @@
+Port 2222
+ListenAddress 0.0.0.0
+HostKey /data/ssh/ssh_host_ed25519_key
+PidFile /run/sshd.pid
+AuthorizedKeysFile /etc/herdr-access/authorized_keys
+AllowUsers herdr
+PermitRootLogin no
+PubkeyAuthentication yes
+AuthenticationMethods publickey
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitEmptyPasswords no
+UsePAM no
+DisableForwarding yes
+PermitTunnel no
+PermitUserEnvironment no
+X11Forwarding no
+StrictModes yes
+LoginGraceTime 30
+MaxAuthTries 3
+MaxStartups 3:30:10
+PrintMotd no
+LogLevel VERBOSE
+Subsystem sftp internal-sftp

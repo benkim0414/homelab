@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: herdr-access
+  namespace: hermes
+data:
+  authorized_keys: |
+    no-agent-forwarding,no-port-forwarding,no-X11-forwarding ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKTfNXGAKCyd8Y/004uY0JfkpmIZHbxKaYCq84Wkptlr herdr-workstation
+  kubeconfig: |
+    apiVersion: v1
+    kind: Config
+    clusters:
+      - name: cluster
+        cluster:
+          server: https://10.43.0.1:443
+          certificate-authority: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    users:
+      - name: herdr
+        user:
+          tokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+    contexts:
+      - name: herdr
+        context:
+          cluster: cluster
+          user: herdr
+          namespace: hermes
+    current-context: herdr
