@@ -21,8 +21,8 @@ historical rollout notes as live status.
   introducing automated sync or pruning requires explicit rollout review.
 - Adoption must preserve Helm release identity, chart versions, external Secrets,
   and data volumes. Keep `helm.releaseName: tailscale-operator` for Tailscale.
-  Review a complete generated-to-live diff before proposing a sync; matching
-  chart versions alone does not guarantee a rollout-free adoption.
+  Review a complete generated-to-live diff before a sync; matching chart versions
+  alone does not guarantee a rollout-free adoption.
 
 ## Review and verification
 
@@ -33,7 +33,7 @@ historical rollout notes as live status.
   see `apps/monitoring.yaml`. Do not hide unrelated drift or export secret values.
 - Read [monitoring instructions](../monitoring/AGENTS.md) for monitoring changes.
 - Check every `$repo` value path, raw manifest glob, chart pin, and AppProject.
-  Render locally when possible; remote chart retrieval needs network approval.
+  Render locally when possible; retrieve the declared chart versions as needed.
 
 ## Code Review Rules
 

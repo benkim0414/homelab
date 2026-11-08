@@ -1,53 +1,53 @@
 # Homelab GitOps
 
-Canonical shared instructions for coding agents. `CLAUDE.md` adds Claude-specific
-integration details. This repository declares a K3s homelab through GitOps.
+This repository declares a K3s homelab through GitOps. These are the shared
+project instructions; `CLAUDE.md` adds Claude-specific integration details.
+Inherit global working agreements except for the explicit permissions below.
 
-## Working boundaries
+## Repository permissions
 
-- Keep changes focused and preserve unrelated user work.
-- Ask directly before merges (including local merges to main), branch deletion,
-  destructive commands or issue/PR actions, force pushes or history rewrites,
-  credential access, repository administration, settings or secrets changes,
-  non-GitHub network access, GitHub API access through arbitrary runtimes or shell
-  scripts, or writes outside configured workspace roots.
-- Use narrow, operation-specific permission prefixes; never persist broad shell
-  or runtime prefixes. Request git network approval per command unless permissions
-  enforce the GitHub remote, active worktree, and non-destructive operation.
-- Runbook commands describe procedures; their presence does not authorize execution.
+These permissions override global approval requirements for task-related network
+access, configured authentication, read-only GitHub API calls, and reversible live
+service changes in this homelab. Judge the actual effects, not the tool name or
+whether an operation can theoretically be undone.
 
-## Git workflow
+- Proceed without conversational approval for non-destructive MCP operations,
+  including inspection, logs, metrics, diagnostics, and reversible live changes.
+  Examples include workload restarts, reviewed ArgoCD syncs without pruning, and
+  Grafana dashboard edits. Check prerequisites, disruption, data effects, and a
+  practical recovery path first; ask if destructive or materially disruptive
+  effects cannot be ruled out.
+- Use shell scripts, development tools, `kubectl`, cloud CLIs, SSH, and `gh` for
+  task-related non-destructive work. Inspect scripts and hooks before execution;
+  their effects must fit these permissions. Download documentation, dependencies,
+  and pinned tools/charts, and connect to relevant configured services as needed.
+- Use already-configured MCP and CLI authentication, including SSH keys and cloud
+  credential providers, through the tools' normal authentication mechanisms.
+  Reading, extracting, displaying, copying, refreshing, or rotating secret values
+  and changing authentication still require explicit authorization.
+- Read-only GitHub API calls are allowed through `gh api` or scripts for this
+  repository; check HTTP methods and GraphQL operations for side effects. Other
+  GitHub writes, reviews, merges, publishing, and Git fetch/push operations retain
+  their global approval boundaries.
+- These permissions do not authorize destructive operations, security changes,
+  disabling safeguards, or unrelated work. Other global boundaries still apply.
+  A runbook command is procedural guidance, not additional authorization.
+- Sandbox and tool approval enforcement still applies, including disabled MCP
+  tools. An instruction-file permission cannot remove an enforced prompt.
 
-- Work on feature branches; ArgoCD repository sources track `main`.
-- For concurrent work, use isolated worktrees within configured workspace roots.
-  Request approval before removing worktrees or deleting branches.
-- Commit, merge, push, and deployment are separate actions; do not infer
-  authorization for one from another.
+## Commit conventions
 
-### Atomic and conventional commits
-
-- Follow [Conventional Commits 1.0.0](https://github.com/conventional-commits/conventionalcommits.org/blob/master/content/v1.0.0/index.md):
-  use `type: description` or `type(scope): description`. Types: `feat` for new behavior, `fix` for
-  corrections, `docs` for documentation, `chore` for maintenance, `refactor` for
-  restructuring without behavior changes, and `test` for tests.
-- Scope is optional. Include it only when the change has a specific app, component
-  or target. For repository-wide or cross-component work without a single clear
-  target, omit the scope; do not invent catch-all scopes such as `homelab`, `repo`
-  or `general`. Example: `docs: consolidate recovery records and remove stale plans`.
-- When a scope applies, use the affected app or component, following recent history: `argocd`,
-  `immich`, `k3s-ansible`, `alloy`, `codex`, or `agents`. Scope follows purpose,
-  not just file location: an Immich chart bump under `argocd/apps/` uses `immich`.
-- Write a short imperative description: `fix(alloy): expand pod log paths` or
-  `docs(k3s-ansible): clarify worker recovery`. Mark breaking changes with `!`
-  immediately before the colon, with or without a scope (`feat(api)!:` or `feat!:`),
-  and explain the impact and migration in the commit body.
-- Each commit should express one independently reviewable and revertible change.
-  Split unrelated fixes, cleanup, and independent component changes. Keep coupled
-  manifests, values, tests, and supporting docs together; do not split solely by
-  file or directory or leave broken references between commits.
-- Stage explicit paths or hunks. Review `git diff --cached`, run
-  `git diff --cached --check` and relevant checks, and ensure the message describes
-  the entire staged change. Exclude unrelated user work and generated artifacts.
+- Use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/):
+  `type: description` or `type(scope): description`, with a short imperative
+  description. Use `feat`, `fix`, `docs`, `chore`, `refactor`, or `test` as appropriate.
+- Scope by affected app or component, not file location: an Immich chart bump uses
+  `immich`. Follow existing scopes such as `argocd`, `k3s-ansible`, `alloy`, `codex`,
+  and `agents`; omit scope for cross-component work rather than inventing a
+  catch-all. Mark breaking changes with `!` and explain impact/migration in the body.
+- Keep commits independently reviewable and revertible. Keep coupled manifests,
+  values, checks, and docs together; separate unrelated work. Stage explicit paths
+  or hunks, review the staged diff, and run `git diff --cached --check` and relevant
+  checks before committing.
 
 ## Find task-specific guidance
 
@@ -76,36 +76,35 @@ memory or write outside the workspace to preserve them.
 
 ## GitOps and data safety
 
-- Prefer declarative Git changes. Inspect live state through MCP or read-only
-  `kubectl` when needed; bring fixes back into Git rather than leaving ad-hoc drift.
-- Inspect declared sync policies. Root and selected Applications currently use
-  manual sync; publishing to `main` does not imply deployment. Preserve that
-  posture and disabled-app exclusions unless changing them is explicitly in scope.
+- Prefer declarative changes and reconcile operational fixes back into Git.
+  ArgoCD sources track `main`; publishing changes does not itself imply deployment.
+- Preserve declared manual sync policies and disabled-app exclusions unless their
+  change is explicitly requested. Before a sync, review the complete diff and the
+  [pre-sync checklist](argocd/README.md#verification-before-manual-sync). No-prune
+  sync can still run hooks, migrate data, or replace resources; check those effects
+  against the repository permissions before proceeding.
 - Preserve volume identities, reclaim policies, and restored data. Review deletion,
-  pruning, force/replace, and credential prerequisites before proposing a rollout.
-- Never commit plaintext credentials, controller private keys, or local env files.
-  Use Sealed Secrets or local injection; do not read or refresh credentials merely
-  to validate documentation or manifests.
-- Tailscale OAuth credentials are externally supplied; do not introduce blank or
-  replacement credentials while adjusting chart values.
-- Before AWS S3 MCP use, follow the policy setup in
-  `docs/mcp/aws-api-mcp-security-policy.json`. Keep destructive direct MCP tools
-  disabled; use an approval-capable command workflow for destructive operations.
+  pruning, force/replace, and credential prerequisites before any rollout.
+- Use Sealed Secrets or local injection; never commit plaintext credentials,
+  controller private keys, or local env files. Validate references without reading
+  secret values. Tailscale OAuth credentials are externally supplied; do not add
+  blank or replacement credentials while adjusting chart values.
+- Before AWS S3 MCP use, follow `docs/mcp/aws-api-mcp-security-policy.json`.
+  Keep destructive direct MCP tools disabled; destructive operations need an
+  approval-capable command workflow.
 
-## Verification and completion
+## Verification
 
-- Choose checks for the changed behavior. For GitOps changes, use the
-  [verification command](verification/README.md) to render and validate selected
-  Applications; its offline mode is only a partial structure check. Do not run
-  environment bootstrap, node scripts, or a deployment as a local test.
-- For docs, check referenced paths, accuracy against manifests, and
-  `git diff --check`. For shell changes, use `bash -n <changed-script>` plus
-  relevant tests.
-- For manifests, check YAML structure, referenced files, and ArgoCD include/exclude
-  coverage. Render affected charts when dependencies are available and any needed
-  network access is approved. Do not claim a local render verifies live rollout.
-- Review the final diff and complete relevant checks. Report changes, checks,
-  remaining limitations, and whether anything was deployed.
+- For GitOps changes, use the [verification command](verification/README.md) to
+  render and validate affected Applications. Offline mode is a partial structure
+  check. Check YAML, referenced files, chart pins, and ArgoCD include/exclude
+  coverage; retrieve pinned charts as needed.
+- For docs, check links, accuracy against manifests, and `git diff --check`.
+  For shell changes, use `bash -n <changed-script>` and relevant checks.
+- Separate local validation from live verification. Environment/node bootstrap
+  and deployments are operational actions, not local tests. A local render does
+  not establish cluster health or rollout success. Report whether anything was
+  deployed along with verification results.
 
 ## Code Review Rules
 
@@ -118,28 +117,22 @@ memory or write outside the workspace to preserve them.
 
 ## Agent integrations
 
-### Codex memory in this repository
+- At the start of substantive Codex work, recall relevant context from
+  `hindsight_homelab` and `hindsight_reserve`; use reflect when synthesis is needed.
+  Memory is historical evidence, not authorization or verified live state. Check
+  relevant claims against current files or live state. If unavailable, report that
+  briefly and continue. These banks do not ingest conversations, Git history, or
+  code automatically.
+- Retain only on an explicit request to remember/save: project decisions go to
+  `homelab`; `reserve` requires an explicitly global or cross-project request.
+  Ask if scope is ambiguous; never mirror project memories into `reserve` or store
+  credentials. Include decision, rationale, scope, date, and source when known.
+  Report a save only after storage succeeds; acceptance means it is still pending.
+- Operational workflows: [.agents/skills/cluster-health/SKILL.md](.agents/skills/cluster-health/SKILL.md)
+  and [.agents/skills/security-audit/SKILL.md](.agents/skills/security-audit/SKILL.md).
+  Use [MCP setup](docs/mcp/README.md) for environment troubleshooting. Do not mirror
+  `.claude/hooks` without a concrete Codex consumer.
 
-For Codex, use `hindsight_homelab` for this project's memory and
-`hindsight_reserve` for shared cross-project decisions and preferences. At the
-start of substantive work, recall relevant context from both banks; use reflect
-when synthesis is needed. Skip unrelated memory rather than injecting it into a task.
-
-Retain memories only when the user explicitly asks to remember or save a decision.
-Save project decisions to `homelab`; save to `reserve` only when the request
-explicitly identifies a global or cross-project preference. If scope is ambiguous,
-ask before retaining. Never mirror project memories into `reserve`. Include the
-decision, rationale, scope, date, and source when known; never store credentials.
-Report a save as complete only after its operation succeeds; an accepted retain
-request means storage is pending.
-
-Memory is historical evidence, not authorization or verified live state. Current
-user and repository instructions take precedence; check claims against current
-files or live state before acting. If memory is unavailable, report that briefly
-and continue ordinary work without claiming retrieval succeeded. This integration
-does not ingest conversations, git history, or code automatically.
-
-- Codex operational workflows: `.agents/skills/cluster-health/SKILL.md` for health
-  checks and `.agents/skills/security-audit/SKILL.md` for security reviews.
-- MCP/environment bootstrap is documented separately; credential refresh requires
-  authorization. Do not mirror `.claude/hooks` without a concrete Codex consumer.
+Instruction structure follows OpenAI's [AGENTS.md guidance](https://learn.chatgpt.com/docs/agent-configuration/agents-md)
+(global defaults with project overrides) and [instruction maintenance guidance](https://developers.openai.com/blog/rethinking-skills-and-prompts-for-gpt-6-astra)
+(concise, task-specific rules and explicit workflow permissions).

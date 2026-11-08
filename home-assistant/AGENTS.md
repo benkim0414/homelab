@@ -11,12 +11,12 @@ These rules also apply to `argocd/apps/home-assistant.yaml`. Follow
   until they exist.
 - Flag metrics credential changes that rely only on SealedSecret decryption.
   `home-assistant-prometheus-token` must contain a token valid in the target Home
-  Assistant instance; any access or rotation needs authorization. An old restored
-  token is not necessarily valid in a fresh instance.
+  Assistant instance; reading token values or rotating them needs authorization.
+  An old restored token is not necessarily valid in a fresh instance.
 
 ## Verification
 
 - Check `serviceMonitor.bearerToken` name/key references and raw-manifest inclusion
   without reading token values. Local rendering cannot prove credential validity.
-- For an authorized live metrics check, confirm Prometheus target health and
-  successful authenticated scraping; do not report success from decryption alone.
+- For a live metrics check, confirm Prometheus target health and successful
+  authenticated scraping; do not report success from decryption alone.

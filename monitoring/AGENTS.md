@@ -21,9 +21,9 @@ sections of [the ArgoCD runbook](../argocd/README.md) for rollout history.
 ## Verification
 
 - Check YAML and embedded Alloy/Loki configuration, chart values, and referenced
-  rules. Render the affected chart when dependencies and network approval permit.
-- A ready collector alone does not establish log ingestion. For an authorized
-  live check, confirm recent logs by node and workload in Loki, and metrics/target
+  rules. Render the affected chart when dependencies are available.
+- A ready collector alone does not establish log ingestion. For a live check,
+  confirm recent logs by node and workload in Loki, and metrics/target
   health in Prometheus. Do not report live success from a local render.
 
 ## Code Review Rules
