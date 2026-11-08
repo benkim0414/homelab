@@ -22,15 +22,15 @@ jobs:
           bash -n hermes/herdr/herdr.sh
       - name: Build and smoke test
         run: |
-          docker build --build-arg TARGETARCH=amd64 -t ghcr.io/benkim0414/hermes-herdr:${GITHUB_SHA} hermes/herdr
-          docker run --rm --entrypoint /usr/local/bin/herdr ghcr.io/benkim0414/hermes-herdr:${GITHUB_SHA} --version
-          docker run --rm --entrypoint kubectl ghcr.io/benkim0414/hermes-herdr:${GITHUB_SHA} version --client
-          bash hermes/herdr/smoke-test.sh ghcr.io/benkim0414/hermes-herdr:${GITHUB_SHA}
+          docker build --build-arg TARGETARCH=amd64 -t "ghcr.io/benkim0414/hermes-herdr:${GITHUB_SHA}" hermes/herdr
+          docker run --rm --entrypoint /usr/local/bin/herdr "ghcr.io/benkim0414/hermes-herdr:${GITHUB_SHA}" --version
+          docker run --rm --entrypoint kubectl "ghcr.io/benkim0414/hermes-herdr:${GITHUB_SHA}" version --client
+          bash hermes/herdr/smoke-test.sh "ghcr.io/benkim0414/hermes-herdr:${GITHUB_SHA}"
       - name: Publish tested image
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-          docker push ghcr.io/benkim0414/hermes-herdr:${GITHUB_SHA}
-          docker image inspect ghcr.io/benkim0414/hermes-herdr:${GITHUB_SHA} --format '{{index .RepoDigests 0}}' >> "$GITHUB_STEP_SUMMARY"
+          docker push "ghcr.io/benkim0414/hermes-herdr:${GITHUB_SHA}"
+          docker image inspect "ghcr.io/benkim0414/hermes-herdr:${GITHUB_SHA}" --format '{{index .RepoDigests 0}}' >> "$GITHUB_STEP_SUMMARY"
           docker logout ghcr.io
