@@ -151,12 +151,15 @@ Verified against the live workload:
 
 The image build and initial SSH/restart smoke test passed in
 [Actions run 42468202041](https://github.com/benkim0414/homelab/actions/runs/42468202041).
-Interactive SSH additionally requires `AUDIT_WRITE`; the smoke test now checks
-PTY login as well. Access files must use the declared individual ConfigMap mounts
+The updated build and interactive SSH smoke test also passed in
+[Actions run 42469059628](https://github.com/benkim0414/homelab/actions/runs/42469059628).
+Interactive SSH requires `AUDIT_WRITE`; the smoke test checks PTY login as well. Access files must use the declared individual ConfigMap mounts
 for strict host-directory permissions. Neither fix changes the image contents.
-The independent CI verification job encountered an upstream Helm download error;
-local full rendering uses the pinned cached dependencies. This is not evidence
-of a passing clean-cache CI run.
+The independent CI verification job failed at Helm (its detailed tool output
+is withheld by the verifier). Local full rendering passed with the pinned cached
+dependencies: 18 Applications and 463 resources. The 65-test suite completed with
+five documented tool-dependent skips; policy and lint checks passed. This is not
+evidence of a passing clean-cache CI run.
 
 The live resources await adoption from remote `main`; manual sync remains in
 place. The new PVC has no configured archive yet. Process continuity across an
