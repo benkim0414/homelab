@@ -35,27 +35,28 @@ data:
         "defaults": {
           "workspace": "/home/node/.openclaw/workspace",
           "model": {
-            "primary": "openai/gpt-6.1-sol",
+            "primary": "xai/grok-4.7",
             "fallbacks": []
           },
-          "modelPolicy": { "allow": ["openai/gpt-6.1-sol"] },
+          "modelPolicy": { "allow": ["xai/grok-4.7"] },
+          "thinkingDefault": "medium",
           "models": {
-            "openai/gpt-6.1-sol": {
-              "agentRuntime": { "id": "codex" }
+            "xai/grok-4.7": {
+              "agentRuntime": { "id": "openclaw" }
             }
           },
           "heartbeat": { "every": "0m" }
         }
       },
       "plugins": {
-        "allow": ["openai", "codex"],
+        "allow": ["xai"],
         "slots": { "memory": "none" },
         "entries": {
-          "openai": { "enabled": true },
-          "codex": {
+          "xai": {
             "enabled": true,
             "config": {
-              "appServer": { "transport": "stdio", "homeScope": "agent" }
+              "xSearch": { "enabled": false },
+              "codeExecution": { "enabled": false }
             }
           }
         }
