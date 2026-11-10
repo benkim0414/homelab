@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: herdr
-  namespace: hermes
+  namespace: herdr
 spec:
   replicas: 1
   strategy:
@@ -25,6 +25,45 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
         seccompProfile:
           type: RuntimeDefault
+      initContainers:
+        - name: verify-restored-state
+          image: ghcr.io/benkim0414/hermes-herdr@sha256:28ecbe0df6e6a6124cc6c35cfce3f70d2b38085e56ebdb75fb0af0909b3ec265
+          command: [python3, -B, -c]
+          args:
+            - |
+              from pathlib import Path
+              import stat
+              required = (
+                  '/data/home/.config/herdr/config.toml',
+                  '/data/home/.config/herdr/session.json',
+                  '/data/ssh/ssh_host_ed25519_key',
+                  '/data/ssh/ssh_host_ed25519_key.pub',
+              )
+              if not all(Path(p).is_file() and Path(p).stat().st_size for p in required):
+                  raise SystemExit('Restored Herdr state is incomplete; refusing empty-volume initialization')
+              key = Path('/data/ssh/ssh_host_ed25519_key').stat()
+              if key.st_uid != 0 or stat.S_IMODE(key.st_mode) != 0o600:
+                  raise SystemExit('Restored SSH host-key ownership or mode is invalid')
+              if Path('/data/home').stat().st_uid != 10000:
+                  raise SystemExit('Restored Herdr home ownership is invalid')
+          securityContext:
+            runAsUser: 0
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+              add: [DAC_OVERRIDE]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+              readOnly: true
       containers:
         - name: herdr
           # Source 9fc1855da5d44f0cdd7f791f4c14db0e529fcf97; SSH/restart smoke tested.

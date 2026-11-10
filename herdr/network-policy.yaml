@@ -2,7 +2,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: herdr
-  namespace: hermes
+  namespace: herdr
 spec:
   podSelector:
     matchLabels:
@@ -17,7 +17,7 @@ spec:
             matchLabels:
               tailscale.com/parent-resource-type: svc
               tailscale.com/parent-resource: herdr
-              tailscale.com/parent-resource-ns: hermes
+              tailscale.com/parent-resource-ns: herdr
       ports:
         - protocol: TCP
           port: 2222

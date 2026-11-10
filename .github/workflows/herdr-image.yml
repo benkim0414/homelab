@@ -19,13 +19,13 @@ jobs:
       - name: Test wrapper and source
         run: |
           python3 -m unittest discover -s verification/tests -p test_herdr.py -v
-          bash -n hermes/herdr/herdr.sh
+          bash -n herdr/image/herdr.sh
       - name: Build and smoke test
         run: |
-          docker build --build-arg TARGETARCH=amd64 -t "ghcr.io/benkim0414/hermes-herdr:${GITHUB_SHA}" hermes/herdr
+          docker build --build-arg TARGETARCH=amd64 -t "ghcr.io/benkim0414/hermes-herdr:${GITHUB_SHA}" herdr/image
           docker run --rm --entrypoint /usr/local/bin/herdr "ghcr.io/benkim0414/hermes-herdr:${GITHUB_SHA}" --version
           docker run --rm --entrypoint kubectl "ghcr.io/benkim0414/hermes-herdr:${GITHUB_SHA}" version --client
-          bash hermes/herdr/smoke-test.sh "ghcr.io/benkim0414/hermes-herdr:${GITHUB_SHA}"
+          bash herdr/image/smoke-test.sh "ghcr.io/benkim0414/hermes-herdr:${GITHUB_SHA}"
       - name: Publish tested image
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}

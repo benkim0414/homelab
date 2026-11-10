@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: herdr-access
-  namespace: hermes
+  namespace: herdr
 data:
   authorized_keys: |
     no-agent-forwarding,no-port-forwarding,no-X11-forwarding ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKTfNXGAKCyd8Y/004uY0JfkpmIZHbxKaYCq84Wkptlr herdr-workstation
@@ -23,5 +23,5 @@ data:
         context:
           cluster: cluster
           user: herdr
-          namespace: hermes
+          namespace: herdr
     current-context: herdr

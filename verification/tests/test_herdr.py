@@ -1,13 +1,20 @@
 import importlib.util
 from pathlib import Path
 import subprocess
+import sys
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE = ROOT / "hermes/herdr/hermes.py"
+SOURCE = ROOT / "herdr/image/hermes.py"
 spec = importlib.util.spec_from_file_location("hermes_cluster", SOURCE)
 wrapper = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(wrapper)
+
+OPENCLAW = ROOT / "herdr/image/openclaw.py"
+openclaw_spec = importlib.util.spec_from_file_location("openclaw_cluster", OPENCLAW)
+openclaw = importlib.util.module_from_spec(openclaw_spec)
+openclaw_spec.loader.exec_module(openclaw)
 
 
 def pod(name="hermes-current", ready=True, deleting=False, app="hermes"):
@@ -58,6 +65,64 @@ class WrapperTests(unittest.TestCase):
                                         input="", text=True, capture_output=True)
                 self.assertEqual(result.returncode, 2)
                 self.assertIn("SESSION_ID must", result.stderr)
+
+
+class OpenClawTests(unittest.TestCase):
+    def test_selects_only_ready_openclaw_without_terminating_pods(self):
+        items = [pod("old", deleting=True, app="openclaw"),
+                 pod("unready", ready=False, app="openclaw"), pod(),
+                 pod("current", app="openclaw")]
+        self.assertEqual(openclaw.select_pod(items), "current")
+
+    def test_zero_and_multiple_ready_pods_fail(self):
+        for items in ([], [pod("one", app="openclaw"), pod("two", app="openclaw")]):
+            with self.subTest(items=items), self.assertRaises(ValueError):
+                openclaw.select_pod(items)
+
+    def test_command_uses_gateway_and_existing_workspace(self):
+        command = openclaw.exec_command("current")
+        self.assertEqual(command[command.index("-n") + 1], "openclaw")
+        self.assertEqual(command[command.index("-c") + 1], "gateway")
+        self.assertIn("cd /home/node/.openclaw/workspace", command[-3])
+        self.assertIn("openclaw tui --session", command[-3])
+        self.assertEqual(command[-1], "herdr")
+        self.assertNotIn("--local", command)
+        self.assertNotIn("--token", command)
+
+    def test_session_is_literal_not_shell_code(self):
+        name = 'task;$(touch${IFS}/tmp/should-not-exist)'
+        command = openclaw.exec_command("current", name)
+        self.assertEqual(command[-1], name)
+        self.assertNotIn(name, command[-3])
+
+    def test_invalid_names_and_noninteractive_launch_fail_before_api_access(self):
+        for name in ("", "-bad", "two words", "control\x1b"):
+            with self.subTest(name=name):
+                result = subprocess.run(["python3", "-B", str(OPENCLAW), "--session=" + name],
+                                        input="", text=True, capture_output=True)
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("NAME must", result.stderr)
+        result = subprocess.run(["python3", "-B", str(OPENCLAW)],
+                                input="", text=True, capture_output=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("interactive Herdr terminal", result.stderr)
+
+    def test_launcher_passes_session_and_removes_inherited_agent_hint(self):
+        import json
+        response = subprocess.CompletedProcess([], 0, json.dumps({
+            "items": [pod("current", app="openclaw")]}), "")
+        with patch.object(sys, "argv", [str(OPENCLAW), "--session", "homelab"]), \
+                patch.object(sys.stdin, "isatty", return_value=True), \
+                patch.object(sys.stdout, "isatty", return_value=True), \
+                patch.object(openclaw.subprocess, "run", return_value=response) as discover, \
+                patch.object(openclaw.os, "execvpe") as execute, \
+                patch.dict(openclaw.os.environ, {"HERDR_AGENT": "hermes"}):
+            openclaw.main()
+        self.assertEqual(discover.call_count, 1)
+        command = discover.call_args.args[0]
+        self.assertEqual(command[command.index("-n") + 1], "openclaw")
+        self.assertEqual(execute.call_args.args[1][-1], "homelab")
+        self.assertNotIn("HERDR_AGENT", execute.call_args.args[2])
 
 
 if __name__ == "__main__":

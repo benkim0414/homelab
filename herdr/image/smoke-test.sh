@@ -56,6 +56,7 @@ ssh_options=(-p "$port" -i "$test_dir/client" -o IdentitiesOnly=yes \
 test "$(ssh "${ssh_options[@]}" herdr@127.0.0.1 id -u)" = 10000
 test "$(ssh -tt "${ssh_options[@]}" herdr@127.0.0.1 id -u 2>/dev/null | tr -d '\r')" = 10000
 ssh "${ssh_options[@]}" herdr@127.0.0.1 hermes --help
+ssh "${ssh_options[@]}" herdr@127.0.0.1 openclaw --help
 ssh "${ssh_options[@]}" herdr@127.0.0.1 herdr status server
 # Closing the SSH connection must not stop the supervised Herdr server.
 ssh "${ssh_options[@]}" herdr@127.0.0.1 herdr status server

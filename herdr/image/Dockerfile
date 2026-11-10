@@ -21,10 +21,11 @@ RUN set -eu; case "$TARGETARCH" in \
     chmod 0755 /usr/local/libexec/herdr /usr/local/bin/kubectl
 COPY herdr.sh /usr/local/bin/herdr
 COPY hermes.py /usr/local/bin/hermes
+COPY openclaw.py /usr/local/bin/openclaw
 COPY supervise.py healthcheck.py /usr/local/libexec/
 COPY config.toml /etc/herdr-default.toml
 COPY sshd_config /etc/ssh/sshd_config
-RUN chmod 0755 /usr/local/bin/herdr /usr/local/bin/hermes
+RUN chmod 0755 /usr/local/bin/herdr /usr/local/bin/hermes /usr/local/bin/openclaw
 ENV HOME=/data/home SHELL=/bin/bash LANG=C.UTF-8
 EXPOSE 2222
 ENTRYPOINT ["/usr/bin/tini", "--", "/usr/bin/python3", "-B", "/usr/local/libexec/supervise.py"]
