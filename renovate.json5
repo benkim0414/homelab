@@ -97,6 +97,12 @@
       "prBodyNotes": ["Database engine major and vector extension changes require a separately reviewed migration. Keep database and pg_dump images aligned."]
     },
     {
+      "description": "Freeze the prepared Immich PostgreSQL 16 migration target",
+      "matchFileNames": ["immich/postgresql16.yaml", "immich/migration/**"],
+      "matchPackageNames": ["ghcr.io/immich-app/postgres"],
+      "enabled": false
+    },
+    {
       "description": "Preserve Hindsight PostgreSQL 17 and Bookworm image variant",
       "matchDatasources": ["docker"],
       "matchPackageNames": ["pgvector/pgvector"],

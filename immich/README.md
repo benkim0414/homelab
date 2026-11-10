@@ -21,6 +21,14 @@ NAS quotas. PostgreSQL uses the image pinned in `postgresql.yaml`, including the
 required vector extensions. Do not substitute a generic PostgreSQL image during
 restore. The server mounts the library at `/data`.
 
+## Planned PostgreSQL 16 migration
+
+The [migration runbook](migration/README.md) stages a separate PostgreSQL 16
+StatefulSet at zero replicas. PostgreSQL 14 and `data-immich-postgres-0` remain
+active until a verified restore and separately reviewed cutover. Never update
+the old database image to a new major version against its existing data directory.
+The preparation is not evidence of a deployment or completed migration.
+
 ## Recovery and deployment
 
 The October rebuild restored 22,784 assets, 2 users and 26 albums. All original
