@@ -27,7 +27,7 @@ spec:
           type: RuntimeDefault
       initContainers:
         - name: verify-restored-state
-          image: ghcr.io/benkim0414/hermes-herdr@sha256:28ecbe0df6e6a6124cc6c35cfce3f70d2b38085e56ebdb75fb0af0909b3ec265
+          image: ghcr.io/benkim0414/hermes-herdr@sha256:b77ffeb13ec3b0355803009b5b70cba78817121c9bd6c69c237a592c1641d765
           command: [python3, -B, -c]
           args:
             - |
@@ -66,8 +66,8 @@ spec:
               readOnly: true
       containers:
         - name: herdr
-          # Source 9fc1855da5d44f0cdd7f791f4c14db0e529fcf97; SSH/restart smoke tested.
-          image: ghcr.io/benkim0414/hermes-herdr@sha256:28ecbe0df6e6a6124cc6c35cfce3f70d2b38085e56ebdb75fb0af0909b3ec265
+          # Source ca83779daa026990c0bf45561e2fd4c396b38238; workflow 42907527936.
+          image: ghcr.io/benkim0414/hermes-herdr@sha256:b77ffeb13ec3b0355803009b5b70cba78817121c9bd6c69c237a592c1641d765
           securityContext:
             runAsUser: 0
             allowPrivilegeEscalation: false
