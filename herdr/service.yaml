@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: herdr
+  namespace: herdr
+  annotations:
+    tailscale.com/expose: "true"
+    tailscale.com/hostname: herdr
+spec:
+  type: ClusterIP
+  selector:
+    app: herdr
+  ports:
+    - name: ssh
+      port: 22
+      targetPort: ssh

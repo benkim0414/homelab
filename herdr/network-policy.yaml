@@ -1,0 +1,53 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: herdr
+  namespace: herdr
+spec:
+  podSelector:
+    matchLabels:
+      app: herdr
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: tailscale
+          podSelector:
+            matchLabels:
+              tailscale.com/parent-resource-type: svc
+              tailscale.com/parent-resource: herdr
+              tailscale.com/parent-resource-ns: herdr
+      ports:
+        - protocol: TCP
+          port: 2222
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Cover both Service IP and post-DNAT control-plane endpoints.
+    - to:
+        - ipBlock:
+            cidr: 10.43.0.1/32
+      ports:
+        - protocol: TCP
+          port: 443
+    - to:
+        - ipBlock:
+            cidr: 192.168.0.11/32
+        - ipBlock:
+            cidr: 192.168.0.12/32
+        - ipBlock:
+            cidr: 192.168.0.13/32
+      ports:
+        - protocol: TCP
+          port: 6443

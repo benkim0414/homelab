@@ -5,6 +5,9 @@ commands inside its pod. The Application tracks `main`, uses manual sync, and ha
 no cascading-delete finalizer. These manifests are not evidence of deployment.
 Hermes, Hindsight, and workstation Codex keep their own state and grants.
 
+For terminal access, open the **K3s** machine in Herdr and run `openclaw` or
+`openclaw --session NAME`. See [the Herdr runbook](../herdr/README.md).
+
 ## Runtime and storage
 
 | Setting | Declaration |

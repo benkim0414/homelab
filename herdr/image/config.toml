@@ -1,0 +1,8 @@
+onboarding = false
+[update]
+version_check = false
+manifest_check = false
+[session]
+resume_agents_on_restore = false
+[experimental]
+pane_history = false

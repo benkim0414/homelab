@@ -1,0 +1,136 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: herdr
+  namespace: herdr
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: herdr
+  template:
+    metadata:
+      labels:
+        app: herdr
+    spec:
+      serviceAccountName: herdr
+      automountServiceAccountToken: true
+      terminationGracePeriodSeconds: 30
+      nodeSelector:
+        kubernetes.io/arch: amd64
+      securityContext:
+        fsGroup: 10000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: verify-restored-state
+          image: ghcr.io/benkim0414/hermes-herdr@sha256:b77ffeb13ec3b0355803009b5b70cba78817121c9bd6c69c237a592c1641d765
+          command: [python3, -B, -c]
+          args:
+            - |
+              from pathlib import Path
+              import stat
+              required = (
+                  '/data/home/.config/herdr/config.toml',
+                  '/data/home/.config/herdr/session.json',
+                  '/data/ssh/ssh_host_ed25519_key',
+                  '/data/ssh/ssh_host_ed25519_key.pub',
+              )
+              if not all(Path(p).is_file() and Path(p).stat().st_size for p in required):
+                  raise SystemExit('Restored Herdr state is incomplete; refusing empty-volume initialization')
+              key = Path('/data/ssh/ssh_host_ed25519_key').stat()
+              if key.st_uid != 0 or stat.S_IMODE(key.st_mode) != 0o600:
+                  raise SystemExit('Restored SSH host-key ownership or mode is invalid')
+              if Path('/data/home').stat().st_uid != 10000:
+                  raise SystemExit('Restored Herdr home ownership is invalid')
+          securityContext:
+            runAsUser: 0
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+              add: [DAC_OVERRIDE]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+              readOnly: true
+      containers:
+        - name: herdr
+          # Source ca83779daa026990c0bf45561e2fd4c396b38238; workflow 42907527936.
+          image: ghcr.io/benkim0414/hermes-herdr@sha256:b77ffeb13ec3b0355803009b5b70cba78817121c9bd6c69c237a592c1641d765
+          securityContext:
+            runAsUser: 0
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+              add: [AUDIT_WRITE, CHOWN, DAC_OVERRIDE, FOWNER, KILL, SETGID, SETUID, SYS_CHROOT]
+          workingDir: /data
+          ports:
+            - name: ssh
+              containerPort: 2222
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+              ephemeral-storage: 128Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+              ephemeral-storage: 512Mi
+          startupProbe:
+            exec:
+              command: [python3, -B, /usr/local/libexec/healthcheck.py]
+            periodSeconds: 5
+            timeoutSeconds: 8
+            failureThreshold: 24
+          readinessProbe:
+            exec:
+              command: [python3, -B, /usr/local/libexec/healthcheck.py]
+            periodSeconds: 10
+            timeoutSeconds: 8
+          livenessProbe:
+            exec:
+              command: [python3, -B, /usr/local/libexec/healthcheck.py]
+            periodSeconds: 30
+            timeoutSeconds: 8
+            failureThreshold: 3
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: run
+              mountPath: /run
+            - name: tmp
+              mountPath: /tmp
+            - name: access
+              mountPath: /etc/herdr-access/authorized_keys
+              subPath: authorized_keys
+              readOnly: true
+            - name: access
+              mountPath: /etc/herdr-access/kubeconfig
+              subPath: kubeconfig
+              readOnly: true
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: herdr-data
+        - name: run
+          emptyDir:
+            sizeLimit: 64Mi
+        - name: tmp
+          emptyDir:
+            sizeLimit: 128Mi
+        - name: access
+          configMap:
+            name: herdr-access
+            defaultMode: 0444

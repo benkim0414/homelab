@@ -1,0 +1,27 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: herdr
+  namespace: hermes
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list]
+  # Exec grants access to all pods in this namespace; labels do not restrict it.
+  - apiGroups: [""]
+    resources: [pods/exec]
+    verbs: [get, create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: herdr
+  namespace: hermes
+subjects:
+  - kind: ServiceAccount
+    name: herdr
+    namespace: herdr
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: herdr

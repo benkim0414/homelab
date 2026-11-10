@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: herdr-k3s-data
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes: [ReadWriteOnce]
+  volumeMode: Filesystem
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: longhorn
+  claimRef:
+    name: herdr-data
+    namespace: herdr
+  csi:
+    driver: driver.longhorn.io
+    fsType: ext4
+    volumeHandle: herdr-k3s-data
+    volumeAttributes:
+      numberOfReplicas: '2'
+      staleReplicaTimeout: '30'
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: herdr-data
+  namespace: herdr
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: longhorn
+  volumeName: herdr-k3s-data
+  resources:
+    requests:
+      storage: 2Gi

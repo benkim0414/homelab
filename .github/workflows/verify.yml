@@ -4,12 +4,23 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      build_herdr:
+        description: Build, smoke test, and publish the independent Herdr image
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
   group: verify-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  herdr-image:
+    if: github.event_name == 'workflow_dispatch' && inputs.build_herdr
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/herdr-image.yml
   checks:
     name: Verification checks
     runs-on: ubuntu-24.04
