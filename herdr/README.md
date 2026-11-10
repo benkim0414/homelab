@@ -76,7 +76,8 @@ python3 verification/bootstrap.py
 verification/venv/bin/python -m unittest discover -s verification/tests -v
 verification/cache/bin/conftest verify --policy verification/policy
 verification/venv/bin/python scripts/verify.py --all --base main
-bash -n herdr/image/herdr.sh herdr/image/smoke-test.sh
+bash -n herdr/image/herdr.sh
+bash -n herdr/image/smoke-test.sh
 git diff --check
 ```
 
@@ -109,15 +110,15 @@ extraction, publication, destructive cleanup, or an unreviewed deployment.
    with 2 GiB capacity, two replicas, v1 data engine, ext4 filesystem, and the
    current engine image. Bind it using `storage.yaml`. Wait for restore completion
    and healthy replicas before opening it to clients.
-6. Mount restored state in an isolated maintenance pod with no service-account
-   token and denied ingress/egress. Verify ownership/modes, saved configuration
-   and layout, and the original SSH public-key fingerprint. Compare file content
+6. Mount restored state in an isolated maintenance pod pinned to AMD64, with no
+   service-account token and denied ingress/egress. Verify ownership and modes,
+   saved configuration and layout, and the original SSH public-key fingerprint. Compare file content
    through private checksums without emitting contents. Remove the maintenance
    pod before starting the new Deployment. Leave the old Deployment at zero.
-7. Remove exposure from the old Service and wait for its operator-managed proxy
-   to retire and release the hostname. Start the new server, then expose the new
-   Service. Check the actual assigned hostname rather than accepting a suffixed
-   duplicate. Update proxy network-policy selectors for namespace `herdr`.
+7. Start the new server privately and check readiness and its SSH fingerprint.
+   Remove exposure from the old Service and wait for its operator-managed proxy
+   to retire before exposing the new Service. Check the actual assigned hostname
+   and proxy network-policy selectors for namespace `herdr`.
 8. Update the local SSH alias to `k3s`, retaining its endpoint, user, key, known
    hosts file, and strict checks. Register with
    `herdr machine add k3s --label K3s --remote-session default`; require a new
@@ -130,7 +131,30 @@ extraction, publication, destructive cleanup, or an unreviewed deployment.
 
 If capture/restore fails before cutover, keep the new server stopped and resume
 the old Deployment after checking it is the sole writer. After cutover, stop the
-new server and preserve any new state before rollback. Restore the old exposure
-and local configuration, then resume the old server against its retained volume.
+new server and preserve any new state before rollback. Recreate the old server,
+access configuration, policy, and RBAC from commit `cc5840a` if already removed.
+Reinstate its exposure after withdrawing the new one, restore local configuration,
+and resume the old server against its retained volume.
 Never start both servers against independently diverging copies without an
 explicit reconciliation plan.
+
+## Migration record (2026-11-11)
+
+- The live server runs in namespace `herdr` using the image from
+  [workflow 42907527936](https://github.com/benkim0414/homelab/actions/runs/42907527936).
+  The image passed the SSH, PTY, restart, and host-key persistence smoke tests.
+- NAS backup `herdr-migration-20261110-214730` completed for original volume
+  `pvc-621b370c-10ca-439c-baba-5761cf2d39c2`. The restored `herdr-k3s-data`
+  volume matched all 137 checked home and SSH entries, including file contents,
+  ownership and modes. The original claim and backup remain available.
+- The Tailscale hostname and SSH host fingerprint remained the same. The local
+  **K3s** registration uses alias `k3s`, a new machine ID, and the restored
+  remote `default` session. The former registration and old server resources
+  were removed. Strict SSH succeeds and SSH without a key is rejected.
+- Live RBAC allow/deny checks passed, and Hermes opened in its existing
+  workspace. OpenClaw connected to its gateway, reloaded the test message after
+  reconnect, and opened `herdr` separately. The model reply check was blocked
+  by missing credentials for the gateway's existing xAI profile. No OpenClaw
+  model, authentication, or gateway settings were changed.
+- The reviewed live resources were applied directly for this migration. GitOps
+  adoption follows publication to `main` and separate manual sync review.
