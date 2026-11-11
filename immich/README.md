@@ -11,7 +11,7 @@ Proxmox worker. Both architectures are available for scheduling.
 | Component | Storage / configuration |
 | --- | --- |
 | Photo and video library | NAS `.40`, `/storage/k3s/immich/library`, NFSv4 `/k3s-storage/immich/library` |
-| PostgreSQL | 20 GiB Longhorn PVC `data-immich-postgres-0`, two replicas |
+| PostgreSQL | 20 GiB Longhorn PVC `data-immich-postgres16-0`, two replicas |
 | Database backup destination | NAS `/storage/k3s/immich/backups`, NFSv4 `/k3s-storage/immich/backups` |
 | Valkey | Ephemeral cache/queue |
 | Machine learning | Disabled |
@@ -19,17 +19,19 @@ Proxmox worker. Both architectures are available for scheduling.
 | Tailscale | `https://immich.tailbd291c.ts.net` |
 
 The library and backup NFS PVs use `Retain`; their declared capacities are not
-NAS quotas. PostgreSQL uses the image pinned in `postgresql.yaml`, including the
+NAS quotas. PostgreSQL uses the image pinned in `postgresql16.yaml`, including the
 required vector extensions. Do not substitute a generic PostgreSQL image during
 restore. The server mounts the library at `/data`.
 
-## Planned PostgreSQL 16 migration
+## PostgreSQL 16 cutover
 
-The [migration runbook](migration/README.md) stages a separate PostgreSQL 16
-StatefulSet at zero replicas. PostgreSQL 14 and `data-immich-postgres-0` remain
-active until a verified restore and separately reviewed cutover. Never update
-the old database image to a new major version against its existing data directory.
-The preparation is not evidence of a deployment or completed migration.
+The declared active database is PostgreSQL 16 on `data-immich-postgres16-0`.
+The final production archive was restored and verified before these routing
+changes were prepared. PostgreSQL 14 is retained at zero replicas on its original
+`data-immich-postgres-0` claim; do not delete it or start an old server against
+the migrated v3 schema. Follow the [migration runbook](migration/README.md) and
+[rollout evidence](../reports/2026-11-11-immich-rollout.md) for actual live state,
+checkpoints and recovery limits. A declaration alone does not prove rollout.
 
 ## Recovery and deployment
 

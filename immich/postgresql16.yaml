@@ -7,7 +7,7 @@ metadata:
 spec:
   serviceName: immich-postgres16
   # Start only for the approved restore rehearsal / migration.
-  replicas: 0
+  replicas: 1
   selector:
     matchLabels:
       app: immich-postgres16
