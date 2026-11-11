@@ -276,3 +276,29 @@ database dump and matching media snapshot, restoring and verifying production
 PG16, and applying the reviewed cutover before the v3 rollout. The old PG14 PVC
 and recovery archives remain retained. Rehearsal cleanup and restoration of the
 temporary NAS quota remain separate, pending explicit cleanup approval.
+
+## Approved production maintenance and final restore
+
+The operator approved the maintenance window, publication/merge of the reviewed
+cutover, and v3 rollout. External Service routing was blocked and the server
+scaled from one replica to zero at approximately 03:10 UTC. Scheduled backups
+were suspended; no active backup or queue work remained. Source connections were
+zero after shutdown. Frozen counts were 22,809 assets, 2 users and 26 albums,
+with zero invalid indexes.
+
+Final Job `immich-final-pg14-20261111031007` completed in 24 seconds using the PG16
+client, retention disabled, and the existing credential reference. Its archive is
+`/backups/migrations/immich-20261111T031024424414710Z.dump`, SHA256
+`2c693626ec38df2d3a8fa8b7c065e62ac1dab8de01ec74a3522565804b27ef6c`.
+Matching media/archive checkpoint: `storage/k3s@immich-final-pg14-20261111T0310Z`.
+The NAS pool was healthy.
+
+The new production claim `data-immich-postgres16-0` is Bound to
+`pvc-82e50c89-0c5f-40bf-a70b-41d6f475e80a`; only the new target mounts it.
+Guarded restore Job `immich-pg16-restore-srlv7` completed successfully. PG16.10
+contains the matching aggregate counts, zero invalid indexes, a 190 MB database,
+vector 0.8.1 and vchord 0.4.3. Earthdistance is 1.2 instead of PG14's 1.1, matching
+the successful rehearsal. The old PG14 claim remains intact.
+
+The generated cutover changes are now ready for publication. Production routing
+and application upgrade remain gated until the cutover commit is merged.

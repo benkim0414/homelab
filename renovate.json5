@@ -89,16 +89,16 @@
       "groupName": "vaultwarden"
     },
     {
-      "description": "Preserve Immich PostgreSQL 14 and its vector extension variant",
+      "description": "Preserve Immich PostgreSQL 16 and its vector extension variant",
       "matchDatasources": ["docker"],
       "matchPackageNames": ["ghcr.io/immich-app/postgres"],
       "versioning": "docker",
-      "allowedVersions": "/^14(?:\\.\\d+){0,2}-vectorchord0\\.4\\.3-pgvectors0\\.2\\.0$/",
+      "allowedVersions": "/^16(?:\\.\\d+){0,2}-vectorchord0\\.4\\.3-pgvectors0\\.2\\.0$/",
       "prBodyNotes": ["Database engine major and vector extension changes require a separately reviewed migration. Keep database and pg_dump images aligned."]
     },
     {
-      "description": "Freeze the prepared Immich PostgreSQL 16 migration target",
-      "matchFileNames": ["immich/postgresql16.yaml", "immich/migration/**"],
+      "description": "Freeze the retained Immich PostgreSQL 14 rollback workload",
+      "matchFileNames": ["immich/postgresql.yaml", "immich/migration/**"],
       "matchPackageNames": ["ghcr.io/immich-app/postgres"],
       "enabled": false
     },
