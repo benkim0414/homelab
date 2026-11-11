@@ -1,9 +1,14 @@
 # Immich PostgreSQL 16 migration
 
 This replaces the image-only proposal in [PR #75](https://github.com/benkim0414/homelab/pull/75).
-Preparation does **not** change the active database. `postgresql16.yaml` declares
-an inactive target; `postgresql.yaml` still serves PostgreSQL 14. The server and
-chart remain v2.7.5 / 0.12.0 until the separate application upgrade.
+The production PostgreSQL 16 restore and cutover completed on 2026-11-11. The
+active claim is `data-immich-postgres16-0`; PostgreSQL 14 is stopped with its
+original claim retained. [Rollout evidence](../../reports/2026-11-11-immich-rollout.md)
+records archives, checksums, snapshots and application rollout status.
+
+The procedure below documents the gated transition. Its preparation commands
+and cutover generator describe the original PG14 state and must not be rerun
+against the already migrated database.
 
 ## Gates and evidence
 
@@ -31,8 +36,9 @@ Before rollout, attach the following evidence to the replacement PR:
   Record the operator, archive, media snapshot, commits, times and results here
   or in a linked committed report. Do not record credentials or personal rows.
 
-No rehearsal or live cutover has been performed by adding these files. Do not
-mark any gate passed from an archive listing or manifest render alone.
+The original preparation commit did not perform a live cutover. Use the linked
+rollout evidence for completed gates; an archive listing or render alone does
+not establish restore success.
 
 ## Prepare and rehearse
 

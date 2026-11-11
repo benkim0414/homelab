@@ -3,7 +3,9 @@
 Replacement for stale [PR #77](https://github.com/benkim0414/homelab/pull/77).
 The pre-upgrade recovery baseline is chart 0.12.0, server v2.7.5. This change
 declares chart 0.13.4 and explicitly pins server v3.2.0; chart and image version
-numbers have different meanings. It is not a record of a completed deployment.
+numbers have different meanings. Production v3.2.0 was deployed on 2026-11-11
+after the verified PG16 cutover. See the [rollout record](../reports/2026-11-11-immich-rollout.md)
+for acceptance, recovery checkpoints and remaining maintenance gates.
 
 ## Compatibility review
 

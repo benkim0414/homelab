@@ -1,11 +1,12 @@
 # Immich rollout evidence — 2026-11-11
 
-Status: isolated restore, rollback startup and clean v3 migration verified.
-The operator confirmed "All works and tested" after switching rehearsal access
-to the direct SSH tunnel. The requested authenticated functional checks are
-accepted. Production remains PostgreSQL 14.19 and Immich v2.7.5. No database cutover or application upgrade has occurred.
-The merged declaration is `18c627f8b41f8d49e4dd3c1b578af015ac9523eb`.
-Do not full-sync Immich until the migration gates pass.
+Status: production PostgreSQL 16 cutover and Immich v3.2.0 startup verified.
+The production functional check is pending at localhost port 2285; general
+traffic remains blocked and scheduled backups remain temporarily suspended.
+Pre-v3 and post-v3 backups both restored successfully in isolated databases.
+The operator previously accepted the complete isolated rehearsal.
+Cutover PR #92 merged as `fe300996579942d6976c56ac5b1b425f1f8202b9`.
+Earlier sections below preserve the chronological evidence.
 
 ## Confirmed prerequisites
 
@@ -302,3 +303,62 @@ the successful rehearsal. The old PG14 claim remains intact.
 
 The generated cutover changes are now ready for publication. Production routing
 and application upgrade remain gated until the cutover commit is merged.
+
+## Production database cutover and v3 rollout
+
+PR #92 passed GitHub Verify and merged as
+`fe300996579942d6976c56ac5b1b425f1f8202b9`. Local verification passed for
+19 Applications and 471 resources; 78 unit tests completed with six skips
+(including the already-applied cutover generator), and five policy tests passed.
+
+A selected ArgoCD sync applied only the two database StatefulSets and database
+Services, with no pruning or force. The stable Service endpoint resolved only to
+`immich-postgres16-0` at `10.42.2.81`. PG14 stopped and its original PVC remained
+Bound. The new Longhorn volume was healthy, attached and configured for two
+replicas. The final production restore Job took 34 seconds.
+
+Immich v2.7.5 started on PG16 with zero startup error lines. Ping and version
+returned HTTP 200. All 22,809 original media paths were readable, aggregate
+counts matched and invalid indexes remained zero. This operational check did
+not include a separate operator-authenticated v2 production login.
+
+The PG16 backup CronJob was synced and its image and unsuspended state verified.
+The v2 server was then stopped again, backups suspended for schema transition,
+and zero other database connections confirmed. Frozen pre-v3 Job
+`immich-pg16-prev3-20261111031652` published
+`/backups/migrations/immich-20261111T031653006541328Z.dump`, SHA256
+`7553ffc3a435c1ef79354e8707f2052547091331edce2d07c59630925a91eea4`.
+Matching NAS snapshot: `storage/k3s@immich-production-prev3-20261111T0317Z`.
+The guarded helper restored this into isolated database
+`production_pg16_prev3_check`, with 22,809 assets, 2 users, 26 albums and zero
+invalid indexes. No production media or credentials were copied into rehearsal.
+
+The reviewed server, Valkey, ServiceAccounts and Valkey Service were synced at
+the merged revision, without pruning. The server image pull took 28.84 seconds.
+V3.2.0 reached readiness with no startup error lines and zero container restarts.
+Ping/version passed; counts and vector/vchord versions remained unchanged, and
+invalid indexes remained zero. All 22,809 original media paths were readable.
+
+Post-v3 Job `immich-pg16-postv3-20261111031909` published
+`/backups/migrations/immich-20261111T031910607560138Z.dump`, SHA256
+`cdb04edb9f980a375d01747783ba48c02bf67163dfee57ac41c2d10bb3c2e74f`.
+It restored through the guarded helper into isolated database
+`production_pg16_postv3_check`, with matching counts and zero invalid indexes.
+
+A localhost-only SSH forward on port 2285 targets production Pod
+`10.42.2.85:2283` through its node k3s-03. The rehearsal remains on port 2284.
+Production concurrent testing passed 176 page/static-asset/API requests
+(22,005,992 bytes, maximum 1.958 seconds). Authenticated album requests were not
+part of that automated test; unauthorized API responses were checked as 401.
+The operator has been asked for final production functional checks and a small
+test upload before general traffic is reopened.
+
+Twelve further health probes over approximately 24 seconds passed with a maximum
+latency of 20 ms. The database has 96 migration records. Production server,
+Valkey and PostgreSQL have zero restarts. Measured memory was approximately
+683 MiB / 8 MiB / 417 MiB respectively. ArgoCD is Healthy; the only OutOfSync
+resource is the deliberately blocked server Service.
+
+Original PRs #75 and #77 were closed as superseded by merged PRs #90, #91 and
+#92. Their closing comments record the replacements and the pending final
+production functional acceptance.
