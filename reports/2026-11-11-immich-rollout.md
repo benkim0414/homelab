@@ -159,3 +159,23 @@ with concurrency eight all returned HTTP 200, with a maximum duration of 75 ms.
 The replacement tunnel writes diagnostics to the ignored task-local
 `verification/cache/rollout/port-forward.log`. This verifies tunnel recovery,
 not authenticated media functionality; the operator must retry those checks.
+
+### Repeated hang on Albums navigation
+
+The operator reproduced the hang by clicking Albums. The replacement tunnel
+again timed out even for ping and logged stream-creation timeouts; the internal
+server still returned HTTP 200, database sessions were idle, and recent server
+logs had no error lines. The earlier 24-request test was insufficient to establish
+browser-session stability. Authenticated Albums behavior remains unverified.
+
+The task-local tunnel was replaced using `KUBECTL_PORT_FORWARD_WEBSOCKETS=false`
+to select the supported alternative transport; this changes only the client
+process, not cluster security settings or the rehearsal NetworkPolicy. See the
+[Kubernetes transport design](https://www.kubernetes.dev/resources/keps/4006/).
+Diagnostics are in ignored `verification/cache/rollout/port-forward-spdy.log`.
+
+A larger test fetched Albums page assets plus health/version endpoints with
+concurrency 12: 176 requests passed, transferring 22,005,992 bytes, with a maximum
+request duration of 3.158 seconds. Unauthenticated Albums API requests returned
+the expected 401; these are not authenticated album-query tests. Ping afterward
+completed in 38 ms. The operator was asked to retry Albums before acceptance.
