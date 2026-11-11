@@ -15,7 +15,8 @@
     "immich/s3-sealed-secret.yaml": "Disabled pending replacement S3 credentials and explicit activation (immich/AGENTS.md).",
     "hindsight/bootstrap-login-pod.yaml": "Recovery-only login pod; not part of routine reconciliation.",
     "traefik/examples/example-ingressroute.yaml": "Documentation example; not deployed.",
-    "traefik/examples/whoami-test.yaml": "Documentation example; not deployed."
+    "traefik/examples/whoami-test.yaml": "Documentation example; not deployed.",
+    "immich/migration/restore-job.yaml": "Manual PostgreSQL 16 restore only; requires verified archive and empty destination (immich/migration/README.md)."
   },
   "external_crds": [
     "https://raw.githubusercontent.com/k3s-io/helm-controller/v0.16.15/pkg/crds/yaml/generated/helm.cattle.io_helmchartconfigs.yaml"

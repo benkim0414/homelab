@@ -30,6 +30,11 @@ Hindsight PostgreSQL updates have their own group, covering both the database an
 backup image/digest. Immich database and backup images remain in the Immich group.
 Grouping provides a joint review, not proof that two versions are compatible.
 
+The prepared Immich PostgreSQL 16 target and manual migration manifests are
+frozen until the reviewed cutover; see the [migration runbook](../immich/migration/README.md).
+The cutover generator changes active tracking to PostgreSQL 16 and freezes the
+retained PostgreSQL 14 rollback workload.
+
 Database rules preserve Immich PostgreSQL 14 with its exact VectorChord/pgvectors
 extension suffix, and Hindsight PostgreSQL 17 with the Bookworm suffix. Engine
 major, extension-variant and OS-variant migrations require a separate plan and
