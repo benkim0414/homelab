@@ -2,7 +2,8 @@
 
 Status: production PostgreSQL 16 cutover and Immich v3.2.0 startup verified.
 The production functional check is pending at localhost port 2285; general
-traffic remains blocked and scheduled backups remain temporarily suspended.
+traffic remains blocked. Scheduled PG16 backups have resumed after the successful
+post-v3 restore verification.
 Pre-v3 and post-v3 backups both restored successfully in isolated databases.
 The operator previously accepted the complete isolated rehearsal.
 Cutover PR #92 merged as `fe300996579942d6976c56ac5b1b425f1f8202b9`.
@@ -362,3 +363,8 @@ resource is the deliberately blocked server Service.
 Original PRs #75 and #77 were closed as superseded by merged PRs #90, #91 and
 #92. Their closing comments record the replacements and the pending final
 production functional acceptance.
+
+Scheduled PG16 backups were explicitly resumed after successful post-v3 restore
+verification while operator testing remained pending. The remaining maintenance
+change is external server routing; the final guarded reconciliation script is
+prepared but has not been executed.
