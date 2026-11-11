@@ -147,3 +147,15 @@ search and a controlled upload. No production Service or ingress was changed.
   the copied files too: deleting only the working directory may not free the
   quota. Check `usedbysnapshots`, `usedbydataset`, pool free space and dataset
   availability before restoring the approved temporary quota to 300 GiB.
+
+## Rehearsal browser hang
+
+The operator could load the homepage but reported a hang. At diagnosis the
+server responded internally in 69 ms, database sessions were idle, container
+restart counts were unchanged, and recent application logs had no error lines.
+The localhost port-forward timed out and reported stream-creation timeouts.
+Replacing only that tunnel restored access: 24 homepage/ping/version requests
+with concurrency eight all returned HTTP 200, with a maximum duration of 75 ms.
+The replacement tunnel writes diagnostics to the ignored task-local
+`verification/cache/rollout/port-forward.log`. This verifies tunnel recovery,
+not authenticated media functionality; the operator must retry those checks.
