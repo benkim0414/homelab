@@ -1,9 +1,9 @@
 # Immich rollout evidence — 2026-11-11
 
 Status: isolated restore, rollback startup and clean v3 migration verified.
-The operator confirmed Albums works; the remaining authenticated functional
-checks are awaiting explicit confirmation. Production remains PostgreSQL 14.19
-and Immich v2.7.5. No database cutover or application upgrade has occurred.
+The operator confirmed "All works and tested" after switching rehearsal access
+to the direct SSH tunnel. The requested authenticated functional checks are
+accepted. Production remains PostgreSQL 14.19 and Immich v2.7.5. No database cutover or application upgrade has occurred.
 The merged declaration is `18c627f8b41f8d49e4dd3c1b578af015ac9523eb`.
 Do not full-sync Immich until the migration gates pass.
 
@@ -44,7 +44,7 @@ This is a rehearsal archive, not the final write-frozen migration backup.
   verified archive with matching checksum; mounted read-only by the pod.
 
 The restore and migration results appear below. Authenticated rehearsal login
-and media functional checks remain pending. Task manifests are in the worktree's ignored
+and media functional checks were subsequently accepted; see the final section. Task manifests are in the worktree's ignored
 `verification/cache/rollout/` directory and contain only Secret references.
 
 ## Storage issue and recovery
@@ -246,3 +246,33 @@ slow concurrent downloads of a public 4,845,504-byte application asset
 (38,764,032 bytes total). Fifteen interleaved health probes all passed, with a
 maximum latency of 1.039 seconds. These tests do not prove sustained browser
 session stability; the operator was asked to retry download and Albums.
+
+## Rehearsal acceptance and production preflight
+
+The operator confirmed "All works and tested" after the direct SSH tunnel fix.
+This completes acceptance of the requested login, timeline, Albums, download,
+video, search and test-upload checks. Earlier pending-check statements above
+record the sequence of testing and are superseded by this confirmation.
+
+Full local verification passed again: 19 Applications and 471 resources, against
+`origin/main` at `18c627f8b41f8d49e4dd3c1b578af015ac9523eb`. The merged revision's
+GitHub Verify workflow also passed. These are configuration checks, not evidence
+of a production migration.
+
+The live Application descriptor was aligned with the merged declaration (chart
+0.13.4 and inclusion of the inactive PG16 manifests), without a workload sync.
+Manual sync remains enabled; status is OutOfSync / Healthy. The ArgoCD API
+credential failed signature validation, so the configured Kubernetes access was
+used for resource inspection; credentials were not changed. The local render
+was compared with live resources, including individual container fields. The
+18-resource inventory has no prune candidates and the render has no sync hooks.
+The chart changes the server to v3.2.0, Valkey to the rehearsed pinned 9.1.2 image,
+and server strategy to Recreate. Secret references, environment configuration,
+media mounts and declared storage identities remain unchanged.
+
+Production database cutover and application upgrade have not started. The next
+gate is an approved maintenance window for blocking writers, obtaining a final
+database dump and matching media snapshot, restoring and verifying production
+PG16, and applying the reviewed cutover before the v3 rollout. The old PG14 PVC
+and recovery archives remain retained. Rehearsal cleanup and restoration of the
+temporary NAS quota remain separate, pending explicit cleanup approval.
