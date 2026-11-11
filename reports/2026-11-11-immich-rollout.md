@@ -218,3 +218,31 @@ longer indicates a pre-v3 schema. The frozen pre-v3 dump remains the recovery
 source. The original first-run v3 database `immich` is also retained. The current
 localhost-only alternative tunnel writes to ignored
 `verification/cache/rollout/port-forward-clean-v3.log`.
+
+## Post-download tunnel failure and direct SSH access
+
+The operator confirmed a photo download worked, then reported another hang.
+The alternative Kubernetes port-forward also logged stream-creation timeouts,
+and localhost ping timed out. Inside the Pod, ping still returned HTTP 200 in
+70 ms; the clean rehearsal remained Running with zero restarts. Short concurrent
+request tests had not established sustained Kubernetes tunnel reliability.
+
+Using the existing VM login documented in the K3s runbook
+(`benkim0414@192.168.0.22`, configured `pi_ed25519` identity), a same-node request
+to the rehearsal Pod returned ping in 3 ms. The failed task-local port-forward
+was replaced with an SSH local forward bound to `127.0.0.1:2284`, targeting only
+`10.42.4.64:2283`. Host key verification remains enabled. No Service, ingress,
+firewall rule, authentication setting or NetworkPolicy was changed. The
+rehearsal's outbound production connection was rechecked and remained denied.
+
+The temporary tunnel log is ignored at
+`verification/cache/rollout/ssh-tunnel.log`. The target Pod IP must be reverified
+if the rehearsal Pod is recreated. This is temporary rehearsal access, not a
+production exposure mechanism. Video, search and test upload remain unconfirmed.
+
+Direct-tunnel validation passed 176 concurrent page/asset requests (22,005,992
+bytes; maximum request duration 2.547 seconds), followed by eight deliberately
+slow concurrent downloads of a public 4,845,504-byte application asset
+(38,764,032 bytes total). Fifteen interleaved health probes all passed, with a
+maximum latency of 1.039 seconds. These tests do not prove sustained browser
+session stability; the operator was asked to retry download and Albums.
