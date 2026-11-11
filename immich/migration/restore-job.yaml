@@ -1,0 +1,55 @@
+# Manual template. Not selected by ArgoCD. Create the script ConfigMap first.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: immich-pg16-restore-
+  namespace: immich
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 3600
+  template:
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      containers:
+        - name: restore
+          image: ghcr.io/immich-app/postgres:16-vectorchord0.4.3-pgvectors0.2.0
+          command: [/bin/bash, /migration/restore.sh]
+          env:
+            - name: PGHOST
+              value: immich-postgres16
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: immich-db-credentials
+                  key: POSTGRES_USER
+            - name: PGDATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: immich-db-credentials
+                  key: POSTGRES_DB
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: immich-db-credentials
+                  key: POSTGRES_PASSWORD
+            - name: RESTORE_CONFIRM
+              value: SET-AFTER-EMPTY-TARGET-REVIEW
+            - name: RESTORE_FILE
+              value: /backups/migrations/SET-VERIFIED-ARCHIVE.dump
+            - name: RESTORE_SHA256
+              value: SET-VERIFIED-SHA256
+          volumeMounts:
+            - name: backups
+              mountPath: /backups
+              readOnly: true
+            - name: script
+              mountPath: /migration
+              readOnly: true
+      volumes:
+        - name: backups
+          persistentVolumeClaim:
+            claimName: immich-backups
+        - name: script
+          configMap:
+            name: immich-pg16-restore-script
