@@ -1,12 +1,12 @@
 # Immich rollout evidence — 2026-11-11
 
-Status: production PostgreSQL 16 cutover and Immich v3.2.0 startup verified.
-The production functional check is pending at localhost port 2285; general
-traffic remains blocked. Scheduled PG16 backups have resumed after the successful
-post-v3 restore verification.
-Pre-v3 and post-v3 backups both restored successfully in isolated databases.
-The operator previously accepted the complete isolated rehearsal.
+Status: production migration and rollout complete; operator acceptance confirmed.
+Immich v3.2.0 runs on PostgreSQL 16.10. LAN and Tailscale access are restored,
+ArgoCD is Healthy / Synced, and scheduled PG16 backups are enabled. Pre-v3 and
+post-v3 backups both restored successfully in isolated databases.
 Cutover PR #92 merged as `fe300996579942d6976c56ac5b1b425f1f8202b9`.
+Original PRs #75 and #77 are closed as superseded. Recovery resources remain
+retained; destructive cleanup and reducing the temporary NAS quota are separate.
 Earlier sections below preserve the chronological evidence.
 
 ## Confirmed prerequisites
@@ -368,3 +368,26 @@ Scheduled PG16 backups were explicitly resumed after successful post-v3 restore
 verification while operator testing remained pending. The remaining maintenance
 change is external server routing; the final guarded reconciliation script is
 prepared but has not been executed.
+
+## Final production acceptance and reopened access
+
+The operator confirmed "Works okay" in response to the production functional
+check. On 2026-11-11T03:29:08.404913+00:00, the original server Service
+selector was restored and the complete reviewed Application was synced at
+`fe300996579942d6976c56ac5b1b425f1f8202b9`, without pruning or force. ArgoCD
+reported Succeeded, Healthy and Synced. Both LAN
+`http://192.168.0.201:2283/api/server/ping` and Tailscale
+`https://immich.tailbd291c.ts.net/api/server/ping` returned `{"res":"pong"}`.
+
+Production server, Valkey and PostgreSQL were Ready with zero restarts. PG14
+remains at zero replicas and its original claim remains Bound. The PG16 backup
+CronJob is unsuspended, with no active Job at this check. The temporary local
+validation tunnels are no longer needed after normal access is restored.
+
+User writes are now admitted. The retained PG14 database is stale from this
+point: switching back would lose later changes. Preserve current database/media
+before any recovery and do not downgrade the v3 schema in place.
+
+The rehearsal namespace, media copies, database claims, archives and snapshots
+remain retained. NAS quota remains at the explicitly approved temporary 500 GiB.
+Cleanup requires separate approval; check actual usage before restoring 300 GiB.
