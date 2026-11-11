@@ -1,7 +1,9 @@
 # Immich on K3s
 
-The restored deployment uses Helm chart `0.12.0` with server `v2.7.5`, matching
-its pre-rebuild version. The cluster has four Raspberry Pis and one amd64
+The declared upgrade target is Helm chart `0.13.4` with server `v3.2.0`.
+The October recovery baseline was chart `0.12.0` / server `v2.7.5`.
+Follow [the v3 upgrade runbook](UPGRADE-v3.md) before rollout; these pins do not
+prove the live deployment has been upgraded. The cluster has four Raspberry Pis and one amd64
 Proxmox worker. Both architectures are available for scheduling.
 
 ## Storage and access
@@ -42,11 +44,13 @@ database and confirm media access before starting the pinned server version.
 Keep the existing database credentials when restoring; generating a replacement
 password is a separate rotation operation.
 
-The chart installation command, once data and credentials are ready, is:
+For recovery of the October archive, use values from the reviewed pre-upgrade
+revision with server v2.7.5, not the current v3 values. The original chart
+installation command, once matching data and credentials are ready, was:
 
 ```bash
 helm install immich oci://ghcr.io/immich-app/immich-charts/immich \
-  --namespace immich -f immich/values.yaml --version 0.12.0
+  --namespace immich -f /path/to/reviewed-v2.7.5-values.yaml --version 0.12.0
 ```
 
 The current deployment is restored and manual ArgoCD adoption is complete.
