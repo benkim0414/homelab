@@ -1,7 +1,8 @@
 # Immich rollout evidence — 2026-11-11
 
-Status: isolated restore and v3 startup verified; authenticated functional
-checks and rollback testing remain pending. Production remains PostgreSQL 14.19
+Status: isolated restore, rollback startup and clean v3 migration verified.
+The operator confirmed Albums works; the remaining authenticated functional
+checks are awaiting explicit confirmation. Production remains PostgreSQL 14.19
 and Immich v2.7.5. No database cutover or application upgrade has occurred.
 The merged declaration is `18c627f8b41f8d49e4dd3c1b578af015ac9523eb`.
 Do not full-sync Immich until the migration gates pass.
@@ -133,11 +134,10 @@ search and a controlled upload. No production Service or ingress was changed.
 
 ## Remaining gates and retained resources
 
-- Complete authenticated functional checks and application rollback testing.
-- Repeat the migration from a fresh checkpoint with the adequate memory budget
-  to obtain a clean runtime and stability result. The combined rehearsal Pod
-  tests the pinned server/database/cache images; it does not establish that the
-  production Helm chart has rolled out successfully.
+- Complete the outstanding authenticated functional checks. Rollback startup
+  and the clean migration retry passed as recorded below. The combined rehearsal
+  Pod tests the pinned server/database/cache images; it does not establish that
+  the production Helm chart has rolled out successfully.
 - Review production scheduling/headroom, full ArgoCD diff and exact revision;
   take a final write-frozen production dump and matching media snapshot before
   any database cutover. No production downtime has begun.
@@ -179,3 +179,42 @@ concurrency 12: 176 requests passed, transferring 22,005,992 bytes, with a maxim
 request duration of 3.158 seconds. Unauthenticated Albums API requests returned
 the expected 401; these are not authenticated album-query tests. Ping afterward
 completed in 38 ms. The operator was asked to retry Albums before acceptance.
+
+## Confirmed Albums, rollback and clean migration
+
+The operator confirmed Albums works after the alternative tunnel transport was
+selected. Photo download, video playback, search and a test upload were asked
+about separately and remain unconfirmed. Production remains untouched.
+
+Before rollback, the rehearsal v3 database was preserved as
+`/var/lib/postgresql/data/rehearsal-v3-before-rollback.dump`, SHA256
+`4d9e70017c3904a76bdb508ffab8917aae77a67d872e6c1ae91fef871fb46a23`.
+The disposable Pod was recreated, retaining the same database PVC and using
+`immich_rollback_frozen` as the server database, with a fresh Valkey cache.
+
+A media dry-run comparison against the frozen snapshot found six changed
+`.immich` marker files (78 bytes total) and one directory timestamp; no other
+files differed by size/mtime or inventory. Checksums confirmed the six marker
+contents differed. Their v3 versions were preserved under
+`/storage/k3s/immich/rehearsal-20261111/media-v3-before-rollback/` before restoring
+only those six files from the checkpoint. No production media was modified and
+no data was deleted. This comparison did not checksum all 154 GiB of media.
+
+The restored v2.7.5 application started successfully, with 22,809 assets, 2 users,
+26 albums, 68 migration records, zero invalid indexes and no startup error lines.
+This verifies rollback startup and database integrity; it is not a separate
+operator-authenticated rollback browser test.
+
+The Pod was then recreated for v3.2.0 with a fresh cache and the same pre-v3
+database, retaining the corrected 3 GiB PostgreSQL memory limit. It became ready
+in 16 seconds. Counts remained 22,809 / 2 / 26, migration records increased from
+68 to 96, and invalid indexes remained zero. All three containers had zero
+restarts. Twenty-four health probes over approximately 46 seconds passed, with
+a maximum latency of 73 ms, and startup logs had no error lines. PostgreSQL's
+reported cgroup peak was 852,799,488 bytes for this clean Pod lifetime.
+
+`immich_rollback_frozen` now contains the clean v3 rehearsal result; its name no
+longer indicates a pre-v3 schema. The frozen pre-v3 dump remains the recovery
+source. The original first-run v3 database `immich` is also retained. The current
+localhost-only alternative tunnel writes to ignored
+`verification/cache/rollout/port-forward-clean-v3.log`.
