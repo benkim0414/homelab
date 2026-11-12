@@ -7,6 +7,14 @@ project decisions. The bank initializer creates either bank only when absent.
 Codex connections are repository-scoped; see the
 [MCP setup](../docs/mcp/README.md#codex-memory). No conversation import is enabled.
 
+## Upgrade status
+
+The requested `0.10.3` → `1.2.1` chart/API/UI upgrade is **held** pending an
+isolated migration/recovery rehearsal and subscription/REST/MCP acceptance.
+Runtime pins remain `0.10.3`. See [the compatibility review and unhold checklist](UPGRADE-1.2.md)
+for irreversible migration evidence and exact prerequisites. Do not substitute
+a PostgreSQL image/extension migration or auth change for these checks.
+
 ## Deployment
 
 | Component | Configuration |
