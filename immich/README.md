@@ -1,8 +1,9 @@
 # Immich on K3s
 
-The declared upgrade target is Helm chart `0.13.4` with server `v3.2.0`.
+The declared upgrade target is Helm chart `0.13.4` with server `v3.4.1`.
 The October recovery baseline was chart `0.12.0` / server `v2.7.5`.
-Follow [the v3 upgrade runbook](UPGRADE-v3.md) before rollout; these pins do not
+Follow [the v3.4 upgrade runbook](UPGRADE-v3.4.md) from v3.2.0, or
+[the original v3 upgrade runbook](UPGRADE-v3.md) for older recovery data; these pins do not
 prove the live deployment has been upgraded. The cluster has four Raspberry Pis and one amd64
 Proxmox worker. Both architectures are available for scheduling.
 
@@ -93,8 +94,9 @@ curl --fail https://immich.tailbd291c.ts.net/api/server/ping
 
 Both ping endpoints return `{"res":"pong"}`. Use the restored account; no new
 admin account is needed. Before upgrading, verify a fresh database backup,
-review the release's migration requirements, and update both the chart pin in
-`argocd/apps/immich.yaml` and compatible image tag in `values.yaml`.
+review the release's migration requirements, and review the chart pin in
+`argocd/apps/immich.yaml` together with the compatible image tag in `values.yaml`.
+The v3.4.1 proposal keeps chart 0.13.4; chart and server versions are independent.
 
 Before removing workloads or claims, review the actual PV reclaim policies and
 PVC retention behavior. NFS `Retain` does not imply Longhorn volumes will survive
