@@ -13,8 +13,8 @@ This directory declares the deployment; it is not evidence of a live rollout.
 | Setting | Declaration |
 | --- | --- |
 | Namespace / Application | `hermes` |
-| Image | `nousresearch/hermes-agent:v0.22.2`, pinned to a multiarch index digest |
-| Architectures | Registry index inspected on 2026-10-19: Linux AMD64 and ARM64 |
+| Image | `nousresearch/hermes-agent:v0.23.1`, pinned to a multiarch index digest |
+| Architectures | Registry index inspected on 2026-11-12: Linux AMD64 and ARM64 |
 | Processes | Official s6 entrypoint, gateway and dashboard in one container |
 | Dashboard | Port 9119; `https://hermes.<tailnet>.ts.net` |
 | Provider | `openai-codex`; select an account-supported model during bootstrap |
@@ -23,9 +23,9 @@ This directory declares the deployment; it is not evidence of a live rollout.
 | Resources | Request 250m CPU / 1 GiB; limit 2 CPU / 2 GiB |
 
 The image index digest is
-`sha256:36099926da316742423544e055d4734777105ffe6341873af5459b957d0c2919`.
-The registry's release tag includes `v`; `0.22.2` does not exist. Both containers
-must use the same reviewed image. Renovate includes this directory for proposals;
+`sha256:276d44685c65c0cb2a25f190b63c65c8906f9dc76486fb1c05ae71b5826bda08`.
+The reviewed registry release tag is `v0.23.1` (including `v`). The gateway,
+init container, browser and both backup runners must use the same reviewed image. Renovate includes this directory for proposals;
 updates remain subject to review and manual sync.
 
 The official image requires root for s6 bootstrap, ownership repair, and privilege
@@ -43,6 +43,38 @@ volume supplies a native filesystem for SQLite WAL; do not move this state to NF
 PVC annotations prevent normal ArgoCD pruning/deletion, but the Longhorn class
 has reclaim policy **Delete**: direct PVC/namespace deletion can destroy data.
 Replication is not a backup.
+
+## Upgrade review: v0.23.1 (prepared, not deployed)
+
+The [official container guide](https://hermes-agent.nousresearch.com/docs/user-guide/docker)
+and [updating guide](https://hermes-agent.nousresearch.com/docs/getting-started/updating)
+require replacing the image while keeping the same data mount, not running
+`hermes update` in the container or on the workstation. Startup performs
+noninteractive config-schema migrations and writes adjacent config/env backups.
+These are not a replacement for a completed whole-volume NAS backup.
+
+Review [v0.23.0 upgrade notes](https://github.com/NousResearch/hermes-agent/releases/tag/v0.23.0)
+and [v0.23.1](https://github.com/NousResearch/hermes-agent/releases/tag/v0.23.1)
+before a separately authorized manual sync. The gateway now owns local sessions;
+cutover-interrupted work is not automatically replayed and rollback needs
+pre-upgrade state, not just the old image. Migration v51 retires the Bot Chat
+delivery timeout. Migration v52 removes `browser.backend` and
+`browser.extension_control` and migrates legacy browser environment settings;
+review/approve those persisted-config changes before startup rather than editing
+the seed in this image-only change. Legacy browser tools/agent-browser were
+removed in favor of `browser_exec`, which this deployment already uses with its
+separate CDP browser.
+Recheck Chromium paths, the tailored node seccomp profile, renderer sandboxing,
+idle cleanup, dashboard probes and Herdr CLI attachment against the new image.
+The seed deliberately disables the API server; compatibility of the new
+session-owner client path with that posture needs an isolated test. Do not enable
+the API server, Webapp, schedules or messaging to work around a failure.
+
+The upstream unset-model default changes to GLM-5.3. Preserve the selected
+subscription model and auxiliary routes; do not accept a new default or fallback
+without approval. Prepared compaction, Daybreak, plugin auto-update and alternate
+delegation routing are opt-in and are not enabled here. No config/profile/auth
+migration has been executed or approved by this image-only preparation.
 
 ## Credentials and configuration
 

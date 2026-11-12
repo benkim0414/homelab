@@ -34,7 +34,7 @@ spec:
               type: RuntimeDefault
           containers:
             - name: backup
-              image: nousresearch/hermes-agent:v0.22.2@sha256:36099926da316742423544e055d4734777105ffe6341873af5459b957d0c2919
+              image: nousresearch/hermes-agent:v0.23.1@sha256:276d44685c65c0cb2a25f190b63c65c8906f9dc76486fb1c05ae71b5826bda08
               command: [/opt/hermes/.venv/bin/python, -B, /scripts/backup.py]
               env:
                 - name: POD_UID
@@ -99,7 +99,7 @@ spec:
               type: RuntimeDefault
           containers:
             - name: recovery
-              image: nousresearch/hermes-agent:v0.22.2@sha256:36099926da316742423544e055d4734777105ffe6341873af5459b957d0c2919
+              image: nousresearch/hermes-agent:v0.23.1@sha256:276d44685c65c0cb2a25f190b63c65c8906f9dc76486fb1c05ae71b5826bda08
               command: [/opt/hermes/.venv/bin/python, -B, /scripts/backup.py]
               env:
                 - name: BACKUP_MODE

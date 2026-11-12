@@ -115,6 +115,18 @@ CRs may need separately reviewed cleanup; they are not silently discarded.
 
 ## Restore exercise
 
+For a new exercise against the prepared v0.23.1 manifests, use the same reviewed
+image as the gateway, browser, init and backup/recovery runners:
+
+```text
+nousresearch/hermes-agent:v0.23.1@sha256:276d44685c65c0cb2a25f190b63c65c8906f9dc76486fb1c05ae71b5826bda08
+```
+
+The v0.22.2 pin in the historical verification record below identifies the image
+actually tested then; it is not a current deployment or backup-runner reference.
+A downgrade after the session-owner/schema migration requires pre-upgrade state,
+not starting that older image on the upgraded production database.
+
 Use an approved successful backup and unique test resource names. Preserve the
 working Deployment, PVC and volume throughout the exercise:
 
