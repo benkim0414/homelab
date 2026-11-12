@@ -56,7 +56,7 @@ helm repo update
 kubectl create namespace argocd
 helm install argocd argo/argo-cd \
   --namespace argocd \
-  --version 10.10.3 \
+  --version 10.18.0 \
   -f argocd/values.yaml
 ```
 
@@ -171,7 +171,7 @@ different chart and is not recovery of the declared Application:
 helm repo update
 helm upgrade argocd argo/argo-cd \
   --namespace argocd \
-  --version 10.10.3 \
+  --version 10.18.0 \
   -f argocd/values.yaml
 ```
 
