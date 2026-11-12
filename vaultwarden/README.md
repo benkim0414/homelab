@@ -1,8 +1,50 @@
 # Vaultwarden
 
-The rebuilt deployment uses chart `0.46.3` and server `1.37.1`, with a 2 GiB
-Longhorn volume and two replicas. The configured URL is
+The declared upgrade target is chart `0.46.4` and explicit server `1.37.5`.
+The rebuilt deployment used server `1.37.1`; a desired pin does not prove rollout.
+The deployment uses a 2 GiB Longhorn volume with two storage replicas. The configured URL is
 `https://vaultwarden.tailbd291c.ts.net`; the dedicated MetalLB address is `.205`.
+
+## Upgrade review: server 1.37.1 to 1.37.5
+
+The repository's previous explicit image was `1.37.4`, but the supplied live
+baseline is `1.37.1`; review the complete live-to-target path. Chart `0.46.4`
+changes appVersion/default Alpine tag, not workload or storage templates. Our
+explicit `1.37.5` override keeps the existing non-Alpine image variant.
+
+Reviewed releases [1.37.2](https://github.com/dani-garcia/vaultwarden/releases/tag/1.37.2),
+[1.37.3](https://github.com/dani-garcia/vaultwarden/releases/tag/1.37.3),
+[1.37.4](https://github.com/dani-garcia/vaultwarden/releases/tag/1.37.4),
+[1.37.5](https://github.com/dani-garcia/vaultwarden/releases/tag/1.37.5) and
+[chart 0.46.4](https://github.com/guerzon/vaultwarden/releases/tag/v0.46.4).
+
+- 1.37.2 supports newer 2026.8+ clients; 1.37.4 and 1.37.5 include security
+  fixes, notably organization revocation, 2FA, attachments, icons and emergency
+  access. 1.37.5 bundles web vault 2026.10.1 and fixes newer 2FA/emergency-access
+  payloads. No custom web vault is declared here.
+- 1.37.4 changes forwarded-IP selection to the rightmost untrusted address,
+  removes legacy registration/prelogin endpoints and deprecated feature flags,
+  and drops old CLI Send receive support. Check actual client/proxy compatibility
+  before rollout; no proxy trust or authentication changes are included.
+- 1.37.5 rejects invalid numeric settings and purge cron expressions at startup.
+  Declared values do not set the affected numeric/cron options, but persisted
+  admin configuration and runtime overrides still need owner validation without
+  exporting credentials. Do not remediate by silently removing saved settings.
+- Before separately authorized sync, verify a recent successful backup Job and a
+  fresh recovery checkpoint, plus an isolated full-data restore/integrity and
+  attachment test. Review the generated-to-live diff and target architectures.
+  Preserve the existing PVC, signups-disabled policy, Secret references, service
+  exposure and manual sync. No PostgreSQL change is involved (SQLite).
+- Test existing clients, login/2FA, vault sync, attachment download and an approved
+  controlled write. Do not rotate organization/API credentials as part of this
+  change; upstream's conditional rotation advice requires separate approval.
+- Treat schema changes as forward-only operationally. For rollback, stop the
+  application and restore the entire pre-upgrade data archive to a fresh volume
+  with the matching old image. An image revert alone is not a recovery plan.
+
+This is a local proposal; no deployment, archive inspection or restore test was
+performed. Job success does not prove a complete restore or a consistent snapshot
+of concurrently changing attachments.
 
 ## NAS backups
 
