@@ -3,7 +3,7 @@
 # Repo: https://kube-vip.github.io/helm-charts
 
 image:
-  tag: "v1.0.4"
+  tag: "v1.3.1"
 
 config:
   address: "192.168.0.10"
