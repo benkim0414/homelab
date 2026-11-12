@@ -9,7 +9,7 @@ spec:
     # Helm chart
     - repoURL: https://prometheus-community.github.io/helm-charts
       chart: kube-prometheus-stack
-      targetRevision: '92.7.0'
+      targetRevision: '93.2.2'
       helm:
         valueFiles:
           - $repo/monitoring/kube-prometheus-stack-values.yaml
@@ -56,7 +56,7 @@ spec:
     # Helm chart
     - repoURL: https://grafana.github.io/helm-charts
       chart: loki
-      targetRevision: '7.3.0'
+      targetRevision: '7.6.0'
       helm:
         valueFiles:
           - $repo/monitoring/loki-values.yaml
@@ -82,7 +82,7 @@ spec:
     # Helm chart
     - repoURL: https://grafana.github.io/helm-charts
       chart: alloy
-      targetRevision: '1.13.1'
+      targetRevision: '1.15.0'
       helm:
         valueFiles:
           - $repo/monitoring/alloy-values.yaml
