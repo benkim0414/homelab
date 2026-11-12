@@ -1,7 +1,8 @@
 # Hindsight shared memory
 
-Hindsight provides a shared global bank named **`reserve`** for explicitly requested
-cross-project decisions and preferences, plus **`homelab`** for explicitly saved
+Hindsight provides a personal bank named **`reserve-bank`** for explicitly saved
+personal facts, preferences, goals, working style and cross-agent decisions,
+plus **`homelab-protocols`** for explicitly saved
 project decisions. The bank initializer creates either bank only when absent.
 Codex connections are repository-scoped; see the
 [MCP setup](../docs/mcp/README.md#codex-memory). No conversation import is enabled.
@@ -101,7 +102,7 @@ publish to `main` only through the separately approved Git workflow.
    Publish the reviewed repository changes with approval. Sync the root Application
    to register Hindsight, then review and sync Hindsight **without pruning or force**.
    Normal ArgoCD sync runs the PostSync `hindsight-initialize-reserve` hook,
-   which creates missing `reserve` and `homelab` banks without changing existing ones.
+   which creates missing `reserve-bank` and `homelab-protocols` banks without changing existing ones.
 8. Verify the acceptance checks below. Model-name recognition and HTTP health do
    not establish subscription entitlement: retain and reflect must actually work.
 
@@ -123,10 +124,10 @@ client = Hindsight(
     base_url=os.environ["HINDSIGHT_API_URL"],
     api_key=os.environ["HINDSIGHT_API_KEY"],
 )
-result = client.recall(bank_id="reserve", query="What preferences apply to this task?")
+result = client.recall(bank_id="reserve-bank", query="What preferences apply to this task?")
 ```
 
-MCP clients can use `https://hindsight-api.<tailnet>.ts.net/mcp/reserve/` with the
+MCP clients can use `https://hindsight-api.<tailnet>.ts.net/mcp/reserve-bank/` with the
 same bearer authentication. Obtain the real hostname from the Ingress status.
 Never use the administration UI hostname as an API URL.
 
@@ -140,7 +141,7 @@ can contain:
   "api_url": "https://hindsight-api.<tailnet>.ts.net",
   "bank_id": "hermes-unscoped",
   "bank_id_template": "project-{project}",
-  "recall_additional_banks": ["reserve"],
+  "recall_additional_banks": ["reserve-bank"],
   "auto_recall": true,
   "recall_prefetch_method": "recall"
 }
@@ -150,9 +151,9 @@ Supply the API token through the agent's secret/environment mechanism. Explicit
 bank mappings are needed for repositories with colliding names. Avoid this dynamic
 profile outside a Git project, where the template's empty project placeholder can
 resolve to a generic bank. `additional_banks` would mirror writes, so do not put
-`reserve` there. Hermes reflect uses only the primary bank.
+`reserve-bank` there. Hermes reflect uses only the primary bank.
 
-Save a global decision through a tool explicitly targeting `reserve` only when the
+Save personal information through a tool explicitly targeting `reserve-bank` only when the
 user requests it. Include its scope, date, and source. The bank's mission guides
 extraction; it does not enforce user authorization. Keep mandatory rules in
 `AGENTS.md`. Other coding-agent connectors need their own tested dual-bank recall
@@ -166,11 +167,12 @@ wiring; this deployment does not install them or enable automatic ingestion.
   credentials work from this machine and an in-cluster client over the intended
   endpoints. Health endpoints may intentionally be unauthenticated.
 - The UI works, and browser responses/assets do not disclose the server API token.
-- The initializer creates `reserve` with zero memories, preserves an existing bank
+- The initializer creates `reserve-bank` with zero memories, preserves an existing bank
   on subsequent syncs, and fails rather than overwriting it on authentication errors.
 - Use a separate validation bank: retain a unique harmless fact, wait for extraction,
   recall it from a second client, and reflect over it. Confirm database persistence
-  after an API restart and writable OAuth refresh persistence. Leave `reserve` empty.
+  after an API restart and writable OAuth refresh persistence. Do not add synthetic
+  test memories to the personal bank.
 - Run a manual backup Job, verify its archive, and restore it into a separate test
   database to check the validation fact and bank configuration. Cleanup requires
   explicit approval; never restore over the live database for this test.
@@ -188,6 +190,51 @@ through reviewed Git configuration. Obtain explicit approval before replacing an
 existing database. Restore static credentials through Sealed Secrets; repeat the
 dedicated login if OAuth credentials are unavailable or invalid. Do not downgrade
 Hindsight against a migrated schema without a compatible database restore.
+
+## Personal memory across AI agents
+
+Connect each trusted MCP-capable agent to
+`https://hindsight-api.tailbd291c.ts.net/mcp/reserve-bank/` using its normal
+secret injection for the existing bearer token. REST clients can use the API
+with `bank_id="reserve-bank"`. Network access and authentication are required;
+a bank does not automatically connect to agents or inject context into prompts.
+
+Each agent needs instructions to recall relevant personal context before work,
+save only on explicit request, record source/date/scope, honor corrections, and
+treat memory as context rather than authorization. Keep repository facts in
+`homelab-protocols`; do not mirror them into the personal bank. Sensitive personal details
+should require explicit consent, and credentials must never be retained.
+
+On 2026-11-12, the live empty `reserve` bank was replaced by the actual bank ID
+`reserve-bank`, with `reserve` retained only as a compatibility alias. The live
+`factory` bank was deleted at the user's request; `homelab` was unchanged.
+Both personal-bank missions now describe personal, cross-agent memory.
+
+Later on 2026-11-12, the empty `homelab` bank was replaced with canonical bank
+`homelab-protocols` at the user's request. Its exported configuration and effective
+disposition were preserved and verified. The old `homelab` ID remains a
+compatibility alias, with alias resolution verified; no memories were deleted.
+The repository connector now targets the canonical ID, while retaining its
+`hindsight_homelab` name. The initializer and save guidance use the new ID.
+
+Initial retain verification failed with `CodexRefreshExpiredError` and
+`refresh_token_invalidated`. With explicit approval, the dedicated login was
+renewed through the recovery pod, without copying an interactive agent's OAuth
+grant or adding a paid API fallback. The API was stopped before mounting its
+credential PVC in the login pod, the new auth file was verified as mode `0600`,
+and the login pod was removed before restoring the API to one ready replica.
+
+An external Hermes client and an independent authenticated REST client verified
+retain/recall of the explicitly requested personal-bank purpose. Workstation
+profile configuration and client-specific acceptance notes are maintained outside
+this GitOps repository; they do not configure the cluster workload or future clients.
+
+For future recovery, download the pinned CLI directly inside the temporary pod
+if `kubectl cp` is too slow; confirm `codex --version` before using it, because
+an interrupted copy can leave a corrupt executable. Treat device-code login as
+pending until the CLI reports success, not merely when browser approval is claimed.
+Do not display auth files or API tokens. The bank changes are live; repository
+edits remain local until separately published. Historical notes below use old names.
 
 ## References
 

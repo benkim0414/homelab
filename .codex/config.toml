@@ -2,13 +2,13 @@
 hooks = true
 
 [mcp_servers.hindsight_homelab]
-url = "https://hindsight-api.tailbd291c.ts.net/mcp/homelab/"
+url = "https://hindsight-api.tailbd291c.ts.net/mcp/homelab-protocols/"
 bearer_token_env_var = "HINDSIGHT_API_KEY"
 enabled_tools = ["recall", "reflect", "retain"]
 tool_timeout_sec = 330
 
 [mcp_servers.hindsight_reserve]
-url = "https://hindsight-api.tailbd291c.ts.net/mcp/reserve/"
+url = "https://hindsight-api.tailbd291c.ts.net/mcp/reserve-bank/"
 bearer_token_env_var = "HINDSIGHT_API_KEY"
 enabled_tools = ["recall", "reflect", "retain"]
 tool_timeout_sec = 330

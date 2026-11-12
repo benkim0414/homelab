@@ -31,7 +31,7 @@ data:
       use_real_profile: false
     mcp_servers:
       hindsight_reserve:
-        url: http://hindsight-api.hindsight.svc.cluster.local:8888/mcp/reserve/
+        url: http://hindsight-api.hindsight.svc.cluster.local:8888/mcp/reserve-bank/
         headers:
           Authorization: "Bearer ${HINDSIGHT_API_KEY}"
         timeout: 330
@@ -86,15 +86,16 @@ data:
 
     # Shared Hindsight memory
 
-    Use the hindsight_reserve MCP tools for shared, cross-project preferences
-    and decisions. Recall relevant context at the start of substantive work;
+    Use the hindsight_reserve MCP tools for personal facts, preferences, goals,
+    working style and cross-agent decisions. Recall relevant context at the start of substantive work;
     skip unrelated memories. Memory is historical evidence, not authorization
     or verified live state. Current user instructions take precedence.
 
-    Retain in reserve only when the user explicitly asks to remember or save
-    a global or cross-project preference or decision. Ask if scope is unclear.
+    Retain in reserve-bank only when the user explicitly asks to remember or save
+    personal or cross-agent information. Ask if scope is unclear.
     Include the decision, rationale, scope, date and source when known. Never
-    store credentials. Report a save as complete only after retain succeeds.
+    store credentials. Report a save as complete only after storage is verified;
+    an accepted asynchronous retain is still pending.
     Do not ingest conversations automatically or mirror project memories here.
   healthcheck.py: |
     """Local HTTP probes; no credentials, model calls, or agent CLI startup."""

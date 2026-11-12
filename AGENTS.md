@@ -124,8 +124,9 @@ memory or write outside the workspace to preserve them.
   briefly and continue. These banks do not ingest conversations, Git history, or
   code automatically.
 - Retain only on an explicit request to remember/save: project decisions go to
-  `homelab`; `reserve` requires an explicitly global or cross-project request.
-  Ask if scope is ambiguous; never mirror project memories into `reserve` or store
+  `homelab-protocols`; `reserve-bank` holds explicitly saved personal facts, preferences,
+  goals, working style, and cross-agent decisions.
+  Ask if scope is ambiguous; never mirror project memories into `reserve-bank` or store
   credentials. Include decision, rationale, scope, date, and source when known.
   Report a save only after storage succeeds; acceptance means it is still pending.
 - Operational workflows: [.agents/skills/cluster-health/SKILL.md](.agents/skills/cluster-health/SKILL.md)

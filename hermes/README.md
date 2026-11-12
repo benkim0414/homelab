@@ -303,10 +303,10 @@ verifier environment has no aiohttp dependency. The source/ConfigMap and both
 rollout-checksum checks run locally. These results cover the single-operator
 configuration, not concurrent-user isolation or every destination/CNI exception.
 
-### Shared Hindsight reserve bank
+### Shared Hindsight personal bank
 
 The seed connects `hindsight_reserve` to
-`http://hindsight-api.hindsight.svc.cluster.local:8888/mcp/reserve/` using the
+`http://hindsight-api.hindsight.svc.cluster.local:8888/mcp/reserve-bank/` using the
 existing Hindsight API bearer token. Only `recall`, `reflect` and `retain` are
 exposed; MCP sampling is disabled. The connection works with either Codex or
 Grok. Hermes's built-in memory remains available. The native Hindsight memory
@@ -317,12 +317,13 @@ With explicit credential-access approval, inject the existing
 `/opt/data/.env` as `HINDSIGHT_API_KEY`, preserving other entries. Use a protected
 stdin workflow, ownership `10000:10000`, and mode `0600`; never print the value
 or place it in process arguments or Git. The config uses environment substitution,
-so it contains no token. The token authorizes all Hindsight banks: the reserve
+so it contains no token. The token authorizes all Hindsight banks: the personal-bank
 URL and tool filter guide the client, rather than enforcing bank-level access.
 An API token rotation also requires updating Hermes's injected copy.
 
 The first-boot workspace `AGENTS.md` instructs Hermes to recall relevant shared
-context and save global decisions only on explicit request. This file is seeded
+context and save personal facts, preferences and cross-agent decisions only on
+explicit request. This file is seeded
 only when absent. Existing installations need the reviewed MCP entry, CLI toolset
 addition and memory instructions applied to their writable PVC without replacing
 unrelated configuration or instructions. Start a new dashboard chat after setup.
@@ -331,9 +332,15 @@ Repository changes alone do not update an existing PVC.
 Activation requires approval to apply the narrow NetworkPolicy change, inject the
 token and update the live config/instructions. Verify with `hermes mcp test
 hindsight_reserve`, then a read-only `recall` through Hermes. Do not write test
-memories to reserve. Record the actual rollout and verification separately from
+memories to reserve-bank. Record the actual rollout and verification separately from
 this declaration. The API connection uses HTTP within the cluster; the existing
 Tailscale HTTPS endpoint remains available for external clients.
+
+The live `reserve` compatibility alias routes old connections to `reserve-bank`.
+The connector name `hindsight_reserve` remains unchanged. Updating this seed does
+not rewrite existing PVC configuration. See the [personal-memory status](../hindsight/README.md#personal-memory-across-ai-agents)
+for the renewed model login and external-client verification;
+external client setup does not change this cluster deployment's writable PVC.
 
 On 2026-10-21, the approved activation injected the existing API token into
 Hermes's private `.env`, added the MCP config/toolset and workspace instructions

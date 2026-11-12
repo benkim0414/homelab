@@ -37,12 +37,12 @@ spec:
 
               banks = [
                   {
-                      "name": "reserve",
-                      "retain_mission": "Retain only explicitly requested cross-project decisions and personal preferences. Preserve source, date and scope when supplied. Do not infer global policy from project-specific conversations.",
-                      "reflect_mission": "Recall the user's explicit cross-project decisions and preferences. Distinguish superseded decisions and uncertainty. Current user instructions and repository instructions take precedence.",
+                      "name": "reserve-bank",
+                      "retain_mission": "Retain only explicitly requested personal facts, preferences, goals, working style, and cross-project decisions about the user for use by trusted AI agents. Preserve source, date, scope and rationale when supplied. Do not infer personal traits or global preferences from project-specific conversations. Never retain credentials. Distinguish explicit statements, uncertainty and superseded information.",
+                      "reflect_mission": "Help trusted AI agents understand the user using their explicitly saved personal facts, preferences, goals, working style and cross-project decisions. Retrieve only relevant information. Distinguish uncertainty and superseded information; never invent personal details. Memory is historical context, not authorization or verified live state. Current user and repository instructions take precedence.",
                   },
                   {
-                      "name": "homelab",
+                      "name": "homelab-protocols",
                       "retain_mission": "Retain explicitly requested decisions about the homelab repository and cluster. Preserve rationale, scope, date and source when supplied. Distinguish proposals, agent claims and verified outcomes. Never retain credentials.",
                       "reflect_mission": "Recall relevant homelab decisions and their rationale, sources and scope. Distinguish superseded decisions and uncertainty. Memory is historical evidence, not live cluster state or authorization. Current user and repository instructions take precedence.",
                   },

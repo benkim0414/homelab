@@ -30,8 +30,8 @@ Codex process environment.
 | `argocd` | `npx -y argocd-mcp@latest stdio` | `ARGOCD_BASE_URL` and `ARGOCD_API_TOKEN` |
 | `aws_iam` | `mise exec -- uvx awslabs.iam-mcp-server@latest --allow-write` | Local AWS `default` profile |
 | `aws_s3` | `mise exec -- uvx awslabs.aws-api-mcp-server@latest` | Local AWS `default` profile and AWS API MCP policy |
-| `hindsight_homelab` | HTTPS MCP `/mcp/homelab/` | Tailscale access and `HINDSIGHT_API_KEY` |
-| `hindsight_reserve` | HTTPS MCP `/mcp/reserve/` | Same token; shared global memory |
+| `hindsight_homelab` | HTTPS MCP `/mcp/homelab-protocols/` | Tailscale access and `HINDSIGHT_API_KEY` |
+| `hindsight_reserve` | HTTPS MCP `/mcp/reserve-bank/` | Same token; personal cross-agent memory |
 
 ## Codex memory
 
@@ -39,8 +39,12 @@ The two Hindsight connections are scoped to this trusted repository through
 `.codex/config.toml`. No user-level Codex configuration or other agents are modified.
 Both expose only `recall`, `reflect`, and `retain`. Codex consults both banks for
 relevant context, following the memory instructions in the root `AGENTS.md`.
-Only explicit user requests trigger saves: project decisions go to `homelab`, and
-explicitly global decisions go to `reserve`. There are no ingestion hooks or imports.
+Only explicit user requests trigger saves: project decisions go to `homelab-protocols`, and
+explicitly saved personal facts, preferences, goals and cross-agent decisions go
+to `reserve-bank`. There are no ingestion hooks or imports. The connector name
+`hindsight_reserve` is unchanged; `reserve` is a compatibility alias, not a second bank.
+The `hindsight_homelab` connector name also stays unchanged; `homelab` is a
+compatibility alias for `homelab-protocols`, not a separate bank.
 
 Supply `HINDSIGHT_API_KEY` in `.env.hindsight.local`, an owner-only (`0600`)
 gitignored file, using the existing Hindsight API token. `.mise.toml` loads it
