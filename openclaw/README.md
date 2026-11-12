@@ -13,8 +13,8 @@ For terminal access, open the **K3s** machine in Herdr and run `openclaw` or
 | Setting | Declaration |
 | --- | --- |
 | Namespace / Application | `openclaw` |
-| Image | Official `ghcr.io/openclaw/openclaw:2026.10.5`, pinned by index digest |
-| Architectures | Registry index inspected 2026-10-19: Linux AMD64 and ARM64 |
+| Image | Official `ghcr.io/openclaw/openclaw:2026.11.3`, pinned by index digest |
+| Architectures | Registry index inspected 2026-11-12: Linux AMD64 and ARM64 |
 | Model | `xai/grok-4.7`, explicitly using the built-in `openclaw` runtime |
 | Thinking | `medium`; use `/think low` for quick tasks or `/think high` for difficult work |
 | Provider authentication | Dedicated xAI OAuth device-code login with an eligible SuperGrok or X Premium subscription |
@@ -25,8 +25,8 @@ For terminal access, open the **K3s** machine in Herdr and run `openclaw` or
 | Resources | Request 250m CPU / 2 GiB; limit 2 CPU / 4 GiB |
 
 The reviewed multiarch image digest is
-`sha256:f40d1e66fd14d8c5b49c832f4100f83b53fdc01f5108f7db11de38fd0ee6dbe5`.
-Both containers use it. Renovate proposes image changes; updates require review
+`sha256:e73f689d663567f0fe3c5a85c54beb3e102dc21f0814bf375e9039ee2d2df51b`.
+The gateway, init container and both backup runners use it. Renovate proposes image changes; updates require review
 and explicit sync. The standard image bundles the xAI plugin. Preserve the
 official tini/Node entrypoint: it coordinates exclusive state maintenance and
 Doctor migrations before starting the gateway. A lower image version alone does
@@ -56,6 +56,31 @@ external backup. The init container creates both directories before subpath moun
 The PVC has `Prune=false,Delete=false`. These ArgoCD safeguards do not prevent
 direct PVC/namespace deletion. Confirm the actual backing PV reclaim policy;
 Longhorn replication is availability protection, not a backup.
+
+## Upgrade review: 2026.11.3 (prepared, not deployed)
+
+Review the [target release](https://github.com/openclaw/openclaw/releases/tag/v2026.11.3),
+intermediate releases from 2026.10.6 through 2026.11.2, the
+[target Docker guide](https://github.com/openclaw/openclaw/blob/v2026.11.3/docs/install/docker.md)
+and [migration guide](https://github.com/openclaw/openclaw/blob/v2026.11.3/docs/install/migrating.md)
+before a separately authorized sync. The 2026.10.6 release introduced patched
+Node runtime requirements; use the official image's runtime rather than a local
+npm/self-update. Later releases repair Doctor recovery, retained transcript/state
+migration and plugin handling. Preserve the official entrypoint and both writable
+state/capture mounts. Automatic startup migration is a data-changing operation;
+review its captured plan in isolation and obtain approval for any configuration,
+authentication or model change. Do not run Doctor repairs against production as
+part of local verification. Rollback requires compatible whole-claim state.
+
+No change to `xai/grok-4.7`, the `openclaw` runtime, medium thinking, plugin
+allowlist, OAuth, tool permissions, pairing, or disabled automation is included.
+Confirm these remain effective in a new chat after an authorized rollout; do not
+substitute a model, add an API fallback, reauthenticate or enable channels here.
+A completed full-volume backup and isolated recovery test are required before
+upgrade. On 2026-11-12 the read-only inspection found no OpenClaw backup/recovery
+CronJobs or Jobs and no completed Longhorn backup for its source volume. The
+manifests declare the jobs, but declaration alone does not meet the backup gate;
+provisioning/enabling them or taking a manual backup requires separate review.
 
 ## Configuration and permissions
 
