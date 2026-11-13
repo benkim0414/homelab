@@ -41,9 +41,13 @@ and [migration sources](https://github.com/vectorize-io/hindsight/tree/v1.2.1/hi
   explicit `gpt-5.6-luna`, writable credential PVC, single owner and no-fallback
   policy must survive. A chart render/health probe cannot establish retain,
   recall, reflect or refresh compatibility. No token was read or copied here.
-- The default reranker changes in 1.2 to hosted `hs-rerank-1`. Our explicit local
-  provider/model should override it; preserve and test that, rather than adopting
-  a hosted provider. Likewise retain BGE embedding dimensions and local cache.
+- Tagged 1.2.1 source keeps the default reranker provider **local**, with model
+  `hindsight-ai/hs-rerank-1`. This corrects the earlier hosted-reranker assumption.
+  Preserve our explicit local MiniLM override, BGE dimensions and local cache;
+  do not switch models or enable a hosted provider as part of this upgrade.
+- Tagged 1.2.1 remains MIT licensed; no mandatory self-hosted Hindsight
+  subscription/license gate was found. Existing Codex entitlement and dedicated
+  grant ownership are separate operational checks, not a new Hindsight fee.
 - Source chart review shows the control-plane template adds optional revision
   history configuration; newer charts also offer API strategy/startup settings.
   That does not justify replacing/adopting the hand-written API Deployment in
@@ -57,7 +61,7 @@ Read-only Job metadata on 2026-11-12 confirms successful scheduled backup
 Job completion only. No archive contents were opened. The [runbook](README.md)
 records an isolated restore on 2026-10-17 for the old release; it is not a
 rehearsal of today's bank/alias state through the new irreversible migrations,
-nor a test of the new subscription/schema contract. Those results cannot be
+nor a test of the new provider/schema contract. Those results cannot be
 inferred from a successful dump Job, package diff or old test bank.
 
 Safe major-version recovery and functional compatibility are **not established**
@@ -92,3 +96,17 @@ until separately authorized isolated rehearsal and acceptance evidence exists.
 No production backup, restore, rehearsal, login, schema query or live write was
 performed during this review. Checked-in runbooks and tagged upstream sources
 support the hold; historical evidence does not replace a target-version rehearsal.
+
+## Follow-up isolated preparation (2026-11-13)
+
+Offline initializer/OpenAPI/migration-graph fixtures passed seven tests. The exact
+eight-revision path is `c8e2f4a6b1d3` -> `05867433a58c`; profile/background REST
+operations return 410 in the target and must not be confused with supported bank
+config and bank-scoped MCP APIs. External client compatibility remains unverified.
+
+The local PostgreSQL sandbox probe was explicitly denied by the execution approval
+gate. It was not retried or replaced with another execution path. No database
+restore/migration or API startup proof resulted. Do not run the prepared harness
+until the operator explicitly resolves that denial through the approval workflow.
+Production pins remain unchanged. No production grant is available for cloning;
+any inference/refresh acceptance needs a separate owner-provisioned test mechanism.
