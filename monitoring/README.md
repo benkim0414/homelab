@@ -50,10 +50,13 @@ This retention-only stage keeps chart 7.3.0, runtime 3.6.11, one replica and the
 existing claim template unchanged. It is not a runtime upgrade or a backup.
 The operator approved a temporary verifier `storage-identity` exception for
 `apps/StatefulSet/monitoring/loki` on 13 November 2026 for these two retention
-fields only. Publish and require exact-commit CI for that change, then remove
-the exception in a separately CI-verified follow-up before live sync. Do not
-change policy code or exempt other resources; future storage changes must
-continue to fail closed without their own review.
+fields only. The initial exception-bearing commit `ebe1ceb` passed local full
+validation, but Verify run `43357839805` failed because a synthetic unit-test
+fixture inherited the production exception. The repair isolates fixture
+exceptions and removes the temporary production exception; it does not change
+policy code. Require successful exact-commit CI for this repair/cleanup commit
+and the complete Argo generated-to-live review before live sync. The original
+failed CI run remains recorded; future storage changes still fail closed.
 Keep the chart's `enableStatefulSetAutoDeletePVC` gate enabled so the explicit
 policy renders; do not enable StatefulSet recreation for size changes.
 

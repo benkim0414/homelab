@@ -23,12 +23,19 @@ def entry(doc):
     return {'resource': doc, 'namespace': 'app', 'app': 'app', 'file': 'fixture.yaml'}
 
 
+def fixture_config():
+    config = json.loads(v.CONFIG.read_text())
+    # Real migration exceptions cannot match these synthetic resource inventories.
+    config['exceptions'] = []
+    return config
+
+
 class SelectionTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(dir=v.CACHE)
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        self.config = copy.deepcopy(json.loads(v.CONFIG.read_text()))
+        self.config = fixture_config()
         self.config['excluded'] = {}
         self.config['root'] = 'root.yaml'
         self.write('root.yaml', {'apiVersion': 'argoproj.io/v1alpha1', 'kind': 'Application',
@@ -182,7 +189,17 @@ class SelectionTests(unittest.TestCase):
 
 class SafetyTests(unittest.TestCase):
     def setUp(self):
-        self.config = json.loads(v.CONFIG.read_text())
+        self.config = fixture_config()
+
+    def test_fixture_config_isolates_production_exceptions(self):
+        production = json.loads(v.CONFIG.read_text())
+        production['exceptions'] = [{'rule': 'storage-identity',
+            'resource': 'apps/StatefulSet/monitoring/loki', 'reason': 'Synthetic migration',
+            'document': 'monitoring/README.md'}]
+        with patch.object(Path, 'read_text', return_value=json.dumps(production)):
+            isolated = fixture_config()
+        self.assertEqual(isolated, {**production, 'exceptions': []})
+        self.assertTrue(production['exceptions'])
 
     def test_invalid_yaml_and_duplicate_keys(self):
         for text in ('spec: [', 'spec: {}\nspec: {}'):
