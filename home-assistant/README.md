@@ -47,3 +47,27 @@ not fully declared in Git. Do not infer compatibility from the Helm patch number
 
 No live change, backup, restore test, configuration read from the PVC or rollout
 was performed during this preparation.
+
+## Production rollout and memory sizing (2026-11-13)
+
+The separately approved rollout deployed chart `0.3.91` / server `2026.11.1`
+after an observed clean shutdown and a new full NAS checkpoint of the original
+Longhorn volume. Independent old/target restored-data rehearsals passed startup
+and recorder integrity checks; those disconnected amd64 tests do not establish
+ARM64 memory headroom or device/client acceptance.
+
+The ARM64 production pod initially became Ready and scraped successfully, then
+experienced sustained pressure at its `512Mi` limit and a liveness-triggered
+restart (exit 137, reason `Error`). The observed OOM counter was zero: this is
+not evidence of a confirmed kernel OOM kill. A diagnostic version command timed
+out; it may have added pressure, but was not established as the sole cause.
+The restarted application itself remained near the cap. Avoid launching another
+full Home Assistant Python runtime solely for a version check in a tight pod.
+
+The declared limit is increased to `1Gi`, with the existing `256Mi` request,
+probes, image, PVC, proxy/authentication settings and manual sync unchanged.
+Node capacity was reviewed before proposing this reversible sizing change.
+Publishing/rendering alone does not establish that the higher limit is deployed
+or sufficient: verify actual pod limits, sustained readiness/restart counts,
+memory headroom, authenticated Prometheus scraping and both existing entry points.
+Owner login, dashboards, device controls and integration acceptance remain required.
