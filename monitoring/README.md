@@ -33,14 +33,45 @@ Do not resize, rename, recreate or prune monitoring claims as part of this upgra
 Loki chart 7.6.0 advertises `appVersion: 3.6.18`, but its packaged default
 `loki.image.tag` is **3.6.11**, as in chart 7.3.0. With the repository's unchanged
 values, the new chart still renders `docker.io/grafana/loki:3.6.11`; a chart bump
-alone is **not** a Loki runtime/security upgrade. This change deliberately keeps
-chart defaults. A separately reviewed image override must consider the chart's
+alone is **not** a Loki runtime/security upgrade. The Application currently holds
+the live chart at **7.3.0** while recovery prerequisites are established. A
+separately reviewed image override must consider the chart's
 3.6.x target rather than blindly selecting the latest 3.7.x release.
 
 Preserve the `loki` StatefulSet and `storage` claim template, filesystem TSDB v13
 schema/date/index prefix, 10 GiB Longhorn volume, `/var/loki/compactor` working
 directory, filesystem delete requests, seven-day asynchronous retention and
 existing gateway/auth settings.
+
+### Loki retention safeguard before recovery maintenance
+
+The values explicitly declare `whenDeleted: Retain` and `whenScaled: Retain`.
+This retention-only stage keeps chart 7.3.0, runtime 3.6.11, one replica and the
+existing claim template unchanged. It is not a runtime upgrade or a backup.
+The operator approved a temporary verifier `storage-identity` exception for
+`apps/StatefulSet/monitoring/loki` on 13 November 2026 for these two retention
+fields only. Publish and require exact-commit CI for that change, then remove
+the exception in a separately CI-verified follow-up before live sync. Do not
+change policy code or exempt other resources; future storage changes must
+continue to fail closed without their own review.
+Keep the chart's `enableStatefulSetAutoDeletePVC` gate enabled so the explicit
+policy renders; do not enable StatefulSet recreation for size changes.
+
+Before scaling down, require a reviewed no-prune sync and verify the live policy
+is Retain/Retain, the StatefulSet controller has removed its and any Pod's owner
+references from `storage-loki-0`, and the same PVC/PV/CSI identities remain Bound.
+The safeguard should not change the pod template or restart Loki; verify the
+writer pod UID and readiness are unchanged. Do not manually strip owner
+references to bypass controller reconciliation.
+
+The existing dynamically provisioned PV still has reclaim policy **Delete**.
+Explicit PVC/namespace deletion can destroy data despite StatefulSet retention.
+Do not change global StorageClass policy, prune storage, force-detach, or treat
+an unavailable/removed snapshot as a backup. After retention is verified, a
+separate checkpoint must observe normal shutdown, complete a durable whole-volume
+backup, resume the original writer/claim and pass an isolated restore/replay test
+before any runtime upgrade. The single-replica maintenance interval interrupts
+ingestion/queries; collector buffering and log rotation require RPO review.
 
 ## Alloy and post-sync checks
 

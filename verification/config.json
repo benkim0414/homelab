@@ -21,7 +21,14 @@
   "external_crds": [
     "https://raw.githubusercontent.com/k3s-io/helm-controller/v0.16.15/pkg/crds/yaml/generated/helm.cattle.io_helmchartconfigs.yaml"
   ],
-  "exceptions": [],
+  "exceptions": [
+    {
+      "rule": "storage-identity",
+      "resource": "apps/StatefulSet/monitoring/loki",
+      "reason": "Operator-approved retention-only Delete/Delete to Retain/Retain safeguard; unchanged claim template, volume identities, pod template and runtime. Remove this temporary exception in the separately CI-verified follow-up before live sync.",
+      "document": "monitoring/README.md"
+    }
+  ],
   "generated_fields": [
     {
       "kind": "Secret",

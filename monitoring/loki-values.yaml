@@ -40,6 +40,9 @@ singleBinary:
     enabled: true
     storageClass: longhorn
     size: 10Gi
+    # Preserve the existing claim during reviewed maintenance and chart removal.
+    whenDeleted: Retain
+    whenScaled: Retain
 
 # --- Disable scalable-mode components ---
 backend:

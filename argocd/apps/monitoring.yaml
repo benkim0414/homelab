@@ -56,7 +56,8 @@ spec:
     # Helm chart
     - repoURL: https://grafana.github.io/helm-charts
       chart: loki
-      targetRevision: '7.6.0'
+      # Hold the live chart while establishing retention and recovery evidence.
+      targetRevision: '7.3.0'
       helm:
         valueFiles:
           - $repo/monitoring/loki-values.yaml
