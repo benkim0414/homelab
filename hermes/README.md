@@ -64,6 +64,11 @@ review/approve those persisted-config changes before startup rather than editing
 the seed in this image-only change. Legacy browser tools/agent-browser were
 removed in favor of `browser_exec`, which this deployment already uses with its
 separate CDP browser.
+Migration v53 also changes the stale default `agent.clarify_timeout: 3600` to
+`90`; v0.23.1 therefore uses config schema 53, not merely 52. Preserve the
+selected provider/model and review this timeout effect as part of the persisted
+configuration migration. Synthetic schema50 -> 53 tests passed, but do not
+establish actual configuration, browser or authenticated session-owner acceptance.
 Recheck Chromium paths, the tailored node seccomp profile, renderer sandboxing,
 idle cleanup, dashboard probes and Herdr CLI attachment against the new image.
 The seed deliberately disables the API server; compatibility of the new
@@ -147,8 +152,10 @@ of unlimited usage.
 
 ### Native browser in an isolated pod
 
-Hermes uses its native `browser_exec` interface (`browser.backend: browser-use`)
-with a private CDP connection to `hermes-browser.hermes.svc.cluster.local:9222`.
+Hermes uses its native `browser_exec` interface with a private CDP connection to
+`hermes-browser.hermes.svc.cluster.local:9222`. The old 0.22.2 configuration used
+`browser.backend: browser-use`; the 0.23.1 migrator removes that backend selector
+and `browser.extension_control`, while retaining the explicit local/CDP routing.
 `browser.cloud_provider: local` prevents cloud autodetection; no browser API key,
 desktop or extra MCP server is required. The browser workload reuses Chromium
 from the same digest-pinned Hermes image, but overrides its root/s6 entrypoint
