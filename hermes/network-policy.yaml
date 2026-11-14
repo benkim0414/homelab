@@ -22,6 +22,19 @@ spec:
         - protocol: TCP
           port: 9119
   egress:
+    # House manager uses official HA MCP. This is pod-wide connectivity;
+    # entity/tool restrictions are enforced separately in HA and the profile.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: home-assistant
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: home-assistant
+              app.kubernetes.io/instance: home-assistant
+      ports:
+        - protocol: TCP
+          port: 8123
     - to:
         - podSelector:
             matchLabels:
