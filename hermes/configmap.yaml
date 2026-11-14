@@ -8,9 +8,10 @@ data:
   # See README.md before changing an existing installation's configuration.
   config.yaml: |
     model:
-      provider: openai-codex
-      # Complete `hermes model` before the first conversation.
-      default: ""
+      provider: xai-oauth
+      default: grok-4.7
+      base_url: https://api.x.ai/v1
+      api_mode: codex_responses
     fallback_model: []
     auth:
       adopt_external_logins: false
@@ -49,13 +50,17 @@ data:
       public_url: https://hermes.tailbd291c.ts.net
     auxiliary:
       compression:
-        provider: openai-codex
+        provider: xai-oauth
+        model: grok-4.7
       title_generation:
-        provider: openai-codex
+        provider: xai-oauth
+        model: grok-4.7
       session_search:
-        provider: openai-codex
+        provider: xai-oauth
+        model: grok-4.7
       background_review:
-        provider: openai-codex
+        provider: xai-oauth
+        model: grok-4.7
     tool_loop_guardrails:
       non_interactive_hard_stop_enabled: true
     security:

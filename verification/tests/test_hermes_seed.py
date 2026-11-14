@@ -13,6 +13,23 @@ DEPLOYMENT = next(doc for doc in yaml.safe_load_all(
 
 
 class HermesSeedTests(unittest.TestCase):
+    def test_seed_uses_selected_grok_subscription_without_fallback(self):
+        config = yaml.safe_load(DATA['config.yaml'])
+        self.assertEqual(config['model'], {
+            'provider': 'xai-oauth',
+            'default': 'grok-4.7',
+            'base_url': 'https://api.x.ai/v1',
+            'api_mode': 'codex_responses',
+        })
+        self.assertEqual(config['fallback_model'], [])
+        self.assertFalse(config['auth']['adopt_external_logins'])
+        for task in ('compression', 'title_generation', 'session_search', 'background_review'):
+            self.assertEqual(config['auxiliary'][task]['provider'], 'xai-oauth')
+            self.assertEqual(config['auxiliary'][task]['model'], 'grok-4.7')
+        connector = config['mcp_servers']['hindsight_reserve']
+        self.assertTrue(connector['url'].endswith('/mcp/reserve-bank/'))
+        self.assertEqual(connector['tools']['include'], ['recall', 'reflect', 'retain'])
+
     def test_seed_preserves_existing_config_instructions_and_symlinks(self):
         source = DEPLOYMENT['spec']['template']['spec']['initContainers'][0]['args'][0]
         with tempfile.TemporaryDirectory(dir=ROOT / 'verification/cache') as directory:

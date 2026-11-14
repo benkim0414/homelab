@@ -17,7 +17,7 @@ This directory declares the deployment; it is not evidence of a live rollout.
 | Architectures | Registry index inspected on 2026-11-12: Linux AMD64 and ARM64 |
 | Processes | Official s6 entrypoint, gateway and dashboard in one container |
 | Dashboard | Port 9119; `https://hermes.<tailnet>.ts.net` |
-| Provider | `openai-codex`; select an account-supported model during bootstrap |
+| Provider | `xai-oauth` / `grok-4.7`; complete the dedicated subscription login before chatting |
 | Data | `hermes-data`, 10 GiB Longhorn RWO, mounted at `/opt/data` |
 | Workspace | `/opt/data/workspace`; tool HOME is `/opt/data/home` |
 | Resources | Request 250m CPU / 1 GiB; limit 2 CPU / 2 GiB |
@@ -142,10 +142,10 @@ metrics already being disabled.
 The initial CLI/browser-chat toolsets cover local commands, files, skills, memory,
 session search, task lists and headless browsing, plus the `hindsight_reserve` MCP tools described
 below. Optional paid web/image/voice tools and lazy dependency installation are
-not configured. The main provider and configured auxiliary tasks use Codex OAuth,
-with no fallback chain. Leave the
-model unset until completing `hermes model`; do not send the first prompt before
-selection. Background reviews and session summaries can consume additional quota.
+not configured. The main provider and configured auxiliary tasks use xAI Grok OAuth,
+with no fallback chain. Leave the configured model at the operator-selected
+`grok-4.7`; complete the dedicated `xai-oauth` login before sending the first
+prompt. Background reviews and session summaries can consume additional quota.
 Hermes documents the subscription integration, but not exact eligible tiers or
 quota accounting; verify entitlement with a small request. There is no promise
 of unlimited usage.
@@ -439,16 +439,14 @@ approvals, not authorization to execute them.
 4. Complete a fresh device-code login and model selection:
 
    ```sh
-   kubectl -n hermes exec -it deployment/hermes -c hermes -- hermes auth add openai-codex
-   kubectl -n hermes exec -it deployment/hermes -c hermes -- hermes model
+   kubectl -n hermes exec -it deployment/hermes -c hermes -- hermes -p default auth add xai-oauth --no-browser
    ```
 
-   Select **ChatGPT or Codex Subscription** and the recommended available model.
-   The image's `hermes` shim drops exec commands to the runtime user. Complete
-   browser approval yourself; do not print `auth.json`. If device login is disabled
-   by account/workspace policy, obtain approval before enabling it. Alternatively,
-   use the documented `--browser` login with a local port-forward to pod port 1455;
-   do not expose that callback through an Ingress.
+   Use the dedicated **SuperGrok / X Premium+** account. The image's `hermes`
+   shim drops exec commands to the runtime user. Complete browser approval
+   yourself; do not print `auth.json`. The xAI device-code flow needs no callback
+   port-forward. A successful login does not prove model entitlement: verify a
+   small request, and report a 403 rather than switching to a paid API key.
 5. Get the assigned dashboard URL and configure its exact HTTPS origin:
 
    ```sh
@@ -491,7 +489,8 @@ documents the first successful NAS backup and isolated restore. Inspect recent
 execution results before upgrades; the schedule alone does not prove success.
 
 If OAuth is revoked or terminally expired, stop active chat/cron work and repeat
-the dedicated `hermes auth add openai-codex` flow, then verify one small request.
+the dedicated `hermes -p default auth add xai-oauth --no-browser` flow inside the pod,
+then verify one small request.
 Do not refresh another application's grant or silently switch to paid API use.
 
 Before an upgrade, take a consistent offline Longhorn backup:
@@ -560,7 +559,38 @@ This local test used temporary dashboard credentials and made no model requests.
 The subsequent cluster rollout is recorded below. Neither test establishes
 long-term OAuth refresh, quota availability, or backup recovery.
 
+## Default-profile provider change: 2026-11-14
+
+The operator requested removal of the in-cluster default profile's OpenAI OAuth
+credentials and selected Grok 4.7. Using the profile-scoped Hermes CLI, Codex was
+logged out and the writable PVC configuration was changed to `xai-oauth`,
+`grok-4.7`, `https://api.x.ai/v1`, and `codex_responses`. The existing xAI login
+was used; no credential values were inspected or copied. A fresh default-profile
+one-shot request returned exactly `GROK_47_OK` with exit code zero. Auth status
+then reported Codex logged out and xAI logged in. This is local credential removal,
+not upstream token revocation or invalidation of credentials cached by running chats.
+
+The four previously Codex-configured auxiliary entries were changed to xAI and
+Grok 4.7. Hermes warned that `auxiliary.session_search` is not a recognized config
+key; that legacy entry was preserved, but its use is not established by this test.
+Auxiliary inference and dashboard end-to-end streaming were not independently
+tested. Start a new dashboard chat rather than reusing a Codex-configured session.
+
+The live `hindsight_reserve` URL was updated from `/mcp/reserve/` to
+`/mcp/reserve-bank/`, preserving its name and tool filter. `hermes mcp test
+hindsight_reserve` connected and discovered tools; no memory contents were read
+or written. A fresh chat still emitted `Unknown toolsets: mcp-hindsight_reserve`,
+so endpoint connectivity does not establish native tool availability. That warning
+is distinct from the earlier non-retryable Codex HTTP 401 failures.
+
+The seed configuration was updated in the checkout for future installations.
+No ArgoCD sync or pod restart was performed. The operational verification preceded
+the repository commit; publication and GitOps reconciliation are separate steps.
+
 ## Initial cluster rollout: 2026-10-19
+
+This rollout is historical; the provider change above supersedes its model and
+authentication selection.
 
 The approved rollout registered and manually synced only Hermes, without pruning
 or force/replace. The existing root Application exclusions and all manual sync
