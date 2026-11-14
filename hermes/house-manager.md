@@ -12,6 +12,12 @@
 
 This section supersedes the historical bootstrap state below.
 
+- On 2026-11-14, the operator selected GPT-6 Luna to reduce subscription usage.
+  The live profile now uses `openai-codex` / `gpt-6-luna`, set through the
+  profile-scoped Hermes CLI. Configuration readback confirmed the model, and a
+  fresh one-shot inference request returned exactly `LUNA_OK` (session
+  `20261114_092615_c322ef`). No HA tools or device actions were used in this test.
+  No gateway restart was performed; existing chats can retain their prior model.
 - Codex was reauthenticated interactively; a real no-tool model request succeeded.
 - Operator created a dedicated non-administrator HA user and installed its token
   with the hidden-input helper, without placing it in chat or command arguments.
