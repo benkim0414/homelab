@@ -1,0 +1,144 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: gerrit
+  namespace: gerrit
+spec:
+  serviceName: gerrit
+  replicas: 1
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+  selector:
+    matchLabels:
+      app: gerrit
+  template:
+    metadata:
+      labels:
+        app: gerrit
+      annotations:
+        checksum/gerrit-config: b19dfa05129c9d53d2c7422e9044f04a9ce9215d92a238edbbeba682326696c7
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 120
+      nodeSelector:
+        kubernetes.io/arch: amd64
+        homelab/workload-tier: heavy
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: gerrit
+          image: docker.io/gerritcodereview/gerrit:3.14.6@sha256:7e731f22264ec7d8e17fafa5fd488430690a5c6a0d51d405e5b165e46a74a135
+          command: [/bin/bash, /config/start.sh]
+          env:
+            - name: HOME
+              value: /site
+            - name: GERRIT_TMP
+              value: /tmp/gerrit
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 500m
+              memory: 2Gi
+            limits:
+              cpu: '2'
+              memory: 4Gi
+          startupProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - curl --fail --silent --max-time 5 http://127.0.0.1:8081/config/server/version | grep -Fq '"3.14.6"'
+            periodSeconds: 10
+            failureThreshold: 90
+            timeoutSeconds: 6
+          readinessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - curl --fail --silent --max-time 5 http://127.0.0.1:8081/config/server/version | grep -Fq '"3.14.6"'
+            periodSeconds: 15
+            timeoutSeconds: 6
+          livenessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - curl --fail --silent --max-time 5 http://127.0.0.1:8081/config/server/version | grep -Fq '"3.14.6"'
+            periodSeconds: 30
+            failureThreshold: 6
+            timeoutSeconds: 6
+          volumeMounts:
+            - name: site
+              mountPath: /site
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: gerrit-tmp
+              mountPath: /tmp
+        - name: proxy
+          image: docker.io/nginxinc/nginx-unprivileged:1.28.2-alpine@sha256:7377697a821c131a924a7105fafbe7414db4e9fcc77a6f08f776f33f141ec3f8
+          command: [nginx, -c, /config/nginx.conf, -g, 'daemon off;']
+          securityContext:
+            runAsUser: 101
+            runAsGroup: 101
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          ports:
+            - name: proxy
+              containerPort: 8080
+          readinessProbe:
+            tcpSocket:
+              port: proxy
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: proxy
+            periodSeconds: 30
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: auth
+              mountPath: /auth
+              readOnly: true
+            - name: proxy-tmp
+              mountPath: /tmp
+      volumes:
+        - name: site
+          persistentVolumeClaim:
+            claimName: gerrit-site
+        - name: config
+          configMap:
+            name: gerrit-config
+            defaultMode: 0444
+        - name: auth
+          secret:
+            secretName: gerrit-auth
+            defaultMode: 0440
+        - name: gerrit-tmp
+          emptyDir:
+            sizeLimit: 1Gi
+        - name: proxy-tmp
+          emptyDir:
+            sizeLimit: 256Mi

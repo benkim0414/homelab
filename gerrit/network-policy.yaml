@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: gerrit
+  namespace: gerrit
+spec:
+  podSelector:
+    matchLabels:
+      app: gerrit
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: tailscale
+          podSelector:
+            matchLabels:
+              tailscale.com/parent-resource-type: ingress
+              tailscale.com/parent-resource: gerrit
+              tailscale.com/parent-resource-ns: gerrit
+      ports:
+        - protocol: TCP
+          port: 8080
+  # No outbound integrations, mail, runtime downloads, or DNS in phase one.
+  egress: []
