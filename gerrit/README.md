@@ -94,6 +94,15 @@ Gerrit-generated tokens, responsible for Git HTTP authentication. This is safe
 only with the protected loopback backend. An ordinary Tailscale TLS proxy alone
 is not the Gerrit identity provider.
 
+Full Name and Display Name are separate account settings managed by Gerrit, not
+derived from the login username. The proxy strips `X-Gerrit-Name`, and
+`auth.httpDisplaynameHeader` is intentionally unset so Full Name remains editable.
+Set each independently in Gerrit's account settings; username and the trusted
+email mapping remain unchanged. Keep real names in account data rather than
+hardcoding personal profile information into this repository. A change to this
+Gerrit configuration requires the reviewed StatefulSet rollout; merely reloading
+nginx does not reload Gerrit's authentication realm configuration.
+
 To add a second normal learning account later, first verify the administrator.
 A separately reviewed credential replacement can be prepared with `--accounts 2
 --output verification/cache/gerrit-auth-next.yaml`, re-entering both accounts'

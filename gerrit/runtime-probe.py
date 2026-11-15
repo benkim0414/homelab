@@ -191,10 +191,19 @@ def main():
         user = api(pid, '/a/accounts/self', user='lab-user')
         assert user['username'] == 'lab-user'
         assert 'Administrators' not in [g['name'] for g in api(pid, '/a/accounts/self/groups', user='lab-user')]
+        api(pid, '/a/accounts/self/displayname', user='lab-user', method='PUT', body={'display_name': 'lab-user'})
+        api(pid, '/a/accounts/self/name', user='lab-user', method='PUT', body={'name': 'Review Lab User'})
+        request(pid, '/login/', 'lab-user')
+        profile = api(pid, '/a/accounts/self', user='lab-user')
+        assert profile['name'] == 'Review Lab User' and profile['display_name'] == 'lab-user'
+        assert profile['username'] == 'lab-user'
         status, content = request(pid, '/a/accounts/self', 'lab-user', extra=(
-            '--header', 'X-Gerrit-User: lab-admin', '--header', 'X-Gerrit-Email: admin@gerrit.invalid'))
-        assert status == 200 and json.loads(content.removeprefix(")]}'\n"))['username'] == 'lab-user'
+            '--header', 'X-Gerrit-User: lab-admin', '--header', 'X-Gerrit-Email: admin@gerrit.invalid',
+            '--header', 'X-Gerrit-Name: Untrusted Profile Name'))
+        profile = json.loads(content.removeprefix(")]}'\n"))
+        assert status == 200 and profile['username'] == 'lab-user' and profile['name'] == 'Review Lab User'
         print('PASS: private image startup, proxy authentication and identity-spoof rejection', flush=True)
+        print('PASS: Full Name is editable and independent of Display Name/login, including after login refresh', flush=True)
         project = 'gerrit-playground'
         api(pid, '/a/projects/' + project, method='PUT', body={'create_empty_commit': True, 'branches': ['main']})
         group = api(pid, '/a/groups/Lab-Reviewers', method='PUT', body={})
@@ -298,6 +307,8 @@ git -c credential.helper= push origin HEAD:refs/for/main
         assert api(pid, f'/a/changes/{change}', user='lab-user')['status'] == 'MERGED'
         assert len(api(pid, f'/a/changes/{change}/comments', user='lab-user')['lesson.txt']) == 2
         assert (site / '.homelab-version').read_text().strip() == '3.14.6'
+        profile = api(pid, '/a/accounts/self', user='lab-user')
+        assert profile['name'] == 'Review Lab User' and profile['display_name'] == 'lab-user'
         # Image roots are mounted read-only; verify no writable root shortcut.
         assert inside(pid, ['/bin/touch', '/root-write-test'], check=False).returncode != 0
         assert inside(pid, ['/usr/bin/curl', '--silent', '--connect-timeout', '2', 'https://example.com'], check=False).returncode != 0
@@ -314,6 +325,8 @@ git -c credential.helper= push origin HEAD:refs/for/main
         proxy = start_proxy(pid)
         restored = api(pid, '/a/changes/?q=project:gerrit-playground+status:merged', user='lab-user')
         assert len(restored) == 3
+        profile = api(pid, '/a/accounts/self', user='lab-user')
+        assert profile['name'] == 'Review Lab User' and profile['display_name'] == 'lab-user'
         assert len(api(pid, f'/a/changes/{change}/comments', user='lab-user')['lesson.txt']) == 2
         print('PASS: isolated cold-backup restore preserves all three merged changes and review comments', flush=True)
         events = dict(line.split() for line in (cgroup / 'memory.events').read_text().splitlines())
@@ -321,7 +334,7 @@ git -c credential.helper= push origin HEAD:refs/for/main
         peak = int((cgroup / 'memory.peak').read_text())
         (fixture / 'result.json').write_text(json.dumps({'status': 'passed', 'version': '3.14.6',
             'change': change, 'patch_sets': 2, 'restart_preserved': True,
-            'stacked_changes': 2, 'cold_restore_verified': True,
+            'stacked_changes': 2, 'cold_restore_verified': True, 'editable_full_name_verified': True,
             'scope_memory_peak_bytes': peak, 'scope_oom_events': 0}, indent=2) + '\n')
     finally:
         for proc in reversed(processes):

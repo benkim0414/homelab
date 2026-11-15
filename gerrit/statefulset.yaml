@@ -17,7 +17,7 @@ spec:
       labels:
         app: gerrit
       annotations:
-        checksum/gerrit-config: b19dfa05129c9d53d2c7422e9044f04a9ce9215d92a238edbbeba682326696c7
+        checksum/gerrit-config: a86b65e6ff2002ec072e0be965f19bca59af85a324ab4d030c9f3bbd818d1adb
     spec:
       automountServiceAccountToken: false
       terminationGracePeriodSeconds: 120
