@@ -40,7 +40,11 @@ spec:
     spec:
       automountServiceAccountToken: false
       terminationGracePeriodSeconds: 60
-      nodeSelector: {kubernetes.io/arch: amd64}
+      # This image needs x86-64-v3 on AMD64; the older Xeon VM lacks AVX2.
+      # The Pi 5 worker exposes ARMv8.2 + LRCPC and has verified request headroom.
+      nodeSelector:
+        kubernetes.io/arch: arm64
+        kubernetes.io/hostname: k3s-04
       securityContext:
         runAsNonRoot: true
         runAsUser: 101
