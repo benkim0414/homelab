@@ -8,6 +8,11 @@ One personal Hermes agent with browser chat over Tailscale HTTPS. The ArgoCD
 Application tracks `main`, uses manual sync, and has no cascading-delete finalizer.
 This directory declares the deployment; it is not evidence of a live rollout.
 
+Private metadata-only tracing is prepared in [the Langfuse runbook](../langfuse/README.md).
+Do not roll out the new tracing Secret references until `hermes-langfuse` exists
+in this namespace and the server is healthy. Plugin enrollment is profile-scoped;
+the ConfigMap remains an absent-file seed and does not overwrite persisted config.
+
 ## Runtime and storage
 
 | Setting | Declaration |

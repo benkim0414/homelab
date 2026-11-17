@@ -77,6 +77,10 @@ metrics token remain user tasks.
 persistent storage and an authenticated browser dashboard over Tailscale. Its
 first rollout requires separate dashboard credentials and a dedicated OAuth login.
 
+[Langfuse](langfuse/README.md) declares private metadata-only tracing for selected
+cluster and workstation Hermes profiles. Its runbook records provisioning,
+manual rollout gates and verification status; declaration is not live acceptance.
+
 Make changes on a feature branch and review them before merging to `main`.
 Applications combine Helm, repository values and raw manifest sources as needed;
 see the [ArgoCD instructions](argocd/AGENTS.md).
