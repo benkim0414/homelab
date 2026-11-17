@@ -8,8 +8,8 @@ an installation; it does not establish that it is deployed or collecting traces.
 Published through [PR #93](https://github.com/benkim0414/homelab/pull/93), merged
 as `e5db120844277b1a8e9437dc300035921b23b779` after green PR checks. The
 [main-branch Verify run](https://github.com/benkim0414/homelab/actions/runs/44189306576)
-also succeeded at that exact revision. The initial reviewed no-prune rollout has
-now run, but server readiness and tracing acceptance are not yet complete.
+also succeeded at that exact revision. The server is now deployed and verified
+Synced/Healthy. Client enrollment and end-to-end tracing acceptance remain pending.
 On 2026-11-17, both configured kubectl and Kubernetes
 MCP failed to reach `192.168.0.11:6443` with `no route to host`. The workstation
 was on `192.168.86.0/24`, no homelab subnet route was advertised over Tailscale,
@@ -46,11 +46,25 @@ The first readiness check found ClickHouse exiting 132 on the Xeon VM, which
 lacks AVX2/x86-64-v3; web migrations consequently could not connect. This is a CPU
 instruction compatibility failure, not evidence of insufficient CPU/RAM. The
 correction targets the existing ARM64 Pi 5 worker `k3s-04`, whose exposed features
-include LRCPC. The pinned image index includes ARM64. Runtime acceptance of this
-placement correction is still pending; do not enable clients yet.
+include LRCPC. The pinned image index includes ARM64. The correction was merged
+through [PR #94](https://github.com/benkim0414/homelab/pull/94) at
+`a0a38223b2b5b448f8e131b974f3e6fef6888983` after green PR and main checks. The
+actual ArgoCD diff changed only its two node-selector entries. A selective
+StatefulSet sync plus graceful restart of the stuck, never-Ready old pod moved
+ClickHouse to `k3s-04` with its original PVC. The failed web pod was then
+gracefully restarted without changing its template. No force deletion was used.
 
-**Rollout gates:** publish/review/sync the placement correction and verify server
-readiness; create client projects/keys; seal the Hermes client credentials; then
+At 2026-11-18 10:19 AEDT, all six workload pods were Ready, all four original
+claim/volume bindings were unchanged and healthy, and private HTTPS health and
+readiness returned `{"status":"OK","version":"4.77.0"}` with valid TLS.
+Unauthenticated `GET /api/public/v2/observations` returned 401. Only the Hermes
+NetworkPolicy was selectively synced: real Hermes-to-web HTTP 200 was verified,
+while all four datastore TCP paths were rejected. An unrelated-namespace probe
+could not reach web or ClickHouse; both owned diagnostic pods were cleaned up.
+See the [rollout record](../reports/2026-11-18-langfuse-rollout.md) for scope,
+capacity caveats and still-pending checks. No agent tracing is enabled yet.
+
+**Remaining gates:** owner login and client projects/keys; seal the Hermes client credentials; then
 roll out and enroll agents. Do not sync the Hermes Deployment before its
 `hermes-langfuse` Secret exists and the server is healthy.
 
@@ -259,8 +273,9 @@ curl --fail --silent --show-error --max-time 15 https://langfuse.tailbd291c.ts.n
 
 Expected after an authorized rollout: reviewed revisions Synced/Healthy, four
 Bound claims, six Synced SealedSecrets, completed bucket creation, HTTP 200 health
-and readiness with valid TLS, and owner login. These are expected results, not
-recorded deployment successes.
+and readiness with valid TLS, and owner login. The observed server results are recorded in the
+[rollout report](../reports/2026-11-18-langfuse-rollout.md); owner login and
+authenticated client tracing remain separate acceptance steps.
 
 ## Hermes projects, versions and enrollment
 
@@ -393,6 +408,14 @@ Use timestamps/session/trace IDs to find metadata-only traces, not the prompt
 text. A trace health check alone does not establish real ingestion. Subscription
 cost estimates are not subscription billing. Record trace IDs and statuses only,
 not payloads, in the rollout report.
+
+For this v4 server, use the current `/api/public/v2/observations` API with a
+bounded time window and trace ID; include the `io` field group when checking
+metadata-only omission stubs. Trace-level input/output are reconstructed from
+root observations, not legacy trace fields. The deprecated `/api/public/traces`
+route returns 404 here; that is not an authentication test. The supported
+observations endpoint returned 401 without credentials. See the
+[v4 API migration guide](https://langfuse.com/faq/all/deprecated-api-migration).
 
 Verify previous traces survive a web-only restart and that normal agent work
 continues in a controlled disposable-client backend-outage test. The older
