@@ -163,14 +163,57 @@ merging its PR after CI passes, and the reviewed no-prune rollout. The approval
 also requires preserving live Hermes v0.22.2; the pending v0.23.1 upgrade is not
 part of this deployment. No earlier timed-out prompt is treated as approval.
 
-## Remaining gates
+## Publication outcome and ArgoCD access blocker — 09:30 AEDT
 
-1. Commit/review/publish under the now-approved scope. Capacity, publication
-   authorization and infrastructure bootstrap gates are complete.
+- Committed the verifier fix separately from the coupled Langfuse implementation,
+  pushed the task branch and verified the remote head matched the local commit.
+- [PR #93](https://github.com/benkim0414/homelab/pull/93) passed both PR
+  verification gates and was merged at
+  `e5db120844277b1a8e9437dc300035921b23b779`. Its tree exactly matched the
+  locally verified candidate. The assigned worktree fast-forwarded to that
+  merge; the primary checkout was not moved.
+- The [main Verify run](https://github.com/benkim0414/homelab/actions/runs/44189306576)
+  completed successfully at that exact merge commit. The unrelated `herdr-image`
+  job was correctly skipped.
+- Rechecked the fresh-install inventory: no existing Langfuse namespace,
+  Application or conflicting tailnet device; no cluster-wide RBAC/CRDs or
+  LoadBalancer/NodePort resources in the Langfuse render. The bucket Sync hook
+  creates/verifies the application bucket; it does not delete data.
+- ArgoCD MCP tools are not available in this session. `hermes mcp list` shows the
+  configured fixed-service server enabled, but `hermes mcp test argocd` failed
+  with `Connection closed`. Invoking the normal fixed-service launcher with its
+  ordinary filtered environment confirmed the public diagnostic:
+  `Vault session expired for this helper; unlock again privately`.
+- No private session cache, token values, old env files or another profile were
+  inspected. No authentication was changed. No kubeconfig was modified, no
+  Kubernetes TLS check was disabled, and no sync/apply was requested.
+- A checksum-verified, server-matching ArgoCD CLI v3.6.1 was cached while checking
+  supported access options, but no core-mode server/login was started and no
+  cluster operation was performed through it. It does not resolve the access gate.
+- Exact live readback: `namespace/langfuse` and
+  `application.argoproj.io/langfuse` remain absent. Hermes still runs
+  `nousresearch/hermes-agent:v0.22.2@sha256:36099926da316742423544e055d4734777105ffe6341873af5459b957d0c2919`.
+- Only the operator may unlock via
+  `/usr/bin/python3 /home/benkim0414/.hermes/profiles/homelab-scientist/local/vaultwarden.py unlock`
+  in a private terminal. Retry the configured service afterward; do not substitute
+  the local render for the required actual generated-to-live review.
+
+## Remaining gates — 09:30 snapshot
+
+This gate list is historical. The operator subsequently unlocked the helper and
+the initial scoped rollout ran; see the
+[rollout and CPU compatibility correction](2026-11-18-langfuse-rollout.md) for
+the superseding deployment findings and remaining acceptance work.
+
+1. Operator-private vault unlock and successful normal ArgoCD MCP connection.
+   Capacity, publication authorization, publication/merge/CI and infrastructure
+   bootstrap gates are complete.
 2. Preserve the six existing ciphertext files; do not regenerate them. Verify
    successful controller unsealing after the approved deployment.
-3. Publish/review the intended main revision and green CI; review root registration
-   separately from the child deployment, with no pruning or unrelated sync.
+3. Recheck the intended main revision and green CI; inspect the complete actual
+   ArgoCD generated-to-live diff. Review root registration separately from the
+   child deployment, with no pruning or unrelated sync. Stop for review if main
+   has advanced since the published revision above.
 4. Deploy Langfuse, verify stores, hook, migrations, valid HTTPS and private login.
 5. Create cluster/desktop projects and private keys; seal/inject them through the
    approved process. Enroll only the four selected profile instances using their

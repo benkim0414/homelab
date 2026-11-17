@@ -79,7 +79,11 @@ class LangfuseTests(unittest.TestCase):
         sts = next(d for d in docs if d['kind'] == 'StatefulSet')
         pod = sts['spec']['template']['spec']
         self.assertFalse(pod['automountServiceAccountToken'])
-        self.assertEqual(pod['nodeSelector']['kubernetes.io/arch'], 'amd64')
+        # The Xeon VM lacks x86-64-v3; the verified Pi 5 worker has ARMv8.2 + LRCPC.
+        self.assertEqual(pod['nodeSelector'], {
+            'kubernetes.io/arch': 'arm64',
+            'kubernetes.io/hostname': 'k3s-04',
+        })
         self.assertEqual(pod['containers'][0]['securityContext']['capabilities']['drop'], ['ALL'])
 
     def test_bucket_hook_is_idempotent_and_checks_creation(self):

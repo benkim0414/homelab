@@ -5,8 +5,12 @@ an installation; it does not establish that it is deployed or collecting traces.
 
 ## Implementation status
 
-Prepared in the `homelab-scientist-langfuse` task worktree. No publication or live
-rollout has been performed. On 2026-11-17, both configured kubectl and Kubernetes
+Published through [PR #93](https://github.com/benkim0414/homelab/pull/93), merged
+as `e5db120844277b1a8e9437dc300035921b23b779` after green PR checks. The
+[main-branch Verify run](https://github.com/benkim0414/homelab/actions/runs/44189306576)
+also succeeded at that exact revision. The initial reviewed no-prune rollout has
+now run, but server readiness and tracing acceptance are not yet complete.
+On 2026-11-17, both configured kubectl and Kubernetes
 MCP failed to reach `192.168.0.11:6443` with `no route to host`. The workstation
 was on `192.168.86.0/24`, no homelab subnet route was advertised over Tailscale,
 and a down Docker bridge claimed `192.168.0.0/20`. No host networking was changed.
@@ -24,14 +28,29 @@ rotating existing credentials, enabling schedules or changing model providers.
 The operator subsequently approved the proposed non-HA capacity budget and
 privately generated all six infrastructure ciphertext manifests. Their identities,
 encrypted key sets and 0600 file permissions were verified without displaying
-values. Full verification passed with those files present. They are not applied
-to the cluster yet. The operator explicitly authorized task commits, push, PR
+values. Full verification passed with those files present. All six have now
+successfully unsealed in the cluster. The operator explicitly authorized task commits, push, PR
 creation/merge after checks, and the reviewed no-prune rollout while preserving
 live Hermes v0.22.2.
 
-**Rollout gates:** review current ownership and the complete generated-to-live
-diff; publish a reviewed revision and pass CI; deploy
-Langfuse; create client projects/keys; seal the Hermes client credentials; then
+An expired Vaultwarden helper session initially blocked ArgoCD access; the
+operator unlocked it privately. The normal fixed-service MCP connection then
+succeeded. Its actual 33 managed desired resources matched the pinned local
+render exactly after tracking-ID and credential redaction. The bucket Sync hook
+and Helm test pod account for the managed-resource API's two hook omissions.
+Only Langfuse was registered through the root; its child then synced the exact
+reviewed revisions with pruning, force and replace disabled. All four claims
+bound and the bucket hook succeeded. Hermes remains on live v0.22.2.
+
+The first readiness check found ClickHouse exiting 132 on the Xeon VM, which
+lacks AVX2/x86-64-v3; web migrations consequently could not connect. This is a CPU
+instruction compatibility failure, not evidence of insufficient CPU/RAM. The
+correction targets the existing ARM64 Pi 5 worker `k3s-04`, whose exposed features
+include LRCPC. The pinned image index includes ARM64. Runtime acceptance of this
+placement correction is still pending; do not enable clients yet.
+
+**Rollout gates:** publish/review/sync the placement correction and verify server
+readiness; create client projects/keys; seal the Hermes client credentials; then
 roll out and enroll agents. Do not sync the Hermes Deployment before its
 `hermes-langfuse` Secret exists and the server is healthy.
 
@@ -104,14 +123,19 @@ weakening redaction of nonempty maps; regression tests cover both behaviors.
 
 Proposed requests are 1600m CPU and 5376 MiB memory before init/hook overhead.
 Live preflight on 2026-11-18 found no node pressure and sufficient requested-resource
-headroom. Web, worker and ClickHouse target AMD64. On `k3s-05`, their additional
-1000m CPU / 4096 MiB would leave 600m CPU and about 3181 MiB of allocatable memory
-not requested, at the observation time. The node already had CPU limits at 373%
+headroom. Web and worker target AMD64. ClickHouse targets the ARM64 Pi 5 worker
+`k3s-04` because its pinned AMD64 image requires CPU instructions the Xeon lacks.
+The earlier estimate placing all three on AMD64 left 600m CPU / about 3181 MiB;
+moving ClickHouse's 500m CPU / 2048 MiB reservation off that node improves that
+estimate without expanding the VM. Before the move, `k3s-04` requested 970m CPU /
+1682 MiB; adding ClickHouse fits its observed request budget, though combined
+limits can still exceed physical resources. The AMD64 node already had CPU limits at 373%
 and memory limits at 142% of allocatable: fitting requests does not guarantee all
 containers can simultaneously consume their limits. The operator approved this
 non-HA budget; capacity must still be rechecked immediately before rollout.
 All five Longhorn disks were Ready/Schedulable with substantial available space;
-the StorageClass uses two replicas and reclaim policy Delete. No claims were created.
+the StorageClass uses two replicas and reclaim policy Delete. The four claims
+below are now Bound; preserve them during any placement correction.
 
 | Store | Proposed Longhorn claim |
 | --- | --- |
