@@ -240,6 +240,17 @@ class SafetyTests(unittest.TestCase):
         self.assertEqual(report[0]['change'], 'removed')
         self.assertNotIn('FAKE_TEST_PAYLOAD', json.dumps(report))
 
+    def test_empty_secret_maps_are_safe_to_report(self):
+        secret = resource('Secret', 'empty-chart-secret')
+        secret.update(data=None, stringData=None)
+        normalized = v.sanitize(secret, self.config)
+        self.assertEqual(normalized['data'], {})
+        self.assertEqual(normalized['stringData'], {})
+        self.assertEqual(v.changes([], [entry(secret)], self.config)[0]['change'], 'added')
+        sealed = resource('SealedSecret', 'empty-ciphertext')
+        sealed['spec'] = {'encryptedData': None}
+        self.assertEqual(v.sanitize(sealed, self.config)['spec']['encryptedData'], {})
+
     def test_generated_field_normalization_is_narrow(self):
         doc = resource('Deployment', 'kube-prometheus-stack-grafana', {'template': {'metadata': {'annotations': {
             'checksum/secret': 'generated', 'keep': 'visible'}}}})

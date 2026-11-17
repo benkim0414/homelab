@@ -483,9 +483,9 @@ def sanitize(doc, config):
     if doc.get('kind') == 'Secret':
         for key in ('data', 'stringData'):
             if key in doc:
-                doc[key] = {k: '<redacted-sha256:' + hashlib.sha256(str(value).encode()).hexdigest() + '>' for k, value in doc[key].items()}
+                doc[key] = {k: '<redacted-sha256:' + hashlib.sha256(str(value).encode()).hexdigest() + '>' for k, value in (doc[key] or {}).items()}
     if doc.get('kind') == 'SealedSecret':
-        encrypted = doc.get('spec', {}).get('encryptedData', {})
+        encrypted = doc.get('spec', {}).get('encryptedData') or {}
         doc.get('spec', {})['encryptedData'] = {k: '<redacted-sha256:' + hashlib.sha256(str(value).encode()).hexdigest() + '>' for k, value in encrypted.items()}
     for rule in config['generated_fields']:
         if all(doc.get('metadata', {}).get(k) == rule[k] for k in ('name', 'namespace')) and doc.get('kind') == rule['kind']:
