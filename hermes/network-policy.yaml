@@ -22,6 +22,19 @@ spec:
         - protocol: TCP
           port: 9119
   egress:
+    # Metadata tracing reaches only the Langfuse web/ingestion API.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: langfuse
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: langfuse
+              app.kubernetes.io/name: langfuse
+              app.kubernetes.io/component: web
+      ports:
+        - protocol: TCP
+          port: 3000
     # House manager uses official HA MCP. This is pod-wide connectivity;
     # entity/tool restrictions are enforced separately in HA and the profile.
     - to:

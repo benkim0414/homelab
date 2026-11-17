@@ -85,6 +85,26 @@ spec:
               value: /opt/data
             - name: HERMES_WRITE_SAFE_ROOT
               value: /opt/data
+            - name: HERMES_LANGFUSE_BASE_URL
+              value: http://langfuse-web.langfuse.svc.cluster.local:3000
+            - name: HERMES_LANGFUSE_CAPTURE
+              value: metadata
+            - name: HERMES_LANGFUSE_ENV
+              value: homelab-cluster
+            - name: HERMES_LANGFUSE_SAMPLE_RATE
+              value: "1"
+            - name: OTEL_SERVICE_NAME
+              value: hermes-cluster
+            - name: HERMES_LANGFUSE_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-langfuse
+                  key: public-key
+            - name: HERMES_LANGFUSE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-langfuse
+                  key: secret-key
             - name: HERMES_DASHBOARD
               value: "1"
             - name: HERMES_DASHBOARD_HOST

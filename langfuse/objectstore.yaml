@@ -1,0 +1,196 @@
+# The bundled SeaweedFS chart emits an unconditional SFTP credential hook in
+# all-in-one mode. Keep only the required server, stable IAM input and bucket.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: langfuse-s3-config
+  namespace: langfuse
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+data:
+  filer.toml: |
+    [leveldb2]
+    enabled = true
+    dir = "/data/filerldb2"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: langfuse-s3-data
+  namespace: langfuse
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: longhorn
+  resources:
+    requests: {storage: 20Gi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: langfuse-s3
+  namespace: langfuse
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  type: ClusterIP
+  selector: {app: langfuse-s3}
+  ports:
+    - {name: s3, port: 8333, targetPort: s3}
+    - {name: master, port: 9333, targetPort: master}
+    - {name: master-grpc, port: 19333, targetPort: master-grpc}
+    - {name: filer, port: 8888, targetPort: filer}
+    - {name: filer-grpc, port: 18888, targetPort: filer-grpc}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: langfuse-s3
+  namespace: langfuse
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: langfuse-s3}
+  template:
+    metadata:
+      labels: {app: langfuse-s3}
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10000
+        runAsGroup: 10000
+        fsGroup: 10000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: seaweedfs
+          image: chrislusf/seaweedfs:4.23@sha256:c6d6fb84b081f1f09bb089184ff4b45d2f163a1bfa8b354d04cf400c6e06f242
+          imagePullPolicy: IfNotPresent
+          workingDir: /data
+          command: [/usr/bin/weed]
+          args:
+            - -v=1
+            - server
+            - -dir=/data
+            - -master
+            - -volume
+            - -ip=$(POD_IP)
+            - -ip.bind=0.0.0.0
+            - -master.port=9333
+            - -master.defaultReplication=000
+            - -master.volumeSizeLimitMB=1024
+            - -volume.max=16
+            - -volume.port=8080
+            - -filer
+            - -filer.port=8888
+            - -s3
+            - -s3.port=8333
+            - -s3.config=/etc/sw/s3/seaweedfs_s3_config
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef: {fieldPath: status.podIP}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          ports:
+            - {name: s3, containerPort: 8333}
+            - {name: master, containerPort: 9333}
+            - {name: master-grpc, containerPort: 19333}
+            - {name: filer, containerPort: 8888}
+            - {name: filer-grpc, containerPort: 18888}
+          resources:
+            requests: {cpu: 250m, memory: 512Mi}
+            limits: {cpu: "2", memory: 2Gi}
+          startupProbe:
+            tcpSocket: {port: s3}
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            tcpSocket: {port: s3}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /cluster/status, port: master}
+            periodSeconds: 30
+          volumeMounts:
+            - {name: data, mountPath: /data}
+            - {name: config, mountPath: /etc/seaweedfs, readOnly: true}
+            - {name: s3-auth, mountPath: /etc/sw/s3, readOnly: true}
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: langfuse-s3-data}
+        - name: config
+          configMap: {name: langfuse-s3-config}
+        - name: s3-auth
+          secret:
+            secretName: langfuse-s3-auth
+            items:
+              - {key: seaweedfs_s3_config, path: seaweedfs_s3_config}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: langfuse-create-bucket
+  namespace: langfuse
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  backoffLimit: 1
+  activeDeadlineSeconds: 360
+  template:
+    metadata:
+      labels: {app: langfuse-create-bucket}
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10000
+        runAsGroup: 10000
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: create-bucket
+          image: chrislusf/seaweedfs:4.23@sha256:c6d6fb84b081f1f09bb089184ff4b45d2f163a1bfa8b354d04cf400c6e06f242
+          imagePullPolicy: IfNotPresent
+          workingDir: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          resources:
+            requests: {cpu: 10m, memory: 64Mi}
+            limits: {cpu: 250m, memory: 256Mi}
+          env:
+            - {name: HOME, value: /tmp}
+            - {name: WEED_CLUSTER_DEFAULT, value: sw}
+            - {name: WEED_CLUSTER_SW_MASTER, value: "langfuse-s3:9333"}
+            - {name: WEED_CLUSTER_SW_FILER, value: "langfuse-s3:8888"}
+          command: [/bin/sh, -ec]
+          args:
+            - |
+              set -o pipefail
+              for endpoint in "http://langfuse-s3:9333/cluster/status" "http://langfuse-s3:8888/"; do
+                attempt=0
+                until wget -q -T 3 --spider "$endpoint" >/dev/null 2>&1; do
+                  attempt=$((attempt + 1))
+                  [ "$attempt" -lt 50 ] || { printf '%s\n' 'Store readiness timed out'; exit 1; }
+                  sleep 2
+                done
+              done
+              bucket_exists() {
+                listing=$(printf '%s\n' 's3.bucket.list' | /usr/bin/weed shell) || return 1
+                printf '%s\n' "$listing" | awk '$1 == "langfuse" {found=1} END {exit !found}'
+              }
+              if ! bucket_exists; then
+                printf '%s\n' 's3.bucket.create --name langfuse' | /usr/bin/weed shell
+              fi
+              bucket_exists || { printf '%s\n' 'Bucket creation not verified'; exit 1; }
+              printf '%s\n' 'Langfuse bucket verified'

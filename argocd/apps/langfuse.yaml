@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: langfuse
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://langfuse.github.io/langfuse-k8s
+      chart: langfuse
+      targetRevision: 2.2.4
+      helm:
+        releaseName: langfuse
+        valueFiles:
+          - $repo/langfuse/values.yaml
+    - repoURL: https://github.com/benkim0414/homelab.git
+      targetRevision: main
+      ref: repo
+    - repoURL: https://github.com/benkim0414/homelab.git
+      targetRevision: main
+      path: langfuse
+      directory:
+        include: '{namespace.yaml,clickhouse.yaml,objectstore.yaml,network-policy.yaml,tailscale-ingress.yaml,*-sealed-secret.yaml}'
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: langfuse
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
