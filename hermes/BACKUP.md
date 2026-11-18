@@ -115,11 +115,11 @@ CRs may need separately reviewed cleanup; they are not silently discarded.
 
 ## Restore exercise
 
-For a new exercise against the prepared v0.23.1 manifests, use the same reviewed
+For a new exercise against the prepared v0.23.2 manifests, use the same reviewed
 image as the gateway, browser, init and backup/recovery runners:
 
 ```text
-nousresearch/hermes-agent:v0.23.1@sha256:276d44685c65c0cb2a25f190b63c65c8906f9dc76486fb1c05ae71b5826bda08
+nousresearch/hermes-agent:v0.23.2@sha256:d6746a084e9341baada483e3d6210444d3c1aeb7c130f0915150065fb2851459
 ```
 
 The v0.22.2 pin in the historical verification record below identifies the image

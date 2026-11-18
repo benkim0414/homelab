@@ -4,29 +4,122 @@ Applications and chart pins live in [monitoring.yaml](../argocd/apps/monitoring.
 The [ArgoCD runbook](../argocd/README.md#monitoring-rollout-lessons-and-results)
 records installation history, not the current desired versions.
 
-## Reviewing the 93.x Prometheus stack upgrade
+## Reviewing the 93.4.0 Prometheus stack candidate
 
-Keep manual, no-prune sync, `ServerSideApply=true`, the narrow Grafana generated
-credential/checksum ignores and `RespectIgnoreDifferences=true`. Apply the chart's
-matching CRDs before the updated operator and dependent monitoring resources.
-The [upstream upgrade guide](https://github.com/prometheus-community/helm-charts/blob/kube-prometheus-stack-93.2.2/charts/kube-prometheus-stack/UPGRADE.md#from-92x-to-93x)
-introduces operator 0.95.x; chart 93.2.2 packages operator/CRDs 0.95.2.
+This is a **prepared candidate, not a deployed upgrade**. Review the actual live
+chart **92.7.0 → 93.4.0**, not the superseded desired pin 93.2.2. The 93.4.0
+release was published on 17 November 2026. Exact public 92.7.0 and 93.4.0 packages
+were downloaded and matched against their Helm repository index SHA-256 digests:
+
+- 92.7.0: `af35d3e93750ce46d90cbb6537483c8fa914f19fbffa19fbabcb2825181a0f1a`
+- 93.4.0: `2ff4547dbe30aa7f6c7ef9fb49e35dfef43a36486cd8e463cd43cdda93914b24`
+
+Keep manual, no-prune/no-force/no-replace sync, `ServerSideApply=true`, the narrow
+Grafana generated credential/checksum ignores and `RespectIgnoreDifferences=true`.
+Alloy/Loki chart pins and monitoring values are unchanged by this candidate.
+
+| Component | 92.7.0 render | 93.4.0 render |
+| --- | --- | --- |
+| Operator / config reloader / CRDs | 0.94.1 | 0.95.2 |
+| Prometheus | 3.15.0-distroless | 3.16.0-distroless |
+| Alertmanager | 0.34.1 | 0.35.0 |
+| Grafana | 13.2.4-distroless | 13.3.1-distroless |
+| Grafana sidecar | 2.14.1 | 2.14.3 |
+| Admission certgen | 1.11.0 | 1.11.1 |
+| node-exporter | 1.12.1-distroless | unchanged |
+| kube-state-metrics | 2.20.0 | unchanged |
+
+The bundled Grafana **chart** is 14.5.0, not Grafana runtime 14.5.0; its new 14.x
+values schema accepts these repository values. The node-exporter and
+kube-state-metrics subcharts move to 5.1.0 and 9.0.1 without runtime image bumps.
+Public image indexes for all seven changed runtime/hook images include linux/amd64
+and linux/arm64; unknown-platform attestation entries are not executable platforms.
+This checks availability, not signatures or a vulnerability scan. Operator 0.95.2
+fixes non-amd64 image builds. Grafana 13.3.1 release notes list fixes for
+CVE-2026-102589, CVE-2026-107509, CVE-2026-110992, CVE-2026-111024,
+CVE-2026-13721 and CVE-2026-14242; this is not a claim that all images are CVE-free.
+Alertmanager 0.35.0 also redacts Telegram bot tokens from notification errors and
+adds an experimental ConnectRPC API alongside its existing API on the same service.
+Its removed auto-gomemlimit feature flag and eventrecorder output/schema changes
+are not configured in these values; verify actual generated/live configuration
+before rollout. Prometheus 3.16.0 includes WAL/replay/compaction data-loss fixes.
+
+### CRDs, hooks and security effects
+
+Apply the exact chart's ten matching **0.95.2 CRDs first**, wait for Established
+and discovery, then validate/sync the operator and dependent ServiceMonitors,
+Prometheus/Alertmanager and custom rules. The
+[93.x upgrade guide](https://github.com/prometheus-community/helm-charts/blob/kube-prometheus-stack-93.4.0/charts/kube-prometheus-stack/UPGRADE.md#from-92x-to-93x)
+still gives 0.95.1 examples: do not substitute those for the packaged 0.95.2 CRDs.
+The optional CRD-upgrade Job remains disabled; the candidate does not enable it.
+Existing admission pre-sync hooks are not proof that CRDs have already been updated.
+Schema review found extraScrapeMetrics, Alertmanager route labels, Telegram
+Secret/file selection and config-filesystem mode, TLS client-auth enum validation,
+Webex CEL validation and embedded PVC health-field constraints. CRD names and
+served/storage versions remain unchanged. Local schema checks do not execute CEL
+or prove API-server admission compatibility.
+
+The operator ClusterRole adds patch on managed CR finalizers and
+create/update/patch/delete on `alertmanagerconfigs/status`, while removing core
+Pod delete. Optional aggregate
+roles add ThanosRuler permissions in templates but are not rendered with these
+values. Node-exporter adds no privilege escalation, drop ALL capabilities and
+RuntimeDefault seccomp, preserving host mounts/network; its probe timeouts become
+five seconds. kube-state-metrics gains Linux node selection. Kubelet scraping now
+keeps `container_memory_swap`, potentially increasing series/cardinality. Rules
+and dashboards change, so target/rule evaluation still needs live verification.
+Rendered Service specs, workload selectors, PVC specs, Prometheus/Alertmanager
+storage and retention are unchanged. Grafana stays on LAN LoadBalancer
+`192.168.0.203` and the existing Tailscale ingress; outside the admission TLS-key
+migration below, no new ingress, NetworkPolicy, authentication setting or
+credential reference is introduced.
 
 The admission create hook now requests `kubernetes.io/tls` and the operator reads
 `tls.crt`/`tls.key`; its ServiceMonitor reads `ca.crt`. Certgen 1.11.1 migrates an
-existing Opaque admission Secret by validating and preserving its certificate
-payload, adding standard TLS keys, then deleting/recreating **that Secret only**
-with UID/resourceVersion preconditions. The hook Role consequently gains `delete`
-restricted to `kube-prometheus-stack-admission`. This is a real migration even
-without pruning: do not skip hooks or use apply-only sync. Review a maintenance
-window and recovery of the admission Secret before rollout; a failed recreate can
-leave it missing. This does not require reading or exporting credentials for local
-validation. See [certgen implementation](https://github.com/jkroepke/kube-webhook-certgen/blob/v1.11.1/pkg/k8s/k8s.go).
+existing Opaque admission Secret by preserving legacy entries, checking required
+keys, adding standard TLS keys, then deleting/recreating **that Secret only**
+with UID/resourceVersion preconditions. Its hook Role gains `delete` restricted
+to `kube-prometheus-stack-admission`. Key-presence checks are not certificate-chain
+or SAN validation. The create Job remains pre-install/pre-upgrade; the webhook
+CA patch Job remains post-install/post-upgrade, with before-hook-creation and
+hook-succeeded cleanup. The certgen source internally uses forced SSA for webhook
+CA patching; this is distinct from, and does not authorize, Argo force/replace.
+This is a destructive Secret-type migration even without pruning: do not skip
+hooks or use apply-only sync. A failed recreate can leave the Secret missing.
+See [certgen implementation](https://github.com/jkroepke/kube-webhook-certgen/blob/v1.11.1/pkg/k8s/k8s.go).
 
-Grafana 13.3.1 may migrate its database on the existing 2 GiB PVC. Review backup
-and downgrade compatibility before sync; chart rollback alone is not a database
-rollback. Prometheus and Alertmanager also restart with updated default images.
-Do not resize, rename, recreate or prune monitoring claims as part of this upgrade.
+### Backup-first rollout gate (not authorized or executed)
+
+Grafana 13.3.1 may migrate its database on the existing 2 GiB PVC. Chart rollback
+alone is not database rollback. Prometheus and Alertmanager restart on their
+existing 20 GiB and 2 GiB claims; preserve all claim/PV/CSI identities and reclaim
+policies. Do not resize, rename, recreate or prune storage. The prior checkpoint
+reported Grafana backup six days old, no Prometheus/Alertmanager checkpoint, and
+an unexecuted admission recovery checkpoint; these are unresolved evidence gaps,
+not a fresh backup/health assessment.
+
+Before maintenance, obtain narrowly scoped approval to create and independently
+restore-verify fresh Grafana DB/data, Prometheus TSDB and Alertmanager state
+checkpoints, including only the specific writer pauses and backup destination
+access required. Separately authorize encrypted recovery custody of **only**
+`monitoring/kube-prometheus-stack-admission` (or an operator-run checkpoint that
+never exposes payloads here), SAN/CA/key validation and its exact-name
+get/create/delete migration plus the chart webhook/RBAC changes. Do not grant
+blanket Secret export, credential rotation, namespace deletion, PVC deletion,
+force-detach or broad RBAC. Resume originals after checkpointing; restoring a
+consistent checkpoint plus old images is the rollback path. Approval for these
+backup actions is not approval for sync. Require a separate reviewed maintenance
+window, exact-commit successful CI, full generated-to-live diff and scoped
+admission dry-run before any rollout. The earlier approval timeout grants nothing.
+
+Local Helm 3.19.0 renders (including CRDs) and strict lint passed for both exact
+packages with repository values: 120 resources each, ten CRDs, no resource identity
+additions/removals. The repository verifier's two-pass render and strict
+Kubeconform 0.7.0 schema check against declared Kubernetes 1.36.5 also passed for
+both versions: 122 resources each including the two raw manifests, zero invalid,
+errors or skipped resources. Full-repository policy/CI validation remains separate.
+Generated Secret payloads were excluded from review output.
+Local validation is not deployment, recovery validation or live health evidence.
 
 ## Loki chart metadata is not the rendered image
 

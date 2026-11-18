@@ -18,8 +18,8 @@ the ConfigMap remains an absent-file seed and does not overwrite persisted confi
 | Setting | Declaration |
 | --- | --- |
 | Namespace / Application | `hermes` |
-| Image | `nousresearch/hermes-agent:v0.23.1`, pinned to a multiarch index digest |
-| Architectures | Registry index inspected on 2026-11-12: Linux AMD64 and ARM64 |
+| Image | `nousresearch/hermes-agent:v0.23.2`, pinned to a multiarch index digest |
+| Architectures | Registry index inspected anonymously on 2026-11-18: Linux AMD64 and ARM64 |
 | Processes | Official s6 entrypoint, gateway and dashboard in one container |
 | Dashboard | Port 9119; `https://hermes.<tailnet>.ts.net` |
 | Provider | `xai-oauth` / `grok-4.7`; complete the dedicated subscription login before chatting |
@@ -28,8 +28,8 @@ the ConfigMap remains an absent-file seed and does not overwrite persisted confi
 | Resources | Request 250m CPU / 1 GiB; limit 2 CPU / 2 GiB |
 
 The image index digest is
-`sha256:276d44685c65c0cb2a25f190b63c65c8906f9dc76486fb1c05ae71b5826bda08`.
-The reviewed registry release tag is `v0.23.1` (including `v`). The gateway,
+`sha256:d6746a084e9341baada483e3d6210444d3c1aeb7c130f0915150065fb2851459`.
+The reviewed registry release tag is `v0.23.2` (including `v`). The gateway,
 init container, browser and both backup runners must use the same reviewed image. Renovate includes this directory for proposals;
 updates remain subject to review and manual sync.
 
@@ -57,7 +57,7 @@ or expand VM CPU/RAM. See the
 verification observations below remain historical. Do not shrink the claim when
 rolling back unrelated manifests, and do not delete/recreate it to reclaim space.
 
-## Upgrade review: v0.23.1 (prepared, not deployed)
+## Upgrade review: v0.23.2 (prepared, not deployed)
 
 The [official container guide](https://hermes-agent.nousresearch.com/docs/user-guide/docker)
 and [updating guide](https://hermes-agent.nousresearch.com/docs/getting-started/updating)
@@ -93,6 +93,18 @@ subscription model and auxiliary routes; do not accept a new default or fallback
 without approval. Prepared compaction, Daybreak, plugin auto-update and alternate
 delegation routing are opt-in and are not enabled here. No config/profile/auth
 migration has been executed or approved by this image-only preparation.
+
+The [v0.23.2 release](https://github.com/NousResearch/hermes-agent/releases/tag/v0.23.2)
+was published on 16 November. Despite its patch label, upstream reports 7,918
+non-merge commits across 5,211 files since v0.23.1; curated notes are deferred to
+v0.24.0. Treat it as a broad runtime/security update, not a small bugfix. The
+config migration ladder still ends at 53, but failure handling now stops at the
+first failed step and preserves its retry stamp. Database startup also heals
+reset-session rows carrying a stray delegate marker and updates their search
+index; unchanged version labels do not mean no persisted-state writes. Prior
+v0.23.1 synthetic tests above are historical, not v0.23.2 runtime acceptance.
+Retain the same backup, migration approval and isolated acceptance gates before
+moving the running v0.22.2 instance to this target.
 
 ## Credentials and configuration
 
