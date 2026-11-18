@@ -57,7 +57,27 @@ or expand VM CPU/RAM. See the
 verification observations below remain historical. Do not shrink the claim when
 rolling back unrelated manifests, and do not delete/recreate it to reclaim space.
 
-## Upgrade review: v0.23.2 (prepared, not deployed)
+## Verified rollout: v0.23.2 — 18 November 2026 UTC
+
+The gateway, seed init, browser and both backup/recovery runners were reconciled
+to the declared v0.23.2 index through app-scoped manual ArgoCD operations at
+`dfdb91d69f013db62b35e3aefa13e80ee21dfe6e`. The Application finished
+Synced/Healthy/Succeeded; gateway/browser were Ready with zero restarts. The
+existing readiness helper passed and external HTTPS retained its login redirect.
+
+Before migration, the existing backup routine was run once with retention deletion
+disabled only for that Job. NAS backup `hermes-20261118-210359-82e28aee` completed
+for the original volume at its current 20 GiB size. Normal exit-0 shutdown was
+observed, the original gateway resumed Ready, then browser/gateway image-only
+diffs were separately reviewed and synced. Claims, selected provider/model,
+authentication, tracing references, exposure and schedules were not redesigned.
+
+This establishes the deployed runtime and readiness, not a fresh owner chat,
+end-to-end tracing privacy acceptance or expiry-driven credential refresh.
+The preparation review below is historical. See the
+[cohort rollout record](../reports/2026-11-19-remaining-application-upgrades.md).
+
+## Upgrade review: v0.23.2 (pre-rollout preparation)
 
 The [official container guide](https://hermes-agent.nousresearch.com/docs/user-guide/docker)
 and [updating guide](https://hermes-agent.nousresearch.com/docs/getting-started/updating)

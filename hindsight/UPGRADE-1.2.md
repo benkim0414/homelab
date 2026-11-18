@@ -1,11 +1,22 @@
 # Hindsight 0.10.3 → 1.2.1
 
-## Current candidate — 18 November 2026
+## Verified rollout — 18 November 2026 UTC
 
 The operator explicitly authorized the previously denied isolated PostgreSQL
-rehearsal and scoped publication after CI. This worktree prepares chart/API/UI
-1.2.1, with verified public multiarchitecture API/UI index digests. Production
-remains 0.10.3: the candidate is not deployment or acceptance evidence.
+rehearsal, scoped publication after CI, and bounded backup maintenance/rollout.
+Chart/API/UI 1.2.1 were deployed at main
+`dfdb91d69f013db62b35e3aefa13e80ee21dfe6e`, with verified multiarchitecture API/UI
+index pins. The Application finished Synced/Healthy/Succeeded.
+
+After the rehearsal below, the sole API/worker was stopped with observed exit 0.
+A fresh final custom dump was fully parsed, then independently copied and
+byte/hash-verified on the workstation while writers remained excluded. The
+original database and credential claims were preserved; no grants were cloned.
+Production migrated to `05867433a58c`, preserving 3 banks, 2 aliases and 8 memory
+units, with zero invalid/unready indexes. Live health, unauthenticated REST 401,
+and normal project-bank recall/reflect passed. No memories were retained for
+testing. Expiry-driven refresh and new-retain acceptance remain unexercised;
+this is not full row-content equivalence or an auth redesign.
 
 Seven offline contracts and a generated PG17.8/pgvector0.8.1 rehearsal passed:
 old revision `c8e2f4a6b1d3` to `05867433a58c`, repeated target migration and
@@ -21,7 +32,8 @@ zero-swap, 200% CPU, 512-task scope and a 2 GiB writable state tmpfs.
 
 This is database-library execution, not API/provider startup, ARM64 execution,
 full row-content equivalence or authenticated REST/MCP/UI/subscription acceptance.
-The online input is not a final write-excluded cutover checkpoint. Keep the existing database, grants, provider,
+The online rehearsal input was not the final cutover checkpoint; the separate
+final write-excluded capture above supplied that gate. Preserve the existing database, grants, provider,
 model, storage, disabled chart components, exposure and manual sync unchanged.
 Do not deploy on generated evidence alone or downgrade against migrated data.
 
