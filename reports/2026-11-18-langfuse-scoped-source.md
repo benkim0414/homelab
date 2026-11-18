@@ -228,3 +228,18 @@ pending; the setup-span checks are not substitutes for those tests. Desktop
 enrollment is also pending. Changes remain local/uncommitted; no broad ArgoCD
 sync, core upgrade, environment deletion, provider change or schedule enablement
 was performed.
+
+## Git publication and resize-exception retirement
+
+The operator authorized commit, push, PR creation and merge after checks, without
+a broad sync or core upgrade. [PR #97](https://github.com/benkim0414/homelab/pull/97)
+published the reviewed scoped source, replacement ciphertext, 20Gi claim and
+supporting tooling/evidence. PR verification passed; it merged as
+`1ad9a43800526a66870b2f750055d7e711bfc042`.
+
+That merged baseline already contains 20Gi. Re-running verification against it
+correctly rejected the now-unmatched one-time resize exception (RED). The follow-up
+removes only that exact exception and records publication; general storage
+guards remain unchanged. Historical local/uncommitted statements above describe
+the earlier rollout phase and are superseded by this publication record. No
+cluster write, Application sync or deployment is part of publication/cleanup.
