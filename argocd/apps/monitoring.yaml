@@ -9,7 +9,7 @@ spec:
     # Helm chart
     - repoURL: https://prometheus-community.github.io/helm-charts
       chart: kube-prometheus-stack
-      targetRevision: '93.2.2'
+      targetRevision: '93.4.0'
       helm:
         valueFiles:
           - $repo/monitoring/kube-prometheus-stack-values.yaml
