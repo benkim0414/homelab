@@ -10,7 +10,9 @@ as `e5db120844277b1a8e9437dc300035921b23b779` after green PR checks. The
 [main-branch Verify run](https://github.com/benkim0414/homelab/actions/runs/44189306576)
 also succeeded at that exact revision. The server is now deployed and verified
 Synced/Healthy. Subsequent cluster and desktop CLI enrollment and real-turn
-privacy checks passed; persistence and outage acceptance remain pending.
+privacy checks passed. Scoped web-restart persistence and disposable desktop-client
+outage checks also passed; see the [resilience record](../reports/2026-11-18-langfuse-resilience.md)
+for coverage and limits.
 On 2026-11-17, both configured kubectl and Kubernetes
 MCP failed to reach `192.168.0.11:6443` with `no route to host`. The workstation
 was on `192.168.86.0/24`, no homelab subnet route was advertised over Tailscale,
@@ -71,8 +73,12 @@ setup spans after restart; subsequent real cluster-turn privacy checks passed. S
 [scoped-source record](../reports/2026-11-18-langfuse-scoped-source.md), including
 the potential project-key disclosure during endpoint verification.
 
-**Remaining gates:** controlled restart/persistence and disposable-client outage
-acceptance. Desktop CLI real-turn privacy and per-turn grouping now pass in both
+**Scoped resilience acceptance passed:** previous traces survived a web-only
+restart, and a real desktop `homelab-scientist` CLI turn completed despite injected
+Langfuse connection failures. This does not establish cluster-client outage behavior,
+slow-network latency or backup recovery; see the
+[resilience record](../reports/2026-11-18-langfuse-resilience.md).
+Desktop CLI real-turn privacy and per-turn grouping now pass in both
 selected profiles; see the [desktop record](../reports/2026-11-18-langfuse-desktop-guard.md).
 The operator confirmed old-key
 revocation; the replacement Secret unsealed and both profiles passed private
@@ -580,6 +586,11 @@ continues in a controlled disposable-client backend-outage test. The older
 bundled plugin may flush at session end and add shutdown delay. Neither version
 provides a durable offline spool or lossless/exactly-once export.
 
+The 2026-11-18 [scoped resilience check](../reports/2026-11-18-langfuse-resilience.md)
+passed these checks with preserved desktop observation identities, post-restart
+cluster trace readbacks and one real desktop CLI turn under immediate transport
+failures. Stalled networking, other clients and datastore recovery were not tested.
+
 ## Recovery and backup status
 
 No backup schedule or retention automation is enabled. Initial traces may be lost
@@ -592,6 +603,11 @@ coordinated backup/restore of PostgreSQL, ClickHouse schema/data, SeaweedFS obje
 and metadata state, Valkey queues, and the stable application/sealing keys.
 Restore to isolated new volumes and prove old trace IDs and owner login before
 claiming recovery. An image rollback cannot reverse every schema migration.
+
+The [coordinated recovery proposal](BACKUP.md) documents the approval gates,
+confidential recovery-set contents, writer coordination, isolated restore and
+acceptance criteria. It is a proposal, not an implemented or tested backup.
+No schedule, secret export, archive creation or restore is enabled by publishing it.
 
 Immediate client rollback: disable only the selected version-appropriate plugin
 with `hermes [-p PROFILE] plugins disable NAME` and restart affected idle processes
