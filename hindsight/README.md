@@ -9,18 +9,21 @@ Codex connections are repository-scoped; see the
 
 ## Upgrade status
 
-The requested `0.10.3` → `1.2.1` chart/API/UI upgrade is **held** pending an
-isolated migration/recovery rehearsal and subscription/REST/MCP acceptance.
-Runtime pins remain `0.10.3`. See [the compatibility review and unhold checklist](UPGRADE-1.2.md)
-for irreversible migration evidence and exact prerequisites. Do not substitute
-a PostgreSQL image/extension migration or auth change for these checks.
+The `0.10.3` → `1.2.1` chart/API/UI candidate is prepared, with API/UI images
+pinned to verified multiarchitecture indexes. Production remains `0.10.3` until
+the separately authorized database rehearsal, final checkpoint, reviewed sync
+and live acceptance are complete. The operator explicitly authorized retrying
+the previously denied isolated PostgreSQL rehearsal on 18 November 2026.
+See [the compatibility review and unhold checklist](UPGRADE-1.2.md) for current
+evidence and remaining gates. Do not substitute a PostgreSQL image/extension
+migration or auth change for these checks.
 
 ## Deployment
 
 | Component | Configuration |
 | --- | --- |
 | Namespace / ArgoCD Application | `hindsight`, manual sync |
-| Hindsight | Official chart and API/UI images `0.10.3` |
+| Hindsight | Desired chart/API/UI `1.2.1`; production `0.10.3` pending reviewed rollout |
 | API | One replica, `Recreate`, one internal worker, stable ID `hindsight-api` |
 | Model | `openai-codex`, explicitly `gpt-5.6-luna`, no paid API fallback |
 | Embeddings / reranking | Local BGE small / MiniLM, 5 GiB Longhorn cache |

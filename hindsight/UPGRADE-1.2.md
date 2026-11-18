@@ -1,4 +1,34 @@
-# Hindsight 0.10.3 → 1.2.1: held
+# Hindsight 0.10.3 → 1.2.1
+
+## Current candidate — 18 November 2026
+
+The operator explicitly authorized the previously denied isolated PostgreSQL
+rehearsal and scoped publication after CI. This worktree prepares chart/API/UI
+1.2.1, with verified public multiarchitecture API/UI index digests. Production
+remains 0.10.3: the candidate is not deployment or acceptance evidence.
+
+Seven offline contracts and a generated PG17.8/pgvector0.8.1 rehearsal passed:
+old revision `c8e2f4a6b1d3` to `05867433a58c`, repeated target migration and
+independent original-checkpoint recovery. A separate fresh online real-data dump
+was fully parsed and its independent local copy hash-verified. Its isolated
+opaque-data rehearsal passed: all 24 original-table counts, including 3 banks
+and 2 aliases, were preserved on independent target and old-recovery restores.
+Target migration took 2.238 seconds, repeated in 2.181 seconds at the same head;
+old recovery remained at the original revision. Both branches had zero invalid
+or unready indexes and matching extension versions. The source dump remained
+unchanged; normal shutdown and no OOM events were verified under a 4 GiB memory,
+zero-swap, 200% CPU, 512-task scope and a 2 GiB writable state tmpfs.
+
+This is database-library execution, not API/provider startup, ARM64 execution,
+full row-content equivalence or authenticated REST/MCP/UI/subscription acceptance.
+The online input is not a final write-excluded cutover checkpoint. Keep the existing database, grants, provider,
+model, storage, disabled chart components, exposure and manual sync unchanged.
+Do not deploy on generated evidence alone or downgrade against migrated data.
+
+The original hold and unhold criteria below are retained as historical evidence;
+the new authorization resolves the sandbox denial, not every acceptance item.
+
+## Original review — 12 November 2026
 
 **Do not bump the chart, API or UI images yet.** All remain `0.10.3`. This is a
 compatibility/recovery hold, not a claim that upstream 1.2.1 cannot run on our

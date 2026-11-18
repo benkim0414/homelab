@@ -1,5 +1,5 @@
-# Official chart 0.10.3. The API is declared in api.yaml because the chart
-# cannot configure Recreate updates for the single OAuth credential owner.
+# Official chart 1.2.1. Keep the existing API in api.yaml to preserve ownership
+# and Recreate updates for the single OAuth credential owner.
 fullnameOverride: hindsight
 existingSecret: hindsight-ui-credentials
 api:
@@ -10,6 +10,8 @@ postgresql:
   enabled: false
 controlPlane:
   enabled: true
+  image:
+    tag: 1.2.1@sha256:74a113e1f02ace9e8feed954e6b42282e9e3d33b7e0b6d528158d05902552a9a
   replicaCount: 1
   resources:
     requests:
