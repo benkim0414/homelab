@@ -174,10 +174,40 @@ capacity or application resource limit was expanded to obtain readiness.
 
 ## Client enrollment and acceptance still pending
 
-- Operator owner login and creation of `hermes-desktop` / `hermes-cluster`
-  project-scoped ingestion credentials through the private UI/workflow.
+- The operator now reports `hermes-desktop` / `hermes-cluster` projects ready.
+  Credential-scope verification and private entry remain pending; no project key
+  has been read from chat, an existing Secret, another profile or its env file.
 - Seal/inject each source's project keys through the approved private workflow.
 - Enroll only desktop default/homelab-scientist and cluster default/house-manager,
   preserving live Hermes v0.22.2 and the selected inference providers.
 - Verify real metadata-only root/generation/tool traces, failure isolation,
   persistence and CNI network boundaries. No successful real trace is claimed.
+
+## Private client provisioning preparation
+
+Added `langfuse/seal-hermes-client.py`, reusing the bootstrap's strict sealing
+and atomic ciphertext publication with an explicit `hermes` namespace. The
+bootstrap retains its original `langfuse` namespace default. The client helper
+uses hidden private-terminal prompts, validates the read-only fixed HTTPS
+project response is scoped only to `hermes-cluster`, blocks redirects, refuses
+overwrite/symlink hazards and publishes only mode-0600 ciphertext. Both helpers
+now reject unsupported arguments without argparse echoing possible credentials.
+It never applies a cluster resource or writes a plaintext credential file.
+
+The new contracts were exercised RED then GREEN. Full suite: 130 tests, OK with
+six skips. Five policy tests passed; full verifier still 21 Applications /
+518 resources. A fake-input full helper fixture passed against the actual
+kubeseal/controller, with project-authentication success explicitly mocked;
+fixture ciphertext was discarded. The real HTTPS project endpoint rejected fake
+keys with HTTP 401. Actual operator key authentication remains unverified until
+private entry. The real client ciphertext does not yet exist.
+
+Desktop runtime recheck: v0.21.1 upstream `3f5a11f6`, Python 3.11.18, bundled
+Langfuse 1.0.0 not enabled on either selected profile. Installed SDK 4.15.2 and
+the matching OpenTelemetry 1.39.1 SDK/exporter family while preserving the
+previously installed OpenTelemetry API 1.39.1; eight packages added, no existing
+package upgraded. All 136 installed packages passed dependency checks and SDK
+import succeeded. No desktop key/profile setting, inference provider, messaging
+adapter or schedule was changed. Keep the plugin disabled until the actual
+private endpoint and metadata-only launch environment are verified; an unwrapped
+process otherwise has unsafe Cloud/sanitized defaults for this deployment.

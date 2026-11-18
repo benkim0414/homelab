@@ -308,9 +308,23 @@ working tracing.
 Create Secret `hermes-langfuse` in namespace `hermes`, keys `public-key` and
 `secret-key`, through the approved private input/sealing workflow. Its encrypted
 manifest is `hermes/langfuse-sealed-secret.yaml`, selected by the Hermes Application.
-The six server ciphertext files have been generated privately and validated locally;
-this client ciphertext is still pending creation of its Langfuse project/keys.
-Check unsealing before consuming either set.
+The server credentials are already unsealed. The operator has reported both
+projects ready; client key provisioning remains a private interactive step.
+From this worktree, run in the operator's private terminal:
+
+```bash
+PATH="$PWD/verification/cache/bin:$PATH" python3 -B langfuse/seal-hermes-client.py
+```
+
+Enter only the `hermes-cluster` key pair, with secret-key confirmation. The
+helper authenticates a read-only GET to the fixed private HTTPS project endpoint,
+requires the single returned project to be `hermes-cluster`, refuses redirects,
+then reuses strict sealing and atomic no-overwrite ciphertext publication. It
+writes only `hermes/langfuse-sealed-secret.yaml` at mode 0600. No plaintext files,
+credential arguments, existing Secret reads or cluster apply are supported. Do
+not rerun the six-server bootstrap. Review/publish the client ciphertext and
+verify unsealing before consuming it; root registration must include the new
+Hermes Application file selection before a selective client-Secret sync.
 
 `hermes/deployment.yaml` supplies a common cluster project key pair to the process.
 Both selected profiles share this trusted-pod credential boundary; future profiles
@@ -353,8 +367,16 @@ Do not modify profile credentials until the server/project keys exist. Install t
 reviewed SDK in Hermes' real interpreter, not global Python:
 
 ```bash
-uv pip install --python /home/benkim0414/.hermes/hermes-agent/venv/bin/python 'langfuse==4.15.2'
+uv pip install --python /home/benkim0414/.hermes/hermes-agent/venv/bin/python \
+  'langfuse==4.15.2' 'opentelemetry-api==1.39.1' \
+  'opentelemetry-sdk==1.39.1' 'opentelemetry-exporter-otlp-proto-http==1.39.1'
 ```
+
+The inspected desktop runtime reports v0.21.1, upstream `3f5a11f6`, Python
+3.11.18. SDK 4.15.2 is now installed and imports successfully. The existing
+OpenTelemetry API 1.39.1 was preserved rather than upgraded; all 136 installed
+packages passed the dependency check. Neither desktop profile's Langfuse plugin
+is enabled yet, and no desktop project credential was entered by the agent.
 
 Use the selected profile's supported private credential wizard to store only
 project keys. Noncredentials are launch environment settings, not API keys. Never
@@ -373,7 +395,12 @@ hermes -p default plugins list
 Select Langfuse Observability, enter only the desktop project credentials and
 verify that the self-hosted launch URL is retained, rather than Langfuse Cloud.
 Start new processes with the launcher; a running process may cache the no-client
-state. Plain `hermes` launched without this environment is not claimed configured.
+state. The bundled plugin defaults to Cloud and sanitized content when launch
+settings are absent: plain `hermes` without this environment is not covered by
+this metadata-only setup. Keep the plugin disabled until the actual launch
+environment and credential entry have been verified, and use the launcher for
+all enrolled sessions. Native/remote backends need their own verified launch
+environment; do not assume an interactive shell wrapper configures them.
 
 ```bash
 bash scripts/hermes-langfuse-desktop.sh homelab-scientist
