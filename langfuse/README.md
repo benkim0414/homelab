@@ -9,7 +9,8 @@ Published through [PR #93](https://github.com/benkim0414/homelab/pull/93), merge
 as `e5db120844277b1a8e9437dc300035921b23b779` after green PR checks. The
 [main-branch Verify run](https://github.com/benkim0414/homelab/actions/runs/44189306576)
 also succeeded at that exact revision. The server is now deployed and verified
-Synced/Healthy. Client enrollment and end-to-end tracing acceptance remain pending.
+Synced/Healthy. Subsequent cluster and desktop CLI enrollment and real-turn
+privacy checks passed; persistence and outage acceptance remain pending.
 On 2026-11-17, both configured kubectl and Kubernetes
 MCP failed to reach `192.168.0.11:6443` with `no route to host`. The workstation
 was on `192.168.86.0/24`, no homelab subnet route was advertised over Tailscale,
@@ -66,12 +67,14 @@ capacity caveats and still-pending checks. Both cluster profiles are now enabled
 after private client-key replacement and a successful v0.22.2 restart. The
 approved in-place expansion to 20Gi is complete; post-activation available space
 was 9.14 GiB. Both scoped SDKs authenticated and exported verified zero-model
-setup spans after restart, but real agent-turn privacy is not yet accepted. See the
+setup spans after restart; subsequent real cluster-turn privacy checks passed. See the
 [scoped-source record](../reports/2026-11-18-langfuse-scoped-source.md), including
 the potential project-key disclosure during endpoint verification.
 
-**Remaining gates:** complete desktop enrollment and verify real agent-turn
-traces, privacy, persistence and outage behavior. The operator confirmed old-key
+**Remaining gates:** controlled restart/persistence and disposable-client outage
+acceptance. Desktop CLI real-turn privacy and per-turn grouping now pass in both
+selected profiles; see the [desktop record](../reports/2026-11-18-langfuse-desktop-guard.md).
+The operator confirmed old-key
 revocation; the replacement Secret unsealed and both profiles passed private
 post-restart authentication/export checks. Do not rerun either sealing
 helper blindly over existing ciphertext, and do not rerun server bootstrap.
@@ -473,32 +476,62 @@ uv pip install --python /home/benkim0414/.hermes/hermes-agent/venv/bin/python \
 The inspected desktop runtime reports v0.21.1, upstream `3f5a11f6`, Python
 3.11.18. SDK 4.15.2 is now installed and imports successfully. The existing
 OpenTelemetry API 1.39.1 was preserved rather than upgraded; all 136 installed
-packages passed the dependency check. Neither desktop profile's Langfuse plugin
-is enabled yet, and no desktop project credential was entered by the agent.
+packages passed the dependency check. The operator subsequently staged desktop
+keys privately for both selected profiles. The guarded user plugin is now
+installed and enabled in both; the bundled plugin remains disabled. Native-loader
+setup export and fail-closed negative checks passed. Real desktop no-tool/tool
+privacy checks subsequently passed for both profiles. Trace-ID reuse was found
+and corrected in guard v1.0.1, installed in both profiles. Separate real no-tool
+and terminal-tool turns in new sessions now pass privacy and distinct-trace checks
+with stable session grouping. Older processes must be relaunched to load the fix. See the
+[desktop guard verification](../reports/2026-11-18-langfuse-desktop-guard.md).
+Do not repeat key provisioning for already staged profiles.
 
-Use the selected profile's supported private credential wizard to store only
-project keys. Noncredentials are launch environment settings, not API keys. Never
-open or print `.env`, auth.json or another profile's credentials for diagnostics.
-For each approved profile, run the interactive wizard in a private terminal:
+The inspected tools checklist does not expose Langfuse, despite its provider
+registration in the source. Do not toggle unrelated tools to find it. Use the
+operator-private helper below instead. It uses hidden prompts, verifies that the
+pair belongs only to `hermes-desktop` through fixed HTTPS with redirects blocked,
+and saves only project keys through Hermes' native credential writer. Settings
+remain in the launch environment. Never print `.env`, auth.json or credentials.
+
+From this task worktree in a private terminal, run separately for each profile:
 
 ```bash
-bash scripts/hermes-langfuse-desktop.sh homelab-scientist tools
-hermes -p homelab-scientist plugins enable observability/langfuse
-hermes -p homelab-scientist plugins list
-bash scripts/hermes-langfuse-desktop.sh default tools
-hermes -p default plugins enable observability/langfuse
-hermes -p default plugins list
+/home/benkim0414/.hermes/hermes-agent/venv/bin/python -B langfuse/setup-desktop.py homelab-scientist
+/home/benkim0414/.hermes/hermes-agent/venv/bin/python -B langfuse/setup-desktop.py default
 ```
 
-Select Langfuse Observability, enter only the desktop project credentials and
-verify that the self-hosted launch URL is retained, rather than Langfuse Cloud.
-Start new processes with the launcher; a running process may cache the no-client
-state. The bundled plugin defaults to Cloud and sanitized content when launch
-settings are absent: plain `hermes` without this environment is not covered by
-this metadata-only setup. Keep the plugin disabled until the actual launch
-environment and credential entry have been verified, and use the launcher for
-all enrolled sessions. Native/remote backends need their own verified launch
-environment; do not assume an interactive shell wrapper configures them.
+The helper refuses enabled plugins, existing project keys, unsafe credential-file
+permissions and noninteractive entry. It leaves tracing disabled. Keys are stored
+in the selected profile's normal plaintext credential file, not encrypted, with
+no extra copies. The native pair write is not atomic: on a write failure leave
+tracing disabled and inspect privately before retrying. Do not edit credentials
+concurrently. Before enabling either profile, verify the actual launcher endpoint
+and metadata capture with scoped/runtime checks; key entry alone is not tracing
+acceptance. The tools wizard's post-setup hook auto-enables the plugin if invoked
+through another route, so it is unsuitable for disabled credential staging.
+
+Desktop activation uses the separate repository-managed native user plugin
+`homelab-langfuse-desktop`, not the unguarded bundled plugin. Keep both bundled
+identifiers (`langfuse` and `observability/langfuse`) disabled. The guard requires
+the exact private HTTPS endpoint, metadata capture, desktop environment and sample
+rate supplied by the launcher; missing or changed policy must produce no tracing.
+Its delegated capture mode is fixed to metadata, even if the environment changes
+after registration. It binds one profile home, rejects multiplexed execution and
+pins the reviewed bundled source. Source drift requires review, not a blind pin
+update. Separate clean processes per desktop profile avoid SDK resource sharing.
+
+`install-desktop-guard.py PROFILE` copies only reviewed local plugin code and
+verifies its readback. It never enables plugins, reads credentials or replaces a
+different existing installation. Validate the guard and its negative controls
+before enabling it with the supported plugin CLI. Do not enable the bundled
+plugin as a fallback when the guard refuses admission.
+
+Start new processes with the launcher; existing processes are not restarted by
+installation. Plain `hermes` without the required settings must remain untraced,
+not silently use Cloud or sanitized content. Native/remote backends need their
+own verified launch environment; an interactive shell wrapper does not configure
+them. Multiplexed desktop backends are outside this initial guarded CLI enrollment.
 
 ```bash
 bash scripts/hermes-langfuse-desktop.sh homelab-scientist
