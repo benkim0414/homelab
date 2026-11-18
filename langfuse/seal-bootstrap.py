@@ -45,6 +45,12 @@ class BootstrapError(ValueError):
         super().__init__(code)
 
 
+class PrivateArgumentParser(argparse.ArgumentParser):
+    def error(self, message):
+        # argparse otherwise echoes unknown arguments, which might contain keys.
+        raise SystemExit('Provisioning accepts only --help; enter credentials at private prompts, never in arguments')
+
+
 def random_key():
     return secrets.token_hex(32)
 
@@ -74,8 +80,8 @@ def require_absent(directory, destinations):
         raise BootstrapError('existing')
 
 
-def seal(name, values):
-    metadata = {'name': name, 'namespace': 'langfuse', 'annotations': ANNOTATIONS}
+def seal(name, values, namespace='langfuse'):
+    metadata = {'name': name, 'namespace': namespace, 'annotations': ANNOTATIONS}
     manifest = {'apiVersion': 'v1', 'kind': 'Secret', 'type': 'Opaque',
                 'metadata': metadata, 'stringData': values}
     result = subprocess.run([
@@ -102,7 +108,7 @@ def seal(name, values):
             or not all(isinstance(v, str) and v.strip() for v in encrypted.values())):
         raise BootstrapError('sealed-payload')
     for item in (document['metadata'], template['metadata']):
-        if item.get('name') != name or item.get('namespace') != 'langfuse':
+        if item.get('name') != name or item.get('namespace') != namespace:
             raise BootstrapError('sealed-identity')
         if item.get('annotations', {}).get('sealedsecrets.bitnami.com/cluster-wide') == 'true' \
                 or item.get('annotations', {}).get('sealedsecrets.bitnami.com/namespace-wide') == 'true':
@@ -192,7 +198,7 @@ def bootstrap(directory):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description=(
+    parser = PrivateArgumentParser(description=(
         'Approved operator-only interactive bootstrap. Creates six new SealedSecrets '
         'beside this script; refuses symlinks and existing files. Requires kubeseal '
         'and a private terminal. The owner password must contain at least 20 '
