@@ -9,21 +9,27 @@ Codex connections are repository-scoped; see the
 
 ## Upgrade status
 
-The `0.10.3` → `1.2.1` chart/API/UI candidate is prepared, with API/UI images
-pinned to verified multiarchitecture indexes. Production remains `0.10.3` until
-the separately authorized database rehearsal, final checkpoint, reviewed sync
-and live acceptance are complete. The operator explicitly authorized retrying
-the previously denied isolated PostgreSQL rehearsal on 18 November 2026.
-See [the compatibility review and unhold checklist](UPGRADE-1.2.md) for current
-evidence and remaining gates. Do not substitute a PostgreSQL image/extension
-migration or auth change for these checks.
+The `0.10.3` → `1.2.1` chart/API/UI upgrade was deployed on 18 November 2026 UTC
+after explicit rehearsal and maintenance approval. API/UI use the verified
+multiarchitecture index pins. ArgoCD finished Synced/Healthy/Succeeded at
+`dfdb91d69f013db62b35e3aefa13e80ee21dfe6e`.
+
+The real isolated database migration/old-version recovery passed. A separate
+final write-excluded dump was verified on NAS and workstation before rollout;
+production migrated `c8e2f4a6b1d3` → `05867433a58c` with 3 banks, 2 aliases and
+8 memory units unchanged. API health, rejection of absent credentials, normal
+project recall and reflect passed. No grants were copied or reauthenticated,
+banks written, or providers/models changed. Forced/expiry-driven refresh and
+fresh retain acceptance were not exercised. See the
+[compatibility review](UPGRADE-1.2.md) and
+[cohort rollout record](../reports/2026-11-19-remaining-application-upgrades.md).
 
 ## Deployment
 
 | Component | Configuration |
 | --- | --- |
 | Namespace / ArgoCD Application | `hindsight`, manual sync |
-| Hindsight | Desired chart/API/UI `1.2.1`; production `0.10.3` pending reviewed rollout |
+| Hindsight | Deployed chart/API/UI `1.2.1`, API/UI pinned to verified indexes |
 | API | One replica, `Recreate`, one internal worker, stable ID `hindsight-api` |
 | Model | `openai-codex`, explicitly `gpt-5.6-luna`, no paid API fallback |
 | Embeddings / reranking | Local BGE small / MiniLM, 5 GiB Longhorn cache |

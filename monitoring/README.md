@@ -6,6 +6,39 @@ records installation history, not the current desired versions.
 
 ## Reviewing the 93.4.0 Prometheus stack candidate
 
+### Verified rollout — 18 November 2026 UTC
+
+The operator approved bounded backup maintenance and the protected named admission
+Secret migration. Chart 93.4.0 was deployed at
+`dfdb91d69f013db62b35e3aefa13e80ee21dfe6e`: operator/reloader 0.95.2,
+Prometheus 3.16.0, Alertmanager 0.35.0 and Grafana 13.3.1. The Application finished
+Synced/Healthy/Succeeded, all 32 scrape targets were up, Grafana database health
+passed, and the pre-existing recording-rule timeout alert cleared. All five
+node-exporter pods remained available; claims and manual sync were preserved.
+
+Fresh cold full NAS backups and independent restore checks preceded rollout.
+Grafana's SQLite integrity/schema check passed; Alertmanager's inert target
+readiness/normal shutdown passed. Prometheus opened restored blocks/replayed WAL,
+but restore/attachment consumed its first Pod deadline. A second check on the
+already-restored copy proved HTTP readiness and normal shutdown at the unchanged
+1536 MiB limit; the failed original test was preserved.
+
+The ten packaged CRDs were established before the operator. Admission SAN/CA/key
+validation, strict sealing/controller validation and NAS ciphertext readback were
+verified without displaying private keys. The hook converted Opaque→TLS and kept
+legacy entries with matching standard aliases. The first sync was marked Failed
+during transient CR init-container health, then reached Synced/Healthy. Its failed
+history was preserved. A reviewed completion sync ran the PostSync CA hook with
+the existing TLS Secret UID/data unchanged and no workload replacements/restarts.
+Do not automatically retry failed migrations or hide real health failures.
+
+The offsite-backup warning remains a separate gap; Watchdog is intentionally
+firing. No controller private-key export or independent key-disaster custody was
+inspected/claimed. See the
+[cohort rollout record](../reports/2026-11-19-remaining-application-upgrades.md).
+
+### Pre-rollout review
+
 This is a **prepared candidate, not a deployed upgrade**. Review the actual live
 chart **92.7.0 → 93.4.0**, not the superseded desired pin 93.2.2. The 93.4.0
 release was published on 17 November 2026. Exact public 92.7.0 and 93.4.0 packages
@@ -88,7 +121,7 @@ This is a destructive Secret-type migration even without pruning: do not skip
 hooks or use apply-only sync. A failed recreate can leave the Secret missing.
 See [certgen implementation](https://github.com/jkroepke/kube-webhook-certgen/blob/v1.11.1/pkg/k8s/k8s.go).
 
-### Backup-first rollout gate (not authorized or executed)
+### Backup-first rollout requirements (pre-rollout review)
 
 Grafana 13.3.1 may migrate its database on the existing 2 GiB PVC. Chart rollback
 alone is not database rollback. Prometheus and Alertmanager restart on their

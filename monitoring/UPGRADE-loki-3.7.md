@@ -1,8 +1,19 @@
 # Loki 3.6.11 → 3.7.10: image-only candidate
 
-**Prepared and locally validated; not deployed or approved for deployment.**
+**Prepared and locally validated; production upgrade held.**
 Parent/operator owns backup, maintenance authorization and deployment. Keep chart
 **7.3.0** and manual sync. This is not a community-chart migration.
+
+On 18 November 2026 UTC, approved maintenance produced cold full NAS backup
+`upgrade-loki-20261118212931-22c862` after observed normal exit 0; the original
+3.6.11 writer resumed Ready on its unchanged claim. Two independent restored
+test copies, old 3.6.11 and target 3.7.10, both exited 1 before readiness. Neither
+showed OOMKilled, but replay/restore acceptance was not established. Further
+startup diagnosis was tool-denied; its explicit reauthorization prompt timed out.
+Do not infer approval to retry from the earlier general rollout approval or
+deploy to bypass the failed gate. Production remains 3.6.11, Healthy/OutOfSync.
+Preserve all original/clone volumes and failed evidence. See the
+[cohort rollout record](../reports/2026-11-19-remaining-application-upgrades.md).
 
 ## Reviewed target and upstream changes
 
