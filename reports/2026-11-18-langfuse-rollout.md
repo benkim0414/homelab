@@ -174,16 +174,19 @@ capacity or application resource limit was expanded to obtain readiness.
 
 ## Client enrollment and acceptance still pending
 
-- The operator now reports `hermes-desktop` / `hermes-cluster` projects ready.
-  Credential-scope verification and private entry remain pending; no project key
-  has been read from chat, an existing Secret, another profile or its env file.
-- Seal/inject each source's project keys through the approved private workflow.
+- The operator privately completed cluster-key provisioning; its ciphertext is
+  published and unsealed. Desktop private credential entry remains pending.
+  No project key was read from chat, an existing Secret, another profile or its
+  env file.
+- Cluster references have now been injected in an approved idle window; the
+  remaining cluster blocker is profile-scoped credential delivery under multiplex
+  semantics. Use the approved private workflow for desktop credentials.
 - Enroll only desktop default/homelab-scientist and cluster default/house-manager,
   preserving live Hermes v0.22.2 and the selected inference providers.
 - Verify real metadata-only root/generation/tool traces, failure isolation,
   persistence and CNI network boundaries. No successful real trace is claimed.
 
-## Private client provisioning preparation
+## Private client provisioning preparation — before real operator entry
 
 Added `langfuse/seal-hermes-client.py`, reusing the bootstrap's strict sealing
 and atomic ciphertext publication with an explicit `hermes` namespace. The
@@ -211,3 +214,110 @@ import succeeded. No desktop key/profile setting, inference provider, messaging
 adapter or schedule was changed. Keep the plugin disabled until the actual
 private endpoint and metadata-only launch environment are verified; an unwrapped
 process otherwise has unsafe Cloud/sanitized defaults for this deployment.
+
+## Cluster credentials staged; earlier restart pause (superseded below)
+
+The operator ran the private helper successfully. Verified the actual new
+ciphertext's namespace/name, two encrypted key names and 0600 file permissions,
+without displaying values. Full validation with it present: 130 tests, OK with
+six skips; full verifier 21 Applications / 519 resources. Published through
+[PR #96](https://github.com/benkim0414/homelab/pull/96), merged as
+`7ef3c7f496c48c37e685a44129350b37dd315d0c` after green PR CI and successful
+[main Verify](https://github.com/benkim0414/homelab/actions/runs/44206308442).
+
+Reviewed the actual root Hermes Application diff: only the directory include
+selection changed. The selection also includes already-pending browser/Herdr
+files, but root registration does not apply child resources under manual sync.
+Registered only that Application, then reviewed the actual client SealedSecret
+addition and selectively synced only it. Both operations used the exact green
+revision with no prune/force/replace. `hermes/hermes-langfuse` reports Synced and
+the generated Secret exists; no Secret payload was read.
+
+As application UID/GID 10000, installed catalog plugin `langfuse` 2.0.0 for the
+default cluster profile at immutable ref
+`c2a95963c442f3f23e4bc6fe0da898e1dd1fb63d`, using `--yes-deps --no-enable`.
+No credential was entered into that install command. Its source is persisted
+under `/opt/data/plugins/langfuse`; PM reports writable store `/opt/data/tools`
+and runtime facts `/opt/data/installs/351f81cc06284494/facts.json`, also on the
+data PVC. Dependency activation and post-recreation import remain unverified.
+Read-only CLI discovery shows default's plugin not enabled, while house-manager
+does not discover the default-profile installation and still needs its own
+installation. Do not assume one installation enrolls multiple profiles.
+
+Before injecting the environment, asked whether the single-pod Hermes workload
+was idle and could restart. The operator answered `Not sure`. Did not restart,
+patch the Deployment environment, enable plugins or change providers. Exact
+readback still shows the v0.22.2 image and no HERMES_LANGFUSE environment entries.
+The credentials are safely staged; continue only after a confirmed idle window.
+
+## Approved tracing restart; scoped credential delivery blocked
+
+The operator subsequently confirmed, "It's idle and you can restart it." Installed
+the same pinned catalog plugin separately for house-manager with `--no-enable`.
+Applied only the seven tracing environment entries already declared in Git to the
+live Hermes container, with a resource-version guard and server dry-run. Readback
+verified the rest of the Deployment spec was unchanged: no v0.23.1 upgrade,
+command/probe/resource changes or volume-reference changes were included.
+
+The env-only Recreate rollout completed successfully. As UID/GID 10000, enabled
+`langfuse` for default and house-manager using `--no-allow-tool-override`. Settings
+backups were created and verified at mode 0600 inside owner-only PVC directory
+`/opt/data/langfuse-config-backup-20261118T004006Z`. Semantic comparison confirmed
+all settings outside Langfuse plugin bookkeeping were unchanged. The first strict
+comparison stopped on the newly added `plugins.entries.langfuse` entry; inspection
+confirmed its sole permission was `allow_tool_override: false`, not a provider or
+other settings change. Both supported CLI enable operations reported live hook
+reloads.
+
+A final controlled Deployment restart completed, and the replacement pod reported
+Ready with zero container restarts. The committed dependency environment remained
+on the PVC, SDK 4.15.2 imported successfully after recreation, and an unscoped
+official plugin SDK client passed `auth_check()`. Both image and existing provider
+configuration were preserved. No Secret payload or credential value was displayed;
+no credential was copied between profiles.
+
+The post-restart comparison also detected `_left_core_installed: [langfuse]`
+added by normal startup in both settings files. Inspected the image's
+`hermes_cli/left_core_migration.py`: this records an already-installed plugin so
+the migration does not reinstall it after a later explicit removal. It is
+Langfuse migration bookkeeping, not an inference-provider change; account for
+this exact marker rather than ignoring arbitrary configuration differences.
+
+The post-restart backup-permission check found files at 0660 and their directory
+at 02770, rather than their original 0600/0700. Restored and read back owner-only
+permissions on only this task's two settings backups and directory, using
+owner/type/no-symlink guards. Recheck these modes after any later recreation;
+do not assume the initial backup modes persist through startup. Final semantic
+comparison passed for both profiles after accounting for only the reviewed
+Langfuse bookkeeping. No existing credential-file permissions were changed.
+
+The stronger profile-context check exposed an incomplete enrollment:
+
+| Check under normal profile secret scope and multiplex semantics | default | house-manager |
+| --- | --- | --- |
+| Process-level endpoint available through plugin `_env()` | yes | yes |
+| Capture mode | metadata | metadata |
+| Plugin `_build_client()` returns a client | no | no |
+
+The plugin's `_secret()` delegates credential reads to `agent.secret_scope`,
+which does not fall back to ambient pod credentials on a multiplexed scope miss.
+The existing pod environment therefore authenticates in a standalone process but
+does not supply the keys to multiplexed profile sessions. An initial endpoint
+comparison used the external HTTPS URL instead of the declared internal HTTP URL;
+the corrected presence check confirmed endpoint configuration is available. The
+initially identified blocker was the scoped key pair. This diagnosis was
+incomplete: subsequent constructor inspection found scoped endpoint requirements
+too; see the [scoped-source safety record](2026-11-18-langfuse-scoped-source.md).
+
+No real trace, privacy, persistence or outage acceptance is claimed. Did not
+weaken secret isolation, modify inference-provider authentication, copy keys to
+profile files or configure a new secret source. The next credential-source change
+needs explicit scope review/approval. Desktop enrollment remains pending. Earlier
+idle approval does not establish that a later restart window is idle.
+
+The operator subsequently approved the narrow source/mount correction. Its
+applied changes, potential project-key disclosure, verified private scoped setup
+exports and remaining Hermes package-storage activation blocker are recorded in
+the scoped-source safety record above. That record supersedes this section's
+initial key-only diagnosis and earlier no-setup-trace status. Real agent-turn,
+persistence/outage and desktop acceptance remain pending.

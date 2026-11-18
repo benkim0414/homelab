@@ -131,7 +131,10 @@ Use an approved successful backup and unique test resource names. Preserve the
 working Deployment, PVC and volume throughout the exercise:
 
 1. Create a **new** Longhorn Volume with `spec.fromBackup` set to the recorded NAS
-   backup URL, matching the 10 GiB size, V1 data engine and two replicas. Do not
+   backup URL, matching that backup's recorded volume size, data engine and
+   replica requirements (the historical exercise below used 10 GiB, V1 and two
+   replicas). The production claim was expanded in place to 20Gi on 2026-11-18;
+   do not assume a new backup is still 10Gi. Do not
    change `spec.fromBackup` on the production volume or restore into its claim.
 2. Bind a separate static CSI PV/PVC to that new volume handle. Use reclaim policy
    **Retain**, an explicit claim reference and volume name, and no dynamic storage

@@ -23,7 +23,7 @@ the ConfigMap remains an absent-file seed and does not overwrite persisted confi
 | Processes | Official s6 entrypoint, gateway and dashboard in one container |
 | Dashboard | Port 9119; `https://hermes.<tailnet>.ts.net` |
 | Provider | `xai-oauth` / `grok-4.7`; complete the dedicated subscription login before chatting |
-| Data | `hermes-data`, 10 GiB Longhorn RWO, mounted at `/opt/data` |
+| Data | `hermes-data`, 20 GiB Longhorn RWO, mounted at `/opt/data` |
 | Workspace | `/opt/data/workspace`; tool HOME is `/opt/data/home` |
 | Resources | Request 250m CPU / 1 GiB; limit 2 CPU / 2 GiB |
 
@@ -48,6 +48,14 @@ volume supplies a native filesystem for SQLite WAL; do not move this state to NF
 PVC annotations prevent normal ArgoCD pruning/deletion, but the Longhorn class
 has reclaim policy **Delete**: direct PVC/namespace deletion can destroy data.
 Replication is not a backup.
+
+On 2026-11-18 the operator approved and completed in-place expansion from 10Gi
+to 20Gi for package-manager environment working space. PVC/PV identities were
+preserved and the mounted filesystem grew online; this did not upgrade Hermes
+or expand VM CPU/RAM. See the
+[scoped-source record](../reports/2026-11-18-langfuse-scoped-source.md). Old 10Gi
+verification observations below remain historical. Do not shrink the claim when
+rolling back unrelated manifests, and do not delete/recreate it to reclaim space.
 
 ## Upgrade review: v0.23.1 (prepared, not deployed)
 
