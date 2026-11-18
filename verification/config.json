@@ -21,7 +21,14 @@
   "external_crds": [
     "https://raw.githubusercontent.com/k3s-io/helm-controller/v0.16.15/pkg/crds/yaml/generated/helm.cattle.io_helmchartconfigs.yaml"
   ],
-  "exceptions": [],
+  "exceptions": [
+    {
+      "rule": "storage-resize",
+      "resource": "/PersistentVolumeClaim/hermes/hermes-data",
+      "reason": "Operator approved in-place 10Gi to 20Gi expansion on 2026-11-18 for package-manager working space, preserving PVC/PV identity and all data.",
+      "document": "reports/2026-11-18-langfuse-scoped-source.md"
+    }
+  ],
   "generated_fields": [
     {
       "kind": "Secret",

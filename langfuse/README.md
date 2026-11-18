@@ -62,11 +62,19 @@ NetworkPolicy was selectively synced: real Hermes-to-web HTTP 200 was verified,
 while all four datastore TCP paths were rejected. An unrelated-namespace probe
 could not reach web or ClickHouse; both owned diagnostic pods were cleaned up.
 See the [rollout record](../reports/2026-11-18-langfuse-rollout.md) for scope,
-capacity caveats and still-pending checks. No agent tracing is enabled yet.
+capacity caveats and still-pending checks. Both cluster profiles are now enabled
+after private client-key replacement and a successful v0.22.2 restart. The
+approved in-place expansion to 20Gi is complete; post-activation available space
+was 9.14 GiB. Both scoped SDKs authenticated and exported verified zero-model
+setup spans after restart, but real agent-turn privacy is not yet accepted. See the
+[scoped-source record](../reports/2026-11-18-langfuse-scoped-source.md), including
+the potential project-key disclosure during endpoint verification.
 
-**Remaining gates:** owner login and client projects/keys; seal the Hermes client credentials; then
-roll out and enroll agents. Do not sync the Hermes Deployment before its
-`hermes-langfuse` Secret exists and the server is healthy.
+**Remaining gates:** complete desktop enrollment and verify real agent-turn
+traces, privacy, persistence and outage behavior. The operator confirmed old-key
+revocation; the replacement Secret unsealed and both profiles passed private
+post-restart authentication/export checks. Do not rerun either sealing
+helper blindly over existing ciphertext, and do not rerun server bootstrap.
 
 ## Architecture and versions
 
@@ -308,9 +316,10 @@ working tracing.
 Create Secret `hermes-langfuse` in namespace `hermes`, keys `public-key` and
 `secret-key`, through the approved private input/sealing workflow. Its encrypted
 manifest is `hermes/langfuse-sealed-secret.yaml`, selected by the Hermes Application.
-The server credentials are already unsealed. The operator has reported both
-projects ready; client key provisioning remains a private interactive step.
-From this worktree, run in the operator's private terminal:
+Server credentials and the cluster client Secret are now unsealed. Client
+provisioning was published through PR #96; do not rerun the helper over the
+existing ciphertext. The following is the original private provisioning command,
+not a command to repeat for routine setup checks:
 
 ```bash
 PATH="$PWD/verification/cache/bin:$PATH" python3 -B langfuse/seal-hermes-client.py
@@ -325,6 +334,65 @@ credential arguments, existing Secret reads or cluster apply are supported. Do
 not rerun the six-server bootstrap. Review/publish the client ciphertext and
 verify unsealing before consuming it; root registration must include the new
 Hermes Application file selection before a selective client-Secret sync.
+
+PR #96 merged at `7ef3c7f496c48c37e685a44129350b37dd315d0c` after successful
+PR/main CI. Root registration changed only Hermes Application file selection;
+it also exposes already-pending browser/Herdr files for comparison, but none of
+those child resources were synced. Only `SealedSecret/hermes-langfuse` was then
+selectively synced and verified Synced, with the generated Secret present.
+
+Pinned catalog plugin 2.0.0 is installed separately for cluster default and
+house-manager, under each profile's own `plugins/langfuse` directory. Both are
+currently enabled with built-in tool override permission false.
+PM's writable store is `/opt/data/tools`, and its runtime facts live under
+`/opt/data/installs`; those paths persist on the PVC. SDK 4.15.2 imports from the
+committed environment after container recreation. Both scoped SDK clients passed
+authentication and setup-span export/readback after the correction below; this is
+not real model/tool tracing acceptance.
+
+The operator subsequently confirmed Hermes was idle and approved restarting it.
+Applied only the seven declared tracing environment entries using a guarded
+env-only patch; server dry-run and readback verified the remaining Deployment
+specification was unchanged. Enabled both plugins as UID/GID 10000 with
+`--no-allow-tool-override`, preserving private owner-only settings backups and
+verifying settings outside Langfuse plugin bookkeeping were unchanged. The env
+rollout and final controlled restart completed successfully with live v0.22.2
+preserved and the replacement pod Ready. This supersedes the earlier restart
+pause; do not assume that idle approval extends to a later operational window.
+
+The approved correction mounts `hermes-langfuse` read-only at
+`/var/run/hermes-langfuse` and the tested helper ConfigMap at `/langfuse-key-source`.
+Each selected profile now has a native `secrets.command` source pointing to
+`/opt/hermes/.venv/bin/python -B /langfuse-key-source/langfuse-key-source.py`, with
+`enabled: true`, `helper_timeout_seconds: 3`, `override_existing: false`.
+Neither had a previous command source or explicit source ordering. Preserve those
+if adapting this setup elsewhere; do not overwrite an unrelated credential source.
+
+**Critical:** `_build_client()` uses `_secret()` for BASE_URL, ENV and SAMPLE_RATE
+as well as credentials. Its `_env()` status helper seeing the private pod URL is
+not proof of the constructor's destination. A key-only scope falls back to
+Langfuse Cloud. The first scoped authentication attempt may have disclosed this
+self-hosted project pair there; it returned Unauthorized before any setup span.
+The source now supplies both keys and all four fixed scoped settings atomically,
+and the probe asserts the exact scoped internal URL **before constructing the
+SDK or making any network call**. Normal source hydration must precede scope
+construction. Do not globalize credentials or copy another profile's keys.
+
+Never run the helper directly to troubleshoot: stdout is credential IPC consumed
+and captured by Hermes. Use scoped SDK checks with pre-network URL guards.
+Both selected scopes authenticated and their zero-model setup spans were read
+back through v2 observations with empty input/output. House-manager re-enablement
+then failed on package-manager storage capacity: five root managed environments
+used about 8.19 GiB, leaving about 0.87 GiB free. No environment was deleted and
+no PVC was expanded. Both profiles were left paused; default was paused with the
+supported native config setter rather than attempting another environment build.
+The operator then approved expansion to 20Gi: it completed online with the same
+PVC/PV identity and about 10.71 GiB available at verification. No environments
+were deleted. The operator subsequently entered replacement credentials privately,
+confirmed revocation and a fresh idle window, and both profiles were activated
+and restarted successfully. New post-restart private scoped setup spans passed
+v2 readback with empty input/output. See the scoped-source record above for the
+remaining real agent-turn, persistence/outage and desktop acceptance gates.
 
 `hermes/deployment.yaml` supplies a common cluster project key pair to the process.
 Both selected profiles share this trusted-pod credential boundary; future profiles
@@ -354,12 +422,42 @@ container replacement; do not install into an ephemeral image-only path.
 A Hermes rollout uses Recreate and interrupts active chats. Agree an idle point,
 review the whole diff and deploy the client Secret first, then only the reviewed
 network policy/tracing fields. Do not sync the whole repository Deployment:
-it would also install the pending v0.23.1 image. Use a reviewed env-only strategic
+it would also install the pending v0.23.1 image. Use a reviewed guarded env-only
 patch against the live container, preserving image, command, mounts and resources;
 the corresponding tracing fields are already declared in Git. Keep the unrelated
 image-upgrade drift explicit and do not alter its repository pin. Do not sync
 unrelated resources just to enable tracing.
 Verify readiness/auth probes and actual profiles after restart.
+
+### Private cluster project-key replacement
+
+The operator approved this workflow after the potential disclosure described
+above. Keep tracing paused. In the private Langfuse UI, create a replacement
+project-scoped API key pair for **hermes-cluster**, store it privately, and revoke
+the old potentially disclosed cluster pair. Do not change desktop-project,
+owner-login, inference-provider or server-bootstrap credentials.
+
+From this task worktree in a private terminal:
+
+```bash
+PATH="$PWD/verification/cache/bin:$PATH" python3 -B langfuse/rotate-hermes-client.py
+```
+
+Enter only the new cluster pair at hidden prompts. The helper verifies the single
+expected project at the fixed private HTTPS endpoint with redirects blocked,
+strictly seals it for `hermes/hermes-langfuse`, and atomically replaces only the
+client ciphertext after validation. It retains the previous ciphertext under
+ignored `verification/cache/rotation-*/previous-ciphertext.yaml` with owner-only
+permissions. Do not edit the manifest concurrently: helper instances serialize,
+but the final stat-check/rename is not an OS-level compare-and-swap against other
+writers. Never restore a revoked pair just because its ciphertext was backed up.
+
+No plaintext credential files, key revocation, cluster apply, commit or push are
+performed by the helper. On success, report only its success line and whether
+the old pair was revoked; never send keys in chat. Review and apply the new
+SealedSecret separately, verify unsealing, then activate the selected profiles
+and restart in a confirmed idle window. Do not rerun either initial sealing helper
+or server bootstrap. On failure, inspect ciphertext state privately before retrying.
 
 ### Workstation
 

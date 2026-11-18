@@ -156,6 +156,12 @@ spec:
             - name: healthcheck
               mountPath: /healthcheck
               readOnly: true
+            - name: langfuse-credentials
+              mountPath: /var/run/hermes-langfuse
+              readOnly: true
+            - name: langfuse-key-source
+              mountPath: /langfuse-key-source
+              readOnly: true
       volumes:
         - name: data
           persistentVolumeClaim:
@@ -169,6 +175,22 @@ spec:
             items:
               - key: healthcheck.py
                 path: healthcheck.py
+        - name: langfuse-credentials
+          secret:
+            secretName: hermes-langfuse
+            defaultMode: 0440
+            items:
+              - key: public-key
+                path: public-key
+              - key: secret-key
+                path: secret-key
+        - name: langfuse-key-source
+          configMap:
+            name: hermes-langfuse-key-source
+            defaultMode: 0444
+            items:
+              - key: langfuse-key-source.py
+                path: langfuse-key-source.py
 ---
 apiVersion: v1
 kind: Service
