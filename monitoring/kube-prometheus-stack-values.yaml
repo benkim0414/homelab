@@ -15,12 +15,16 @@ prometheusOperator:
 prometheus:
   prometheusSpec:
     retention: 15d
+    # Keep the TSDB engine beside an existing healthy replica, off crowded k3s-03.
+    nodeSelector:
+      kubernetes.io/os: linux
+      kubernetes.io/hostname: k3s-04
     resources:
       requests:
-        cpu: 100m
-        memory: 512Mi
-      limits:
+        cpu: 500m
         memory: 1536Mi
+      limits:
+        memory: 2Gi
     storageSpec:
       volumeClaimTemplate:
         spec:

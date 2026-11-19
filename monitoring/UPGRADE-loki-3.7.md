@@ -1,8 +1,47 @@
-# Loki 3.6.11 → 3.7.10: image-only candidate
+# Loki 3.6.11 → 3.7.10: image-only upgrade
 
-**Prepared and locally validated; production upgrade held.**
-Parent/operator owns backup, maintenance authorization and deployment. Keep chart
-**7.3.0** and manual sync. This is not a community-chart migration.
+**Deployed and live-verified on 19 November 2026 UTC.** Keep chart **7.3.0** and
+manual sync. This was not a community-chart migration or a production tuning change.
+
+## Verified production rollout
+
+The reviewed Loki-only operation pinned chart 7.3.0 and Git revision
+`5031b2358064cbfd2aa333422758e31a5d5bb81b`, after exact-revision Verify run
+44409989931 passed. The complete 12-resource generated/live diff contained only
+the Loki image and version labels: no runtime-config, storage, selector, service,
+RBAC or hook changes. Prune/force/replace remained disabled.
+
+Fresh cold full NAS backup `upgrade-loki-20261119031623-8e8429` completed after
+observed exit 0 and ordinary detach; the original 3.6.11 writer resumed before
+rollout. This final archive was verified, not separately restored. Recovery,
+target replay, representative historical data and acknowledged-write restart
+durability were exercised on the earlier whole-volume checkpoint described below.
+All checkpoints, original/copy volumes and failed evidence were preserved.
+
+Production API buildinfo reports **3.7.10 / c792f585**. The live historical sample
+matches all ten independently checked namespace controls, totaling **1,478**,
+including monitoring **983**. Post-upgrade count-only queries confirm recent logs
+from all five nodes. Over 305 seconds/21 samples the Pod remained Ready with zero
+restarts/no observed OOM; maximum sampled working set was **82Mi** of unchanged
+512Mi. This is not worst-case capacity proof; the default 4GB replay ceiling
+remains a separately reviewed capacity risk.
+
+ArgoCD reports Synced/Healthy/Succeeded. Its operation completed before Pod startup
+finished, so the first verifier assertion failed; that record was preserved and
+verification continued without resubmitting the sync. Original StatefulSet,
+PVC/PV/CSI identities, reclaim/retention policies and all three ConfigMap data
+hashes are unchanged. No loopback/query-lookback rehearsal override was deployed.
+
+The optional per-node version-probe creation request returned nonzero before any
+matching probe Pod existed; it was not retried. Ingestion acceptance used actual
+existing-collector logs in a window wholly after target startup, not those probes.
+The cohort report separately records a recurring Prometheus rule timeout and
+k3s-03 resource warnings; this is not an all-clear cluster-health claim.
+
+## Historical preparation and recovery-test record
+
+The dated holds below are preserved as history and superseded by the verified
+rollout above. A failed test or timed-out approval never authorized its own retry.
 
 On 18 November 2026 UTC, approved maintenance produced cold full NAS backup
 `upgrade-loki-20261118212931-22c862` after observed normal exit 0; the original
@@ -14,6 +53,102 @@ Do not infer approval to retry from the earlier general rollout approval or
 deploy to bypass the failed gate. Production remains 3.6.11, Healthy/OutOfSync.
 Preserve all original/clone volumes and failed evidence. See the
 [cohort rollout record](../reports/2026-11-19-remaining-application-upgrades.md).
+
+### Authorized follow-up: corrected test still inconclusive
+
+The operator subsequently approved redacted diagnosis and one corrected batch.
+The original failure was memberlist's separate advertise-address auto-detection
+rejecting the isolated loopback interface. Explicit fixture-only memberlist
+bind/advertise addresses resolved that error; persistent configuration and the
+512Mi Loki limit were unchanged.
+
+The batch stopped at baseline readiness; target startup was not attempted. The
+baseline later exited normally at its Pod deadline, with zero restarts/no observed
+OOM. Read-only event classification then identified a missing executable in the
+shell-based readiness probe. Final logs contain a full WAL-recovery marker and
+`Loki started`; the timeout therefore does **not** establish failed WAL recovery.
+HTTP readiness, historical queries and target durability are still unproved.
+
+That single-use attempt is consumed. The subsequent request for one helper-based
+isolated batch timed out unanswered. Do not retry, deploy, increase Loki's memory
+limit or relax networking implicitly. A further authorized test must avoid shell/
+wget assumptions in the service image, retaining loopback/deny-all isolation and
+the unchanged Loki budget. Preserve `corrected-receipt.json`,
+`corrected-final-evidence.json` and `corrected-readiness-diagnosis.json` alongside
+the original evidence in the ignored rehearsal cache. Production remains 3.6.11.
+
+### Helper-based batch — 19 November 2026 UTC
+
+The operator then explicitly approved one helper-based batch. Both pinned
+versions completed full WAL recovery and sustained loopback HTTP/Pod readiness
+for over 25 seconds at the unchanged 512Mi limit. Both Loki/helper pairs stopped
+normally with exit 0, zero restarts and no observed OOM. The helper resolved the
+missing-executable problem without changing production or network isolation.
+
+Acceptance nevertheless failed: the historical aggregate at
+`2026-11-18T21:29:10+00:00` returned **1,144** on the baseline copy and **699** on
+the target copy. The batch stopped there; synthetic/collision/restart-durability
+checks and production rollout were not attempted. The cause is undiagnosed;
+this is not proof of data loss and is not upgrade acceptance. Saved evidence is
+being compared offline without another application start or restore. Preserve
+`helper-receipt.json` and `helper-final-readback.json`; no retry is authorized by
+that consumed batch. Production remains Ready on 3.6.11 with unchanged data.
+
+Offline review verified the same instant query, five-minute interval, timestamp,
+tenant behavior and byte-identical main/runtime configs. Both restores came from
+the same completed backup, but the baseline copy had already run its engine for
+583 seconds in the earlier probe-broken attempt; the target had no equivalent
+successful preconditioning. This is a proven comparison confound, not proof that
+it caused the count difference. WAL recovery metrics count replay/checkpoint work,
+not the logical population of that historical query. No data-loss conclusion or
+upgrade acceptance follows from them.
+
+One clean comparison on two fresh, equivalently conditioned restores was proposed;
+its authorization prompt timed out unanswered. It has not run. Before a future
+authorized comparison, control query age/ingester eligibility across both runs,
+not just the shared timestamp; do not cross a time-based query cutoff unnoticed.
+
+### Authorized fresh comparison: native checks passed, historical coverage held
+
+The operator approved one new fresh-pair comparison. Two new independent Retain
+10Gi restores used identical first-start conditioning and the documented
+test-only `querier.query_ingesters_within: 0s` override. Both completed WAL
+recovery/readiness at unchanged 512Mi. The target acknowledged one synthetic
+write and preserved it and the expected metadata-collision behavior across a
+normal restart. All test containers stopped with exit 0, zero restarts/no observed
+OOM; both restore volumes are retained/detached and production remains unchanged.
+
+The batch's internal positive/equal-count gate passed **1 / 1 / 1**, but this is
+not sufficient historical-preservation acceptance. At the same timestamp/window,
+the original producer returned **983 for monitoring alone**, while these restored
+copies returned only 1 across all nonempty namespaces. Parent readback verified
+the exact successful Pod/Retain-volume identities and explicitly held acceptance
+in `fresh-parent-review.json`. No production rollout was performed. Read-only
+analysis of saved/public query/config/restore evidence is active; no new native
+attempt is authorized by the consumed fresh batch. Preserve all fresh evidence.
+
+### Coverage correction and independently checked baseline
+
+Saved query statistics established zero ingester requests in the 1/1/1 test.
+Both pinned single-binary module implementations derive an ingester/store
+lookback and copy it into a querier field that takes precedence over
+`query_ingesters_within`. Parse-time config validation does not expose that later
+module mutation. Thus the earlier 0s override did not establish WAL query coverage.
+
+The operator approved a focused check with test-only
+`ingester.query_store_max_look_back_period: 24h`. Baseline reached the ingester
+and returned 1,478 globally, including monitoring 983. The script stopped before
+the target because its old 1,144 control was cutoff-affected and invalid. Parent
+then independently queried the producer for all ten returned namespaces: every
+per-namespace count matched the restored baseline exactly, totaling 1,478. This
+validates that representative baseline sample, not all stored log contents.
+
+The baseline stopped normally; production remains unchanged. Preserve the failed
+control assertion and its successor `coverage-producer-control.json`; do not edit
+the failed receipt to claim success. The target-only approval prompt timed out.
+No target coverage attempt or production upgrade has run. A further approved
+target-only check must match the independently verified namespace counts and
+demonstrate actual ingester participation, at unchanged 512Mi/deny-all isolation.
 
 ## Reviewed target and upstream changes
 
