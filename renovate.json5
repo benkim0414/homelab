@@ -13,10 +13,45 @@
     "managerFilePatterns": ["/^argocd/.+\\.ya?ml$/"]
   },
   "kubernetes": {
-    "managerFilePatterns": ["/^(?:argocd|hermes|hindsight|home-assistant|immich|kube-vip|longhorn|metallb|monitoring|openclaw|renovate|tailscale|traefik|vaultwarden)/.+\\.ya?ml$/"]
+    "managerFilePatterns": ["/^(?:argocd|gerrit|herdr|hermes|hindsight|home-assistant|immich|kube-vip|langfuse|longhorn|metallb|monitoring|openclaw|renovate|tailscale|traefik|vaultwarden)/.+\\.ya?ml$/"]
   },
+
   "ignorePaths": ["**/examples/**", "**/node_modules/**", "**/.worktrees/**", "**/.renovate-validation/**"],
   "customManagers": [
+    {
+      // helm-values does not extract a separate digest field in this version.
+      "customType": "regex",
+      "managerFilePatterns": ["/^monitoring/loki-values\\.yaml$/"],
+      "matchStrings": ["  image:\\s*\\n    registry: docker.io\\s*\\n    repository: grafana/loki\\s*\\n    tag: (?<currentValue>[\\d.]+)\\s*\\n    digest: (?<currentDigest>sha256:[a-f0-9]{64})"],
+      "depNameTemplate": "docker.io/grafana/loki",
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker",
+      "autoReplaceStringTemplate": "  image:\n    registry: docker.io\n    repository: grafana/loki\n    tag: {{newValue}}\n    digest: {{newDigest}}"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^hindsight/values\\.yaml$/"],
+      "matchStrings": ["controlPlane:\\s*\\n  enabled: true\\s*\\n  image:\\s*\\n    tag: (?<currentValue>[\\d.]+)@(?<currentDigest>sha256:[a-f0-9]{64})"],
+      "depNameTemplate": "ghcr.io/vectorize-io/hindsight-control-plane",
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^langfuse/values\\.yaml$/"],
+      "matchStrings": ["  image:\\s*\\n    tag: \"(?<currentValue>[\\d.]+)\"", "  web:\\s*\\n    image:\\s*\\n      tag: \"(?<currentValue>[\\d.]+)@(?<currentDigest>sha256:[a-f0-9]{64})\""],
+      "depNameTemplate": "docker.langfuse.com/langfuse/langfuse",
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^langfuse/values\\.yaml$/"],
+      "matchStrings": ["  worker:\\s*\\n    image:\\s*\\n      tag: \"(?<currentValue>[\\d.]+)@(?<currentDigest>sha256:[a-f0-9]{64})\""],
+      "depNameTemplate": "docker.langfuse.com/langfuse/langfuse-worker",
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker"
+    },
     {
       // Immich server image tag in Helm values (non-standard path)
       "customType": "regex",
@@ -59,6 +94,76 @@
     }
   ],
   "packageRules": [
+    {
+      "description": "Herdr is a manually built and smoke-tested commit image, not a latest tag",
+      "matchFileNames": ["herdr/**"],
+      "matchPackageNames": ["ghcr.io/benkim0414/hermes-herdr"],
+      "enabled": false
+    },
+    {
+      "description": "Preserve the reviewed Loki chart hold; runtime proposals remain separate",
+      "matchManagers": ["argocd"],
+      "matchFileNames": ["argocd/apps/monitoring.yaml"],
+      "matchPackageNames": ["loki"],
+      "enabled": false
+    },
+    {
+      "description": "Gerrit patch proposals still require Java, schema, reindex and cold-site recovery review",
+      "matchFileNames": ["gerrit/**"],
+      "matchPackageNames": ["docker.io/gerritcodereview/gerrit"],
+      "allowedVersions": "/^3\\.14\\.\\d+$/",
+      "prBodyNotes": ["Update the declared site version and regenerate Gerrit configuration/checksum. Review Java/Gitiles compatibility, schema/reindex and full cold-site backup/restore before deployment; never edit site markers to bypass migration guards."]
+    },
+    {
+      "description": "Preserve the Gerrit proxy's Alpine image variant and release line",
+      "matchFileNames": ["gerrit/**"],
+      "matchPackageNames": ["docker.io/nginxinc/nginx-unprivileged"],
+      "allowedVersions": "/^1\\.28\\.\\d+-alpine$/"
+    },
+    {
+      "description": "Review Langfuse chart and explicit web/worker overrides together",
+      "matchPackageNames": ["langfuse", "docker.langfuse.com/langfuse/**"],
+      "groupName": "langfuse",
+      "prBodyNotes": ["Review startup migrations and coordinated PostgreSQL/ClickHouse/SeaweedFS/Valkey recovery. The disposable-data stance is not a verified durable backup. Preserve stable keys and ClickHouse ARM64 placement."]
+    },
+    {
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["docker.langfuse.com/langfuse/**"],
+      "allowedVersions": "/^4\\.\\d+\\.\\d+$/"
+    },
+    {
+      "description": "Preserve Langfuse PostgreSQL 18 and unsuffixed image variant",
+      "matchDatasources": ["docker"],
+      "matchFileNames": ["langfuse/**"],
+      "matchPackageNames": ["postgres"],
+      "versioning": "docker",
+      "allowedVersions": "/^18(?:\\.\\d+){0,2}$/",
+      "groupName": "langfuse-postgresql"
+    },
+    {
+      "description": "Keep Langfuse Valkey on its reviewed 8.0 release line",
+      "matchDatasources": ["docker"],
+      "matchFileNames": ["langfuse/**"],
+      "matchPackageNames": ["docker.io/valkey/valkey"],
+      "allowedVersions": "/^8\\.0(?:\\.\\d+)?$/",
+      "groupName": "langfuse-valkey"
+    },
+    {
+      "description": "Keep ClickHouse on its reviewed 26.8 release line",
+      "matchDatasources": ["docker"],
+      "matchFileNames": ["langfuse/**"],
+      "matchPackageNames": ["clickhouse/clickhouse-server"],
+      "allowedVersions": "/^26\\.8\\.\\d+\\.\\d+$/",
+      "groupName": "langfuse-clickhouse"
+    },
+    {
+      "description": "Keep SeaweedFS server and bucket hook aligned on major 4",
+      "matchDatasources": ["docker"],
+      "matchFileNames": ["langfuse/**"],
+      "matchPackageNames": ["chrislusf/seaweedfs"],
+      "allowedVersions": "/^4\\.\\d+(?:\\.\\d+)?$/",
+      "groupName": "langfuse-objectstore"
+    },
     {
       "description": "Group Immich packages together",
       "matchPackageNames": ["ghcr.io/immich-app/**"],

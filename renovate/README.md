@@ -2,9 +2,11 @@
 
 Renovate is selected by the root Application in `argocd/apps.yaml`. Its Application
 uses the pinned official Renovate Helm chart and manual sync. Publishing these
-manifests does not establish that Renovate is running: register it by reviewing
-and syncing the root, then review and sync Renovate separately after verifying
-its token prerequisite. Neither sync should use pruning or force replacement.
+manifests does not establish that Renovate is running. Review root drift, align
+only its discovery selector when needed, and register only the Renovate child
+through a resource-selective operation. Do not bulk-sync unrelated pending
+children. Review and sync Renovate separately after verifying its token
+prerequisite. Neither sync should use pruning or force replacement.
 
 ## Update detection decisions
 
@@ -20,7 +22,9 @@ Dependency Dashboard for pending updates and lookup failures.
 | Dependency | Detection and review |
 | --- | --- |
 | Helm charts | ArgoCD sources under `argocd/`, including OCI charts and Renovate itself |
-| Runtime and backup images | Kubernetes manifests in app directories, including Hindsight; existing digests remain pinned |
+| Runtime and backup images | Kubernetes manifests in app directories, including Gerrit and Langfuse; existing digests remain pinned |
+| Helm runtime overrides | Helm-values extraction plus scoped Hindsight control-plane and Langfuse web/worker regex managers; explicit overrides must be reviewed with chart proposals |
+| Herdr | Extracted for inventory but updates disabled: build/smoke-test an approved commit image and select its digest manually for init and runtime containers; there is no latest-tag policy |
 | Immich, kube-vip and Vaultwarden values tags | Custom regex managers provide the image repository omitted from values |
 | K3s | Custom regex manager tracks `k3s_version` in the Ansible inventory through `k3s-io/k3s` GitHub releases, including `+k3s` revision updates |
 
@@ -30,18 +34,31 @@ Hindsight PostgreSQL updates have their own group, covering both the database an
 backup image/digest. Immich database and backup images remain in the Immich group.
 Grouping provides a joint review, not proof that two versions are compatible.
 
-The prepared Immich PostgreSQL 16 target and manual migration manifests are
-frozen until the reviewed cutover; see the [migration runbook](../immich/migration/README.md).
-The cutover generator changes active tracking to PostgreSQL 16 and freezes the
-retained PostgreSQL 14 rollback workload.
+Immich has completed its PostgreSQL 16 cutover; see the
+[migration runbook](../immich/migration/README.md). Active database and backup
+images track PostgreSQL 16. The retained PostgreSQL 14 rollback workload and
+manual migration manifests remain frozen.
 
-Database rules preserve Immich PostgreSQL 14 with its exact VectorChord/pgvectors
+Database rules preserve Immich PostgreSQL 16 with its exact VectorChord/pgvectors
 extension suffix, and Hindsight PostgreSQL 17 with the Bookworm suffix. Engine
 major, extension-variant and OS-variant migrations require a separate plan and
 policy update. Proposals must keep database and pg_dump images aligned and verify
 a recent successful backup before rollout. Current allowed tags can legitimately
 produce no version update; inspect the dashboard rather than assuming a pin is
 untracked.
+
+Langfuse PostgreSQL remains on major 18 without an OS-variant switch, Valkey on
+8.0, ClickHouse on 26.8, and SeaweedFS on major 4. Database proposals are separate
+from Langfuse chart/web/worker proposals. Gerrit proposals stay on 3.14 and its
+proxy on 1.28 Alpine; review declared site version/config regeneration, Java,
+Gitiles, schema/reindex and cold-site recovery before deployment. Langfuse
+rollouts require its documented coordinated recovery/disposable-data review.
+These constraints propose updates, not permission to migrate data.
+
+Loki's chart remains deliberately held at 7.3.0; runtime images remain tracked
+separately. See the [Loki upgrade gates](../monitoring/UPGRADE-loki-3.7.md).
+Respect closed/ignored updates; do not set a global recreate policy or recheck
+all dashboard entries to bypass those decisions.
 
 K3s upgrades are separate proposals; review the
 [K3s runbook](../k3s-ansible/README.md), supported upgrade path and version skew
@@ -61,7 +78,10 @@ runbooks before merging any upgrade, then review the ArgoCD diff and explicitly
 sync that app. Renovate updates Git; it does not deploy cluster workloads.
 
 The chart pin was verified against the
-[official release](https://github.com/renovatebot/helm-charts/releases/tag/renovate-46.357.4).
+[official release](https://github.com/renovatebot/helm-charts/releases/tag/renovate-46.447.1).
+It runs Renovate 44.255.1. Use that same version for configuration/extraction
+validation. Runs use the AMD64 worker, bounded memory, a 30-minute deadline and
+no automatic Job retry. Investigate a failed run before authorizing another.
 
 ## GitHub Token
 
@@ -101,6 +121,26 @@ and an explicit `RENOVATE_CONFIG_FILE` pointing to this repository's
 rules. Local extraction does not establish registry availability, token validity
 or a successful GitHub run. External lookups and tool downloads require network
 approval under repository working agreements.
+
+Keep validation dependencies under ignored `verification/cache/`, not an
+unignored top-level npm directory (the repository verifier inventories untracked
+files). With Renovate 44.255.1 installed under
+`verification/cache/renovate-tools`, run:
+
+```bash
+verification/cache/renovate-tools/node_modules/.bin/renovate-config-validator --strict renovate.json5
+LOG_FORMAT=json LOG_LEVEL=debug RENOVATE_CONFIG_FILE="$PWD/renovate.json5" \
+  verification/cache/renovate-tools/node_modules/.bin/renovate \
+  --platform=local --dry-run=extract > verification/cache/renovate-extract.jsonl
+node renovate/check-extraction.mjs verification/cache/renovate-extract.jsonl \
+  verification/cache/renovate-tools/node_modules
+```
+
+The assertion script exercises the selected version's actual rule matcher,
+including image/digest extraction, database variants and disabled proposals.
+Local extraction without a token reports a GitHub-token-required skip for K3s;
+that is not an authenticated lookup result. Loki uses a scoped regex because
+this version's Helm-values extractor ignores its separate `digest` field.
 
 After an approved rollout, confirm the CronJob and its timezone, then inspect the
 latest run (wait for the scheduled run, or obtain approval for a one-off Job):
