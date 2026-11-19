@@ -2,7 +2,7 @@
 
 ## Status and scope
 
-**Deployed and Ready on k3s-04; sustained observation pending.** After “proceed next” and
+**Deployed and live-verified on k3s-04, including 15-minute observation.** After “proceed next” and
 the concrete preflight, the operator explicitly selected **“Approve publication,
 fresh backup and Prometheus-only move”**. This covers scoped commit/push/PR/merge
 after exact-commit CI, one fresh cold checkpoint and the reviewed selective move,
@@ -166,12 +166,30 @@ CR/StatefulSet, PVC/PV/CSI identities and all other monitoring Pod identities ar
 unchanged. The same original volume is attached/healthy on k3s-04. Operation
 Succeeded, Application Synced/Healthy; no admission hook or other resource ran.
 
-The **15-minute readiness/memory/rule/target observation is in progress**. Initial
-rule health can be unknown before the first evaluation completes; it is not
-counted as proof of a failed evaluation. Acceptance requires three distinct
-healthy reported evaluations of both previously failing groups, evaluation times
-below their intervals, 32/32 active targets, no firing PrometheusRuleFailures,
-same Ready zero-restart Pod and adequate node04 available memory. A historical
-target-health sample (10 jobs/32 up targets) was captured before moving and will
-be compared at the identical instant after observation. These are representative
-checks, not complete stored-series equivalence or worst-case capacity proof.
+The **901.4-second observation passed**, with 60 memory samples and the same Ready
+Pod throughout: zero restarts/no observed OOM, maximum sampled working set
+**1765Mi / 2Gi**, node04 available memory above the reviewed floor, healthy volume
+and unchanged non-target Pod identities. The availability and burn-rate groups
+reported **five and fifteen distinct healthy evaluations**, respectively. Final
+evaluation times were **0.848s / 180s** and **0.599s / 30s**; both groups' rules
+were healthy, rather than merely having a reset failure counter. Prometheus had
+32/32 active targets up, zero new-process rule evaluation failures, no firing
+PrometheusRuleFailures and no other firing critical alerts.
+
+The observer's preserved `failed_rule_samples: 1` includes initial **unknown**
+health before the first evaluation, not a confirmed evaluation failure. Independent
+readback verified the new-process failure counter was zero. The captured historical
+target-health sample (10 jobs/32 up targets) matched at the identical instant.
+Recent count-only Loki queries also confirmed logs from all five nodes. Final
+node memory samples were k3s-03 **74%**, k3s-04 **57%**, versus 94%/37% before
+maintenance. These observations support this combined capacity/placement
+correction; they do not isolate each causal factor or establish worst-case capacity.
+
+The only remaining firing alerts were intentional Watchdog and the separate
+OffsiteBackupMissing/old preserved recovery-job warnings. No alert/rule was disabled,
+silenced or deleted. All original data, backups and failed evidence remain.
+Workspace-only proofs: `prometheus-capacity-observation.json`,
+`prometheus-capacity-final-readback.json`, `prometheus-capacity-rollout.json`,
+`prometheus-history-before-move.json` and the fresh checkpoint receipt. This is
+app-scoped live acceptance, not complete stored-series equivalence, an offsite
+recovery solution or a full private-log/security audit.

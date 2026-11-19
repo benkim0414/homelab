@@ -1,10 +1,11 @@
 # Remaining application upgrades — 19 November 2026 AEDT
 
 Updated through 19 November 2026 UTC / AEDT. All four requested target runtimes
-are deployed and app-scoped live verification passed. Broader health closeout is
-not all-clear: recurring Prometheus rule timeouts and k3s-03 resource warnings
-remain. This does not close the original all-application inventory/owner-acceptance
-work or assert that the entire cluster is warning-free.
+are deployed and app-scoped live verification passed. The subsequent Prometheus
+capacity correction also passed sustained live acceptance: rule timeouts/critical
+alerts cleared and k3s-03 resource pressure reduced. Separate offsite-backup and
+preserved recovery-job warnings remain. This does not close the original
+all-application inventory/owner-acceptance work or declare the cluster warning-free.
 
 ## Authorization and publication
 
@@ -65,7 +66,7 @@ then published and applied after explicit approval. Its
 records confirmed sde attribution, destination capacity, unchanged volume identity
 and the publication/checkpoint/selective-sync gates.
 
-### Prometheus capacity correction — deployed, sustained acceptance pending
+### Prometheus capacity correction — deployed and live-verified
 
 PR103/main b8c07ea9 passed exact-main CI. After a preserved wrapper error before
 any pause and a separately authorized corrected attempt, fresh cold full backup
@@ -75,8 +76,15 @@ then moved its writer to k3s-04 with 500m/1536Mi requests and a 2Gi memory limit
 Image digest, all original CR/StatefulSet/PVC/PV/CSI identities, rules, timeouts,
 retention and manual sync remained unchanged. No admission hook or other
 monitoring workload was restarted. Argo reports Synced/Healthy/Succeeded and the
-new Pod is Ready with zero restarts. Fifteen-minute performance/memory/rule/target
-observation is in progress; this is not yet a completed sustained-health verdict.
+new Pod is Ready with zero restarts. The 901.4-second observation passed with 60
+memory samples (maximum 1765Mi), five/fifteen distinct healthy evaluations of the
+availability/burn-rate groups, 32/32 active targets and no firing critical alerts.
+The groups' final durations were 0.848s/180s and 0.599s/30s, with zero new-process
+rule evaluation failures. The old target-health sample matched after movement.
+Final node memory sampled 74% on k3s-03 and 57% on k3s-04; both nodes remained
+Ready without Kubernetes pressure conditions. The offsite-backup and preserved
+failed-job warnings remain separate. No rules, timeouts, retention, authentication
+or alerts were changed to produce acceptance; no worst-case capacity claim is made.
 
 ## Recovery points and checks
 
