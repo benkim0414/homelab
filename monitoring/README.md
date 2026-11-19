@@ -37,6 +37,24 @@ firing. No controller private-key export or independent key-disaster custody was
 inspected/claimed. See the
 [cohort rollout record](../reports/2026-11-19-remaining-application-upgrades.md).
 
+At 19 November UTC closeout, all four upgrade Applications were Synced/Healthy
+and 32/32 targets were up, but the 30-day API-server recording-rule timeout
+recurred alongside k3s-03 memory/I/O/load warnings. This remains a critical
+monitoring-health follow-up, not a rule failure hidden by a green rollout. No
+rules were disabled, timeouts raised or workloads moved/restarted to suppress it.
+
+### Prepared placement/resource correction — 19 November UTC
+
+A later preflight found a recovered Prometheus OOMKilled event at 05:00:20Z and
+mapped busy node03 `sde` to its existing Longhorn volume. The prepared values pin
+Prometheus to schedulable k3s-04, request 500m CPU/1536Mi memory and allow 2Gi
+memory; **this correction is not yet published/deployed**. The pinned render
+changes only its CR's selector/resources, not images, storage, rules or timeouts.
+See the [preflight and maintenance plan](../reports/2026-11-19-prometheus-placement.md)
+for capacity, retained-volume, fresh-checkpoint, selective-sync and interruption
+requirements. Hard hostname selection is not HA and needs reviewed recovery if
+that node fails. Do not rerun admission hooks or move other workloads for this fix.
+
 ### Pre-rollout review
 
 This is a **prepared candidate, not a deployed upgrade**. Review the actual live
