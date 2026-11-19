@@ -4,7 +4,8 @@ cronjob:
   concurrencyPolicy: Forbid
   suspend: false
   jobRestartPolicy: Never
-  jobBackoffLimit: 0
+  # Chart uses a truthiness guard; a string preserves an explicit zero in YAML.
+  jobBackoffLimit: "0"
   activeDeadlineSeconds: 1800
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3
