@@ -2,7 +2,7 @@
 
 ## Status and scope
 
-Prepared and locally validated; **not yet deployed**. After “proceed next” and
+**Deployed and Ready on k3s-04; sustained observation pending.** After “proceed next” and
 the concrete preflight, the operator explicitly selected **“Approve publication,
 fresh backup and Prometheus-only move”**. This covers scoped commit/push/PR/merge
 after exact-commit CI, one fresh cold checkpoint and the reviewed selective move,
@@ -11,7 +11,7 @@ approved. No change to chart 93.4.0, Prometheus 3.16.0,
 retention, rules, query timeout/concurrency, authentication, exposure, storage
 identity, automation or other workloads is proposed.
 
-## Current evidence
+## Pre-correction evidence
 
 - The critical API-server availability recording group exceeded its 180-second
   interval and its two 30-day rules timed out expanding series. Subsequent checks
@@ -116,3 +116,62 @@ preserved failed recovery-job warning remain separate; do not silence them.
 - Unit suite: 192 tests run, six skipped; five policy tests passed. Printed backup
   IDs in unit-test output are synthetic fixtures, not new live recovery points.
 - This is local/admission/preflight validation, not deployed performance recovery.
+
+## Historical publication and stopped checkpoint attempt
+
+[PR103](https://github.com/benkim0414/homelab/pull/103) merged the reviewed candidate
+as main `b8c07ea984e76911a42f42f633dd69e565bbe7c0`. Exact-main Verify run
+44466265423 succeeded. Argo resolved all three sources at the reviewed revisions;
+only Prometheus was OutOfSync among 112 tracked resources, and its filtered
+generated/live diff changed only selector/resources. The first unfiltered MCP
+response was truncated; it was not accepted as a complete diff.
+
+The approved checkpoint wrapper failed **before any pause** with a constructor
+TypeError: the existing observer accepts only namespace/name, not a `seconds`
+keyword. That failed source code/reservation and the intent receipt
+`upgrade-prometheus-20261119053915-31415c-receipt.json` remain unchanged.
+Independent readback verified the same original Ready Pod/old resources,
+replicas one, and no Snapshot/Backup with that intent name. No move was attempted.
+The critical health issue is therefore not resolved by publication alone.
+
+A separate UID-bound observer now explicitly supports the complete grace-period
+budget. The corrected successor and the not-yet-executed move caller use it.
+Nine local generated-fixture tests passed, including the original backup caller's
+success and abnormal-stop/resume paths; these are not a live checkpoint. The
+corrected single-use reservation does not exist. Its fresh approval request timed
+out unanswered: **no corrected checkpoint or move is authorized by that timeout**.
+Do not reuse/delete the failed reservation or silently retry. Production remains
+on k3s-03 at 1536Mi; Argo is Healthy/OutOfSync against the published correction.
+
+## Corrected checkpoint and reviewed move
+
+The operator subsequently explicitly approved one corrected checkpoint followed
+by the reviewed move. Fresh live preflight found the old Pod Ready but its
+historical restart count had risen to three; k3s-03 was at 94% memory, k3s-04 at
+37%. The pinned main/CI, manual policy, node scheduling and two RW replicas were
+rechecked before spending the corrected single-use attempt.
+
+Cold full NAS backup **`upgrade-prometheus-20261119095749-1536cc`** completed for
+the unchanged 20Gi source. Config-reloader exited 0 at 09:57:51Z and Prometheus
+exited 0 at 10:00:17Z; the UID-bound observer covered the existing 600-second
+grace period. Backup completion was verified at 10:04:25Z and the original writer
+resumed Ready. This is a verified fresh full backup, not a separate restore test.
+The failed predecessor, old checkpoints and all recovery fixtures remain intact.
+
+One selective Argo operation at **b8c07ea984e76911a42f42f633dd69e565bbe7c0**
+then applied only the reviewed Prometheus CR. Both old containers again exited 0;
+the replacement Pod started at 10:07:52Z, became Ready on k3s-04 with 500m/1536Mi
+requests and 2Gi memory limit, and its image digest matched the original. The
+CR/StatefulSet, PVC/PV/CSI identities and all other monitoring Pod identities are
+unchanged. The same original volume is attached/healthy on k3s-04. Operation
+Succeeded, Application Synced/Healthy; no admission hook or other resource ran.
+
+The **15-minute readiness/memory/rule/target observation is in progress**. Initial
+rule health can be unknown before the first evaluation completes; it is not
+counted as proof of a failed evaluation. Acceptance requires three distinct
+healthy reported evaluations of both previously failing groups, evaluation times
+below their intervals, 32/32 active targets, no firing PrometheusRuleFailures,
+same Ready zero-restart Pod and adequate node04 available memory. A historical
+target-health sample (10 jobs/32 up targets) was captured before moving and will
+be compared at the identical instant after observation. These are representative
+checks, not complete stored-series equivalence or worst-case capacity proof.

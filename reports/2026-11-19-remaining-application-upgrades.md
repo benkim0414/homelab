@@ -40,7 +40,7 @@ conditions do not negate the utilization warnings below. Prometheus reported
 32/32 scrape targets up. Grafana reported database OK/version 13.3.1 and normal
 authenticated datasource queries worked. Loki's observed live behavior is below.
 
-At final alert inspection, **PrometheusRuleFailures was firing critically**:
+At the initial post-Loki alert inspection, **PrometheusRuleFailures was firing critically**:
 30-day API-server recording rules timed out expanding series on the Ready,
 zero-restart Prometheus Pod. The same group had failed before the stack upgrade,
 cleared temporarily, then recurred. k3s-03 was at 92% memory with disk-I/O/load
@@ -59,10 +59,24 @@ This is not a clean global-health, full security or private-error-log audit.
 
 The subsequent placement preflight found one recovered Prometheus OOMKilled/137
 at 05:00:20Z. Earlier zero-restart samples above do not describe that later event.
-The operator requested proceeding; a selector/resource correction is prepared,
-not deployed, and its [separate maintenance plan](2026-11-19-prometheus-placement.md)
+The operator requested proceeding; a selector/resource correction was prepared,
+then published and applied after explicit approval. Its
+[separate maintenance plan](2026-11-19-prometheus-placement.md)
 records confirmed sde attribution, destination capacity, unchanged volume identity
 and the publication/checkpoint/selective-sync gates.
+
+### Prometheus capacity correction — deployed, sustained acceptance pending
+
+PR103/main b8c07ea9 passed exact-main CI. After a preserved wrapper error before
+any pause and a separately authorized corrected attempt, fresh cold full backup
+`upgrade-prometheus-20261119095749-1536cc` completed; both containers stopped
+normally with exit 0 and the original resumed. One selective Prometheus-CR apply
+then moved its writer to k3s-04 with 500m/1536Mi requests and a 2Gi memory limit.
+Image digest, all original CR/StatefulSet/PVC/PV/CSI identities, rules, timeouts,
+retention and manual sync remained unchanged. No admission hook or other
+monitoring workload was restarted. Argo reports Synced/Healthy/Succeeded and the
+new Pod is Ready with zero restarts. Fifteen-minute performance/memory/rule/target
+observation is in progress; this is not yet a completed sustained-health verdict.
 
 ## Recovery points and checks
 
