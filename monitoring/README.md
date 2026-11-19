@@ -43,17 +43,29 @@ recurred alongside k3s-03 memory/I/O/load warnings. This remains a critical
 monitoring-health follow-up, not a rule failure hidden by a green rollout. No
 rules were disabled, timeouts raised or workloads moved/restarted to suppress it.
 
-### Prepared placement/resource correction — 19 November UTC
+### Placement/resource correction — 19 November UTC
 
 A later preflight found a recovered Prometheus OOMKilled event at 05:00:20Z and
 mapped busy node03 `sde` to its existing Longhorn volume. The prepared values pin
 Prometheus to schedulable k3s-04, request 500m CPU/1536Mi memory and allow 2Gi
-memory; **this correction is not yet published/deployed**. The pinned render
+memory; **published in PR103, deployed and live-verified**. The pinned render
 changes only its CR's selector/resources, not images, storage, rules or timeouts.
 See the [preflight and maintenance plan](../reports/2026-11-19-prometheus-placement.md)
 for capacity, retained-volume, fresh-checkpoint, selective-sync and interruption
 requirements. Hard hostname selection is not HA and needs reviewed recovery if
 that node fails. Do not rerun admission hooks or move other workloads for this fix.
+The first wrapper failed before any pause and was preserved. A subsequently
+approved corrected attempt completed cold full NAS backup
+`upgrade-prometheus-20261119095749-1536cc`, resumed the original and then moved
+only the Prometheus CR at exact-main b8c07ea9. The Pod is Ready on k3s-04 with the
+same original claim/image; no admission hooks or other monitoring Pods restarted.
+The 901-second observation passed with zero restarts/OOM and a maximum sampled
+working set of 1765Mi. Both previously failing rule groups repeatedly evaluated
+healthy in under one second, 32/32 targets were up and no critical alerts fired.
+The historical target-health sample matched; original volume/image identities
+and all other monitoring Pods remained unchanged. k3s-03 memory fell from 94%
+to 74%, while k3s-04 sampled 57%. This is measured acceptance, not a worst-case
+memory bound. OffsiteBackupMissing and the preserved recovery-job warning remain.
 
 ### Pre-rollout review
 
