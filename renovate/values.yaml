@@ -32,6 +32,6 @@ renovate:
       repositories: ["benkim0414/homelab"],
       onboarding: false,
       requireConfig: "required",
-      dependencyDashboard: true,
+      dependencyDashboard: { enabled: true },
       gitAuthor: "Renovate Bot <bot@renovateapp.com>"
     }
