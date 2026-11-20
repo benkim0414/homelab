@@ -99,7 +99,7 @@ redis:
   image:
     registry: docker.io
     repository: valkey/valkey
-    tag: "8.0@sha256:04b9002ae24bbe66687fb025052ed9bcebb54f8da3937338eb718d98d362887f"
+    tag: "8.0@sha256:fcb69dfef81599baefeee6cdd0b8339b61b7983a8ee08d307e44844db5bd7047"
     pullPolicy: IfNotPresent
   replica: {enabled: false, replicas: 0}
   dataStorage:
