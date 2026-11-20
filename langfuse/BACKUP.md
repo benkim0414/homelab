@@ -6,6 +6,11 @@ makes the recovery scope reviewable; it does not authorize secret exports,
 production downtime, new storage, restore execution, schedules or retention pruning.
 Traces remain disposable until a coordinated restore passes.
 
+The [first recovery-set plan](RECOVERY-FIRST.md) records the 2026-11-20 read-only
+storage/capacity preflight, bounded proposed scope and remaining implementation,
+encryption, destination and execution-approval gates. Preparation is approved;
+no confidential capture, production pause or isolated restore has been performed.
+
 References: [application runbook](README.md), [resilience evidence](../reports/2026-11-18-langfuse-resilience.md),
 [NAS runbook](../nas/README.md), and [Sealed Secrets recovery](../docs/operations/sealed-secrets.md).
 
@@ -92,7 +97,8 @@ backup command exit:
 6. Resume only the paused original resources and clients, restoring their recorded
    settings and replicas. Verify private readiness, both projects' old trace
    readbacks, a fresh metadata-only export and unchanged production storage and
-   Hermes v0.22.2 image. If verification fails, stop and report; never prune or
+   recorded pre-operation Hermes image. Do not restore the superseded v0.22.2
+   pin from historical evidence. If verification fails, stop and report; never prune or
    overwrite data as remediation.
 
 The exact native commands, scripts and secret-consumption mechanism are still
