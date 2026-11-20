@@ -2,12 +2,27 @@ cronjob:
   schedule: "0 4 * * *"
   timeZone: "Australia/Melbourne"
   concurrencyPolicy: Forbid
+  suspend: false
+  jobRestartPolicy: Never
+  # Chart uses a truthiness guard; a string preserves an explicit zero in YAML.
+  jobBackoffLimit: "0"
+  activeDeadlineSeconds: 1800
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3
 
 envFrom:
   - secretRef:
       name: renovate-token
+
+nodeSelector:
+  kubernetes.io/arch: amd64
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    memory: 2Gi
 
 renovate:
   configIsJson5: true
