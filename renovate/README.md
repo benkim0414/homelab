@@ -83,6 +83,28 @@ It runs Renovate 44.255.1. Use that same version for configuration/extraction
 validation. Runs use the AMD64 worker, bounded memory, a 30-minute deadline and
 no automatic Job retry. Investigate a failed run before authorizing another.
 
+### Failure reporting
+
+The self-hosted runner sets `exitCodeForErrors: true` and JSON info logs.
+Renovate 44.255.1 otherwise logs a repository `external-host-error` with an
+internal exitCode of 7 but can still exit the process with 0. Kubernetes then
+marks the Job successful even though lookup/update processing did not complete.
+Do not disable host-error detection or ignore a dependency to manufacture success.
+
+Reproduce the native behavior with an isolated, credential-free synthetic Git
+fixture and the reserved `.invalid` registry (no GitHub writes):
+
+```bash
+python3 renovate/check-error-exit.py /absolute/path/to/pinned/renovate
+```
+
+This must observe repository error 7 in both cases, process exit0 with the option
+disabled and process exit7 with it enabled. The normal repository unit tests also
+guard the declared error/logging option, schedule and zero-retry contract.
+An actual failed run now becomes a failed Kubernetes Job; inspect the existing
+`KubeJobFailed` Prometheus rule as well as structured repository results. Preserve
+failed Jobs/log evidence and investigate before a separately authorized run.
+
 ## GitHub Token
 
 The CronJob expects a Kubernetes Secret named `renovate-token` in the `renovate` namespace with a `RENOVATE_TOKEN` key. Do not commit a plaintext Secret.
@@ -155,3 +177,7 @@ Confirm the Job completes, lookup/authentication errors are resolved, and the
 GitHub Dependency Dashboard and expected update proposals appear. Do not treat
 an empty PR list as proof that all apps are current. Record local validation and
 live rollout results separately.
+Inspect the structured `Repository finished` result and process termination in
+addition to Job status. Retain raw logs privately and report only projected
+error category, affected public package/host, exit code and outcome. A natural
+schedule firing is not proof that repository processing succeeded.
