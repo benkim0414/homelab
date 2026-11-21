@@ -19,7 +19,8 @@ const records = new Map();
 const rows = [];
 for (const [manager, files] of Object.entries(event.packageFiles)) {
   for (const file of files) for (const dep of file.deps) {
-    const row = {manager, packageFile: file.packageFile, ...dep};
+    const row = {manager: manager === 'regex' ? 'custom.regex' : manager,
+      packageFile: file.packageFile, ...dep};
     if (manager === 'regex') records.set(JSON.stringify(row), row);
     else rows.push(row);
   }
@@ -55,7 +56,7 @@ find('immich/pg-backup-cronjob.yaml', 'ghcr.io/immich-app/postgres', false);
 find('vaultwarden/backup-cronjob.yaml', 'python', false);
 const effective = [];
 for (const row of rows) effective.push(await applyPackageRules({...row,
-  packageRules: config.packageRules}, 'verification'));
+  automerge: config.automerge, packageRules: config.packageRules}, 'verification'));
 function policy(file, name) {
   const row = effective.find(r => r.packageFile === file && r.depName === name);
   assert(row, `Missing policy target ${file}: ${name}`);
@@ -64,6 +65,19 @@ function policy(file, name) {
 assert.equal(config.automerge, false);
 assert.equal(config.ignoreUnstable, true);
 assert.equal(policy('herdr/deployment.yaml', 'ghcr.io/benkim0414/hermes-herdr').enabled, false);
+for (const name of ['herdr-amd64', 'herdr-arm64', 'herdr-core-amd64', 'herdr-core-arm64']) {
+  const extracted = find('herdr/image/releases.json', name);
+  assert.equal(extracted.length, 1);
+  assert.equal(extracted[0].datasource, `custom.${name}`);
+  const rule = policy('herdr/image/releases.json', name);
+  assert.equal(rule.automerge, true);
+  assert.equal(rule.platformAutomerge, false);
+  assert.equal(rule.ignoreTests, false);
+  assert.equal(rule.groupName, 'herdr releases');
+}
+for (const row of effective) {
+  if (row.packageFile !== 'herdr/image/releases.json') assert.equal(row.automerge, false);
+}
 assert.equal(policy('argocd/apps/monitoring.yaml', 'loki').enabled, false);
 assert.equal(policy('immich/postgresql.yaml', 'ghcr.io/immich-app/postgres').enabled, false);
 for (const [file, name, allowed, denied] of [

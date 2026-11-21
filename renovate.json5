@@ -17,7 +17,36 @@
   },
 
   "ignorePaths": ["**/examples/**", "**/node_modules/**", "**/.worktrees/**", "**/.renovate-validation/**"],
+  "customDatasources": {
+    "herdr-amd64": {
+      "defaultRegistryUrlTemplate": "https://api.github.com/repos/herdrdev/herdr/releases/latest",
+      "format": "json",
+      "transformTemplates": ["{\"releases\":[{\"version\":$substringAfter(tag_name,\"v\"),\"digest\":assets[name=\"herdr-linux-x86_64\"].digest}]}"]
+    },
+    "herdr-arm64": {
+      "defaultRegistryUrlTemplate": "https://api.github.com/repos/herdrdev/herdr/releases/latest",
+      "format": "json",
+      "transformTemplates": ["{\"releases\":[{\"version\":$substringAfter(tag_name,\"v\"),\"digest\":assets[name=\"herdr-linux-aarch64\"].digest}]}"]
+    },
+    "herdr-core-amd64": {
+      "defaultRegistryUrlTemplate": "https://releases.herdr.dev/core/latest.json",
+      "format": "json",
+      "transformTemplates": ["{\"releases\":[{\"version\":version,\"digest\":\"sha256:\" & targets.\"linux-x86_64\".sha256}]}"]
+    },
+    "herdr-core-arm64": {
+      "defaultRegistryUrlTemplate": "https://releases.herdr.dev/core/latest.json",
+      "format": "json",
+      "transformTemplates": ["{\"releases\":[{\"version\":version,\"digest\":\"sha256:\" & targets.\"linux-aarch64\".sha256}]}"]
+    }
+  },
   "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^herdr/image/releases\\.json$/"],
+      "matchStrings": ["\"(?<depName>herdr(?:-core)?-(?:amd64|arm64))\":\\s*\\{\\s*\"version\":\\s*\"(?<currentValue>[0-9.]+)\",\\s*\"digest\":\\s*\"(?<currentDigest>sha256:[a-f0-9]{64})\"\\s*\\}"],
+      "datasourceTemplate": "custom.{{depName}}",
+      "versioningTemplate": "semver-coerced"
+    },
     {
       // helm-values does not extract a separate digest field in this version.
       "customType": "regex",
@@ -94,6 +123,20 @@
     }
   ],
   "packageRules": [
+    {
+      "description": "Operator-approved automatic Herdr TUI/Core releases; other apps stay manual",
+      "matchManagers": ["custom.regex"],
+      "matchFileNames": ["herdr/image/releases.json"],
+      "matchPackageNames": ["herdr-amd64", "herdr-arm64", "herdr-core-amd64", "herdr-core-arm64"],
+      "groupName": "herdr releases",
+      "separateMajorMinor": false,
+      "separateMinorPatch": false,
+      "automerge": true,
+      "automergeType": "pr",
+      "automergeStrategy": "squash",
+      "platformAutomerge": false,
+      "ignoreTests": false
+    },
     {
       "description": "Herdr is a manually built and smoke-tested commit image, not a latest tag",
       "matchFileNames": ["herdr/**"],

@@ -16,6 +16,19 @@ resource_id(resource) := concat("/", ["", resource.kind, object.get(resource.met
 deny contains encode_violation("automated-sync", resource_id(app)) if {
     some app in input.applications
     object.get(object.get(app.spec, "syncPolicy", {}), "automated", null) != null
+    not approved_herdr_auto_sync(app)
+}
+
+# Explicit operator exception: Herdr only, with no pruning/self-healing/empty sync.
+approved_herdr_auto_sync(app) if {
+    app.metadata.name == "herdr"
+    app.metadata.namespace == "argocd"
+    app.spec.project == "default"
+    app.spec.source.repoURL == "https://github.com/benkim0414/homelab.git"
+    app.spec.source.targetRevision == "main"
+    app.spec.source.path == "herdr"
+    app.spec.destination == {"server": "https://kubernetes.default.svc", "namespace": "herdr"}
+    app.spec.syncPolicy.automated == {"enabled": true, "prune": false, "selfHeal": false, "allowEmpty": false}
 }
 
 deny contains encode_violation("unsafe-sync", resource_id(app)) if {

@@ -66,7 +66,7 @@ spec:
               readOnly: true
       containers:
         - name: herdr
-          # Source ca83779daa026990c0bf45561e2fd4c396b38238; workflow 42907527936.
+          # Only the tested image workflow advances the init/runtime digest pair.
           image: ghcr.io/benkim0414/hermes-herdr@sha256:b77ffeb13ec3b0355803009b5b70cba78817121c9bd6c69c237a592c1641d765
           securityContext:
             runAsUser: 0

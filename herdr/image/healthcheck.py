@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 import socket
 import subprocess
+from core_health import check_core
 
 for pid in Path("/run/herdr-processes").read_text().split():
     os.kill(int(pid), 0)
@@ -12,4 +13,5 @@ if os.getuid() == 0:
     os.setgid(10000)
     os.setuid(10000)
 subprocess.run(["/usr/local/bin/herdr", "status", "server"], check=True,
-               stdout=subprocess.DEVNULL, timeout=5)
+               stdout=subprocess.DEVNULL, timeout=3)
+check_core()
