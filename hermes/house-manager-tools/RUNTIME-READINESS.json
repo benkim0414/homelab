@@ -1,0 +1,82 @@
+{
+  "actual_image_scratch_probe": {
+    "credential_access": false,
+    "originals_verified": true,
+    "output_sha256": {
+      "gateway/session_commands.py": "63b4e3555b000a7a92d013ca7d97475410fb3ebb34b0267057258de475a85e6f",
+      "gateway/session_policy.py": "7b65d7662cb86f481a1fa7fb53947b2dc4cfed8cfcfce7a93f2df961474ebc8b",
+      "hermes_cli/plugin_session.py": "962e1251eedd80363f461b1a874f0bc5690544abc75fd507f564c5d2c9a2595d",
+      "hermes_cli/plugins_context.py": "6f88654a7dd3a39b71e226963412611b38a83aa896680d2e6c2826a743172e79"
+    },
+    "persistent_writes": false,
+    "restart": false,
+    "runtime_image_probe": "PASS"
+  },
+  "admission_dry_run": {
+    "passed": true,
+    "resources": [
+      "configmap/hermes-runtime-context-2c29ab217fc2",
+      "deployment.apps/hermes",
+      "service/hermes"
+    ]
+  },
+  "blocked_on": [
+    "Operator-private dedicated non-admin HA user and token enrollment",
+    "Fresh checkpoints and controlled source deployment after enrollment",
+    "Real Bot Chat and TUI acceptance"
+  ],
+  "final_independent_review": "historical-before-P1-P2-fixes",
+  "superseded_by": "SAFETY-FIX-VERIFICATION.json",
+  "live_changes": {
+    "approval_plugin_enabled": false,
+    "automations_changed": false,
+    "core_overlay_deployed": false,
+    "credential_enrollment_performed_by_agent": false,
+    "ha_source_installed": false,
+    "private_enrollment_helper_installed": true,
+    "services_restarted": false
+  },
+  "recorded_at": "2026-11-20T03:48:49.508044+00:00",
+  "repository_verification": {
+    "changes": [
+      {
+        "categories": [],
+        "change": "added",
+        "resource": "/ConfigMap/hermes/hermes-runtime-context-2c29ab217fc2"
+      },
+      {
+        "categories": [
+          "images"
+        ],
+        "change": "modified",
+        "resource": "apps/Deployment/hermes/hermes"
+      },
+      {
+        "categories": [],
+        "change": "modified",
+        "resource": "argoproj.io/Application/argocd/hermes"
+      }
+    ],
+    "resource_count": 521,
+    "result": "passed",
+    "schemas": {
+      "errors": 0,
+      "invalid": 0,
+      "skipped": 0,
+      "valid": 521
+    }
+  },
+  "unit_tests": {
+    "counts": {
+      "component": 85,
+      "connector": 17,
+      "enrollment": 6,
+      "flow": 1,
+      "packaging": 3,
+      "plugin": 27,
+      "runtime": 12
+    },
+    "passed": true,
+    "tests_run": 151
+  }
+}

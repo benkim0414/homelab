@@ -1,0 +1,73 @@
+{
+  "date": "2026-11-21",
+  "scope": "local-regression-and-running-image-scratch-probe-not-live-activation",
+  "source": "Operator requested implementation of separate operational bot and human approval roles with Discord and TUI/Bot Chat approval of shared proposals",
+  "supersedes": {
+    "SAFETY-FIX-VERIFICATION.json": "Current unit-test results and current-revision actual-image scratch probe only; historical admission/repository verification was not rerun in this continuation"
+  },
+  "unit_tests": {
+    "component": 90,
+    "connector_plugin_flow_runtime_bundle_enrollment": 78,
+    "total": 168,
+    "result": "PASS"
+  },
+  "added_coverage": [
+    "Command-to-adapter-to-manager create flow for CLI, TUI and Desktop presentation with synthetic trusted runtime context",
+    "Discord/chat edit approval competition with both winner orderings and both on/off states",
+    "Consumed edit rejects stale local confirmation, new local preview and repeated Discord approval without changing receipt or writing twice",
+    "Image probe exact recipe, clean remote environment, failure redaction and digest mismatch refusal",
+    "Native UI writer cannot replace approved create config between persistence, reload and exact readback; regression failed before the lock fix and passed after",
+    "Discord approval beyond 250 intervening messages is discovered across bounded pages despite new traffic or a restarted worker",
+    "Invalid pages and read failures do not advance the Discord scan cursor",
+    "Persisted pending snapshots at pre-effect, post-write, post-reload and pre-receipt interruption points recover as uncertain without redispatch"
+  ],
+  "review_followup": {
+    "independent_review": "Found create native-lock gap and fixed-window Discord polling; reviewer snapshot preceded these fixes",
+    "create_lock_fix": "Retain actual native config mutation lock continuously from persistence through reload and exact readback/enable; NativeBoundary requires it for both reload paths",
+    "discord_poll_fix": "One newest-to-oldest page per poll, finite-sweep cursors, fresh exact-message re-fetch before claim; cursors are volatile and restart safely rescans",
+    "independently_re_reviewed_after_fixes": false,
+    "completion_semantics": "At-most-once approval consumption; uncertain effects never automatically retry; approval changes a persistent routine rather than running it once"
+  },
+  "isolated_ha_probe": {
+    "version": "2026.11.1",
+    "result": "PASS",
+    "network_calls": 0,
+    "device_calls": 0,
+    "id_and_on_off_state_preserved": true,
+    "unrelated_config_and_runtime_preserved": true
+  },
+  "running_image_probe": {
+    "result": "PASS",
+    "module_count": 5,
+    "configmap": "hermes-runtime-context-9c03f37dbec7",
+    "checksum": "9c03f37dbec758e274be86c4bb420e39a272ad012a60b203f79e75669b3ffe86",
+    "original_hashes_verified": true,
+    "output_hashes_verified": true,
+    "init_idempotent": true,
+    "scope": "render-init-compile-not-import-or-UI-acceptance",
+    "remote_environment": "empty except explicit PATH and PYTHONDONTWRITEBYTECODE",
+    "persistent_writes": false,
+    "credential_access": false,
+    "restart": false
+  },
+  "live_readback": {
+    "enrollment_receipt_exists": false,
+    "approval_plugin_installed": false,
+    "init_container_names": ["seed-config"]
+  },
+  "git_diff_check": "PASS",
+  "deployed": false,
+  "automation_changes": false,
+  "remaining_gates": [
+    "Operator-private enrollment of a distinct active non-admin non-owner HA approval identity",
+    "Fresh recovery checkpoints and complete current live/source diff review",
+    "Reviewed HA component and Hermes overlay/plugin activation preserving manual sync and data",
+    "Real TUI and Desktop Bot Chat exact-preview rendering, actor isolation, cancellation and cross-channel approval acceptance"
+  ],
+  "limitations": [
+    "Current dual approval covers automation creation and owned complete-spec edits, not unrestricted HA management",
+    "Discord preview publication remains required",
+    "Device-action proposals remain Discord-only",
+    "Synthetic surface tests and image scratch compilation do not establish real UI acceptance"
+  ]
+}

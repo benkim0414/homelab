@@ -1,0 +1,68 @@
+{
+  "verification_scope": "local-tests-and-admission-not-deployment-or-UI-acceptance",
+  "supersedes": ["RUNTIME-READINESS.json", "RUNTIME-OVERLAY-PROBE.json"],
+  "tests": {
+    "run": 158,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "groups": {
+      "component": 85,
+      "connector": 17,
+      "plugin": 28,
+      "flow": 1,
+      "runtime": 15,
+      "bundle": 3,
+      "enrollment": 9
+    }
+  },
+  "fixes": {
+    "cancelled_worker": "One-shot dispatch admission on owning event loop rejects task cancellation, including pending cancellation before finally; native picker receives cancellation predicate",
+    "secret_fallback": "Read approval key directly from current_secret_scope mapping; empty scope with ambient key is denied",
+    "enrollment_collision": "Check dotenv, configured external provider and managed key names before prompt and before persistence; provider failure denies without replacing sources"
+  },
+  "overlay": {
+    "module_count": 5,
+    "configmap": "hermes-runtime-context-9c03f37dbec7",
+    "checksum": "9c03f37dbec758e274be86c4bb420e39a272ad012a60b203f79e75669b3ffe86",
+    "actual_image_scratch_probe": "BLOCKED: tool approval timed out; not retried. Prior successful four-module probe is historical, not verification of this revision."
+  },
+  "admission_dry_run": {
+    "passed": true,
+    "resources": ["configmap/hermes-runtime-context-9c03f37dbec7", "deployment.apps/hermes", "service/hermes"]
+  },
+  "repository_verification": {
+    "result": "passed",
+    "application_count": 21,
+    "resource_count": 521,
+    "git_diff_check": "passed"
+  },
+  "independent_re_review": {
+    "result": "No remaining P1/P2 finding identified in reviewed shared-lease and direct-scoped-token snapshot",
+    "targeted_tests_run": 43,
+    "targeted_tests_result": "passed",
+    "limitations": [
+      "Enrollment collision addition was absent from reviewer snapshot and is covered by parent synthetic tests, not that independent review",
+      "Subsequent owner-event-loop admission hardening is covered by parent regression tests; reviewer summary does not attest that revision",
+      "Native picker callback propagation is not real UI withdrawal or end-to-end acceptance"
+    ]
+  },
+  "live_changes": {
+    "helper_source_updated": true,
+    "helper_sha256": "ecbf626f0bfa64e00a1a523250ab4f8b8bc9f14011d7e0aff5646cc12d9d2e19",
+    "helper_readback_verified": true,
+    "approval_plugin_enabled": false,
+    "core_overlay_deployed": false,
+    "ha_component_updated": false,
+    "automations_changed": false,
+    "services_restarted": false,
+    "credential_enrollment_performed_by_agent": false
+  },
+  "blocked_on": [
+    "Operator-private nonadmin Home Assistant account/token enrollment",
+
+    "Approval for current-revision actual-image scratch probe",
+    "Fresh checkpoints and reviewed deployment after prerequisites",
+    "Actual Bot Chat and TUI acceptance"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "ha": {
+    "manifest.json": "305004b98afddfdd906ce6c4da669dc9da38fa3a09edb4c86ccc55b97f4b1d36",
+    "native.py": "7878f894bf2bda095af3681543463e69608c0f89a001677493a9a7e8c9f75c69",
+    "policy.py": "7c49ff558998bae73793c15ef21ebf66ba4f6850e6e1450b18d19f1e3023ba99",
+    "engine.py": "036bfbf0e9f7bb68d848a8afdd922f17e90fcef0754188953825b121a896229f",
+    "discord.py": {
+      "sha256": "515adca2ecf10364484929a5387344c8addd2ecbd09525c0ab0119d5f80fb94e"
+    },
+    "__init__.py": "610cb1761ec6bc8aa7ead185ea592e5a154e0fd7dbd4e056a4a57c247b8f9948",
+    "runtime.py": "0ad70461d0dc4c23948d4542dc94d30809766fd289b5c146371acb11a2c04425"
+  },
+  "hermes": {
+    "general_connector_v3.py": "b2668dc8ae34413fd882f2c836d151557ccdd51a24a9a5e6efd5ca03c9f19043"
+  }
+}

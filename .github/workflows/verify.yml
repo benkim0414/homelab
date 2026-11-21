@@ -47,6 +47,14 @@ jobs:
         run: |
           verification/venv/bin/python -m unittest discover -s verification/tests -v
           verification/cache/bin/conftest verify --policy verification/policy
+      - name: Test house-manager approval boundaries
+        working-directory: hermes/house-manager-tools
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: |
+          "$GITHUB_WORKSPACE/verification/venv/bin/python" runtime_context/capture_public_sources.py --upstream
+          "$GITHUB_WORKSPACE/verification/venv/bin/python" -m unittest discover -s tests_general -v
+          "$GITHUB_WORKSPACE/verification/venv/bin/python" -m unittest test_edit_connector test_general_connector_v3 test_chat_approval_plugin test_chat_approval_flow test_runtime_context test_overlay_bundle test_enroll_chat_approver -v
       - name: Verify all Applications and compare revisions
         env:
           PR_BASE: ${{ github.event.pull_request.base.sha }}

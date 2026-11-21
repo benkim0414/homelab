@@ -15,6 +15,8 @@ spec:
     metadata:
       labels:
         app: hermes
+      annotations:
+        checksum/runtime-context: 9c03f37dbec758e274be86c4bb420e39a272ad012a60b203f79e75669b3ffe86
     spec:
       automountServiceAccountToken: false
       terminationGracePeriodSeconds: 60
@@ -24,6 +26,29 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       initContainers:
+        - name: verify-runtime-context
+          image: nousresearch/hermes-agent:v0.23.2@sha256:d6746a084e9341baada483e3d6210444d3c1aeb7c130f0915150065fb2851459
+          command: [/opt/hermes/.venv/bin/python, -B, /runtime-patch/init_overlay.py]
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10000
+            runAsGroup: 10000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          volumeMounts:
+            - name: runtime-context-source
+              mountPath: /runtime-patch
+              readOnly: true
+            - name: runtime-context-overlay
+              mountPath: /runtime-overlay
         - name: seed-config
           image: nousresearch/hermes-agent:v0.23.2@sha256:d6746a084e9341baada483e3d6210444d3c1aeb7c130f0915150065fb2851459
           command: [/opt/hermes/.venv/bin/python, -B, -c]
@@ -162,7 +187,34 @@ spec:
             - name: langfuse-key-source
               mountPath: /langfuse-key-source
               readOnly: true
+            - name: runtime-context-overlay
+              mountPath: /opt/hermes/gateway/session_policy.py
+              subPath: gateway/session_policy.py
+              readOnly: true
+            - name: runtime-context-overlay
+              mountPath: /opt/hermes/gateway/session_commands.py
+              subPath: gateway/session_commands.py
+              readOnly: true
+            - name: runtime-context-overlay
+              mountPath: /opt/hermes/hermes_cli/plugin_session.py
+              subPath: hermes_cli/plugin_session.py
+              readOnly: true
+            - name: runtime-context-overlay
+              mountPath: /opt/hermes/hermes_cli/plugins_context.py
+              subPath: hermes_cli/plugins_context.py
+              readOnly: true
+            - name: runtime-context-overlay
+              mountPath: /opt/hermes/gateway/plugin_command_choice.py
+              subPath: gateway/plugin_command_choice.py
+              readOnly: true
       volumes:
+        - name: runtime-context-source
+          configMap:
+            name: hermes-runtime-context-9c03f37dbec7
+            defaultMode: 0444
+        - name: runtime-context-overlay
+          emptyDir:
+            sizeLimit: 8Mi
         - name: data
           persistentVolumeClaim:
             claimName: hermes-data
