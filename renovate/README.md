@@ -15,7 +15,9 @@ and requires that policy to exist. The CronJob runs daily at 04:00 in
 `Australia/Melbourne`, including daylight saving changes, and uses
 `concurrencyPolicy: Forbid` to prevent overlapping runs. Repository policy has no
 monthly update windows, ignores unstable releases, separates major upgrades from
-minor/patch proposals, and explicitly disables automerge. Normal Renovate PR
+minor/patch proposals, and disables automerge by default. The operator-approved
+exception is the grouped Herdr TUI/Core source-pin PR: both architectures' versions
+and checksums advance together after CI. No other app opts into automerge. Normal Renovate PR
 limits can spread an initial backlog across multiple daily runs; inspect the
 Dependency Dashboard for pending updates and lookup failures.
 
@@ -24,7 +26,7 @@ Dependency Dashboard for pending updates and lookup failures.
 | Helm charts | ArgoCD sources under `argocd/`, including OCI charts and Renovate itself |
 | Runtime and backup images | Kubernetes manifests in app directories, including Gerrit and Langfuse; existing digests remain pinned |
 | Helm runtime overrides | Helm-values extraction plus scoped Hindsight control-plane and Langfuse web/worker regex managers; explicit overrides must be reviewed with chart proposals |
-| Herdr | Extracted for inventory but updates disabled: build/smoke-test an approved commit image and select its digest manually for init and runtime containers; there is no latest-tag policy |
+| Herdr | Custom HTTP datasources group legacy TUI/Core version and SHA256 pins for AMD64/ARM64, with Herdr-only PR automerge after CI. The tested main image workflow advances both deployment digests. Ordinary custom-image proposals remain disabled; no latest-tag policy. See [automatic release policy](../herdr/AUTO-UPDATES.md). |
 | Immich, kube-vip and Vaultwarden values tags | Custom regex managers provide the image repository omitted from values |
 | K3s | Custom regex manager tracks `k3s_version` in the Ansible inventory through `k3s-io/k3s` GitHub releases, including `+k3s` revision updates |
 
@@ -75,7 +77,9 @@ Review proposed chart and server image versions together; a chart's appVersion
 label does not override an explicitly pinned image. An earlier stale Vaultwarden
 pin caused client login compatibility problems. Review release notes and app
 runbooks before merging any upgrade, then review the ArgoCD diff and explicitly
-sync that app. Renovate updates Git; it does not deploy cluster workloads.
+sync that app, except for Herdr's explicitly approved automatic pipeline.
+Renovate itself updates Git; Herdr's image publisher and scoped ArgoCD automated
+sync perform its deployment. Other Applications retain manual sync.
 
 The chart pin was verified against the
 [official release](https://github.com/renovatebot/helm-charts/releases/tag/renovate-46.447.1).

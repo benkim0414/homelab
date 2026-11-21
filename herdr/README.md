@@ -1,8 +1,10 @@
 # Herdr cluster access
 
 Herdr runs in its own `herdr` namespace and provides terminal access to the
-existing Hermes and OpenClaw containers. Its manually synced ArgoCD Application
-tracks `main`. The image contains Herdr, kubectl, SSH, and launchers; it does not
+existing Hermes and OpenClaw containers. Its ArgoCD Application tracks `main`.
+The Herdr-only [automatic release policy](AUTO-UPDATES.md) covers legacy TUI and
+Core/mobile; publication and reviewed activation are separate from local setup.
+The image contains Herdr, Core, kubectl, SSH, and launchers; it does not
 contain either agent. See [the image sources](image/) and
 [the original rollout record](rollout-2026-11-08.md).
 
@@ -66,10 +68,13 @@ accepted as a successful migration. There is no recurring Herdr archive schedule
 
 ## Build and verification
 
-The existing image workflow builds `herdr/image`, runs wrapper tests and SSH
-smoke checks, then publishes `ghcr.io/benkim0414/hermes-herdr:<commit>`.
-The historical package name is retained. Dispatch/publishing require applicable
-approval. Pin the resulting image digest in `deployment.yaml` before rollout.
+The image workflow builds `herdr/image` for pin PRs and relevant main changes,
+runs wrapper tests and SSH/TUI/Core smoke checks, then publishes the exact tested
+artifact on main. Its scoped publisher advances both digest references in
+`deployment.yaml`; the historical image package name is retained. Only the four
+Herdr source pins opt into Renovate automerge. See [activation, failure handling
+and rollback](AUTO-UPDATES.md); neither local files nor a successful build prove
+live deployment or mobile access.
 
 ```sh
 python3 verification/bootstrap.py

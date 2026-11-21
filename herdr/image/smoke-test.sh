@@ -58,10 +58,28 @@ test "$(ssh -tt "${ssh_options[@]}" herdr@127.0.0.1 id -u 2>/dev/null | tr -d '\
 ssh "${ssh_options[@]}" herdr@127.0.0.1 hermes --help
 ssh "${ssh_options[@]}" herdr@127.0.0.1 openclaw --help
 ssh "${ssh_options[@]}" herdr@127.0.0.1 herdr status server
+# Both mobile absolute paths and PATH-based TUI commands must use image binaries.
+ssh "${ssh_options[@]}" herdr@127.0.0.1 'set -eu; test "$(readlink ~/.local/bin/herdr-core)" = /usr/local/libexec/herdr-core; test "$(readlink ~/.local/bin/hc)" = /usr/local/libexec/herdr-core; hc --version; hc server status'
 # Closing the SSH connection must not stop the supervised Herdr server.
 ssh "${ssh_options[@]}" herdr@127.0.0.1 herdr status server
+ssh "${ssh_options[@]}" herdr@127.0.0.1 'hc run "printf core-smoke"'
+ssh "${ssh_options[@]}" herdr@127.0.0.1 'hc server stop'
+if docker exec "$container_name" python3 -B /usr/local/libexec/healthcheck.py >/dev/null 2>&1; then
+  printf '%s\n' 'Stopped Core was incorrectly accepted or auto-started by the health probe' >&2
+  exit 1
+fi
+ssh "${ssh_options[@]}" herdr@127.0.0.1 'hc server start'
+wait_healthy
 original_key=$(docker exec "$container_name" cat /data/ssh/ssh_host_ed25519_key.pub)
+# An older user-installed executable must not shadow the packaged release.
+ssh "${ssh_options[@]}" herdr@127.0.0.1 'set -eu; rm ~/.local/bin/herdr-core; printf "stale-public-binary\n" > ~/.local/bin/herdr-core'
 docker restart "$container_name" >/dev/null
 wait_healthy
 test "$original_key" = "$(docker exec "$container_name" cat /data/ssh/ssh_host_ed25519_key.pub)"
-echo 'Herdr image smoke test passed: nonroot SSH, server persistence, stable host key.'
+# Docker can reassign an ephemeral published port when the container restarts.
+# Refresh only its endpoint; retain the original key and strict verification.
+port=$(docker port "$container_name" 2222/tcp | cut -d: -f2)
+ssh_options[1]="$port"
+printf '[127.0.0.1]:%s %s\n' "$port" "$original_key" > "$test_dir/known_hosts"
+ssh "${ssh_options[@]}" herdr@127.0.0.1 'set -eu; hc --version; ~/.local/bin/herdr-core --version; hc server status; test -f ~/.local/bin/herdr-core.before-image-*'
+echo 'Herdr image smoke test passed: SSH, TUI/Core, stale-binary migration, restart and stable host key.'

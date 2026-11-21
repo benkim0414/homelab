@@ -62,7 +62,9 @@ the merge base with `origin/main`.
   Custom schemas are derived
   from the rendered chart CRDs plus the versioned external HelmChartConfig CRD.
   Unknown schemas or unavailable downloads fail rather than silently skip.
-- Conftest policies preserve manual sync, block force/replace options and committed
+- Conftest policies preserve manual sync except for the operator-approved,
+  identity/source/destination-scoped [Herdr policy](../herdr/AUTO-UPDATES.md),
+  which forbids pruning, self-healing and empty sync. They block force/replace options and committed
   Secret payloads, preserve Tailscale release identity and monitoring's narrow
   generated-secret ignores. Change-aware checks flag storage removal, identity,
   claim-template and retention changes, and PVC resizing for migration review.

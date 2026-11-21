@@ -1,0 +1,18 @@
+{
+  "herdr-amd64": {
+    "version": "0.9.5",
+    "digest": "sha256:14d9e8bc8b4a9e0118d77c32266f76d461f09b40342eb23752960bd89f59929d"
+  },
+  "herdr-arm64": {
+    "version": "0.9.5",
+    "digest": "sha256:17d7536f2da50859523680ef279dffcac8e4a235f4e46fe8da6c2ec44141897c"
+  },
+  "herdr-core-amd64": {
+    "version": "0.1.21",
+    "digest": "sha256:78424755c10a40dde38a0bdb55c20ac19706e9ae05ed68fc2acf1fcff0d941c1"
+  },
+  "herdr-core-arm64": {
+    "version": "0.1.21",
+    "digest": "sha256:e844a2bfab48a226097679d076bc83042fe57fccef5387ef802e5b24e78b529a"
+  }
+}
