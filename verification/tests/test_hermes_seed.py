@@ -31,7 +31,10 @@ class HermesSeedTests(unittest.TestCase):
         self.assertEqual(connector['tools']['include'], ['recall', 'reflect', 'retain'])
 
     def test_seed_preserves_existing_config_instructions_and_symlinks(self):
-        source = DEPLOYMENT['spec']['template']['spec']['initContainers'][0]['args'][0]
+        seeds = [container for container in DEPLOYMENT['spec']['template']['spec']['initContainers']
+                 if container['name'] == 'seed-config']
+        self.assertEqual(len(seeds), 1)
+        source = seeds[0]['args'][0]
         with tempfile.TemporaryDirectory(dir=ROOT / 'verification/cache') as directory:
             root = Path(directory)
             bootstrap, state = root / 'bootstrap', root / 'data'
