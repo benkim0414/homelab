@@ -76,5 +76,10 @@ ssh "${ssh_options[@]}" herdr@127.0.0.1 'set -eu; rm ~/.local/bin/herdr-core; pr
 docker restart "$container_name" >/dev/null
 wait_healthy
 test "$original_key" = "$(docker exec "$container_name" cat /data/ssh/ssh_host_ed25519_key.pub)"
+# Docker can reassign an ephemeral published port when the container restarts.
+# Refresh only its endpoint; retain the original key and strict verification.
+port=$(docker port "$container_name" 2222/tcp | cut -d: -f2)
+ssh_options[1]="$port"
+printf '[127.0.0.1]:%s %s\n' "$port" "$original_key" > "$test_dir/known_hosts"
 ssh "${ssh_options[@]}" herdr@127.0.0.1 'set -eu; hc --version; ~/.local/bin/herdr-core --version; hc server status; test -f ~/.local/bin/herdr-core.before-image-*'
 echo 'Herdr image smoke test passed: SSH, TUI/Core, stale-binary migration, restart and stable host key.'
