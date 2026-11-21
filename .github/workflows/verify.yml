@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       build_herdr:
-        description: Build, smoke test, and publish the independent Herdr image
+        description: Build, smoke test, publish Herdr and advance its tested deployment digest
         type: boolean
         default: false
 permissions:
@@ -18,7 +18,7 @@ jobs:
   herdr-image:
     if: github.event_name == 'workflow_dispatch' && inputs.build_herdr
     permissions:
-      contents: read
+      contents: write
       packages: write
     uses: ./.github/workflows/herdr-image.yml
   checks:

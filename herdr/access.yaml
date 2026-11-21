@@ -6,6 +6,8 @@ metadata:
 data:
   authorized_keys: |
     no-agent-forwarding,no-port-forwarding,no-X11-forwarding ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKTfNXGAKCyd8Y/004uY0JfkpmIZHbxKaYCq84Wkptlr herdr-workstation
+    no-agent-forwarding,no-port-forwarding,no-X11-forwarding ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP2/w/HD198UvC+OAlM4XVNN2X/5Zi09Lz/SYc21ZAEy herdr-mobile
+    no-agent-forwarding,no-port-forwarding,no-X11-forwarding ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILP00O2Ss8YsVcr0pS7UeTCiy79zTcImsYdk0osjhXTv herdr-mobile
   kubeconfig: |
     apiVersion: v1
     kind: Config

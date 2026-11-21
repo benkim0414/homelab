@@ -1,4 +1,4 @@
-"""Supervise SSH and the unprivileged Herdr server; stop both if either exits."""
+"""Supervise SSH/TUI and start image-managed Core as the unprivileged user."""
 import os
 from pathlib import Path
 import shutil
@@ -37,6 +37,11 @@ def main():
     Path("/run/sshd").mkdir(exist_ok=True, mode=0o755)
     Path("/run/sshd").chmod(0o755)
     subprocess.run(["/usr/sbin/sshd", "-t"], check=True)
+    subprocess.run(["python3", "-B", "/usr/local/libexec/managed_clients.py"],
+                   cwd="/data/home", preexec_fn=user_identity, check=True, timeout=10)
+    subprocess.run(["/usr/local/bin/hc", "server", "start"],
+                   cwd="/data/home", preexec_fn=user_identity, check=True, timeout=15,
+                   stdout=subprocess.DEVNULL)
     children = [subprocess.Popen(["/usr/local/bin/herdr", "server"],
                                  cwd="/data/home", preexec_fn=user_identity,
                                  start_new_session=True),
@@ -59,6 +64,13 @@ def main():
                 os.killpg(child.pid, signal.SIGTERM)
             except ProcessLookupError:
                 pass
+        try:
+            subprocess.run(["/usr/local/bin/hc", "server", "stop"],
+                           cwd="/data/home", preexec_fn=user_identity, timeout=5,
+                           stdout=subprocess.DEVNULL)
+        except subprocess.TimeoutExpired:
+            # Container teardown will reap the daemon; never block pod termination.
+            pass
         deadline = time.monotonic() + 15
         for child in children:
             try:

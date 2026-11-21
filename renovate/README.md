@@ -15,7 +15,9 @@ and requires that policy to exist. The CronJob runs daily at 04:00 in
 `Australia/Melbourne`, including daylight saving changes, and uses
 `concurrencyPolicy: Forbid` to prevent overlapping runs. Repository policy has no
 monthly update windows, ignores unstable releases, separates major upgrades from
-minor/patch proposals, and explicitly disables automerge. Normal Renovate PR
+minor/patch proposals, and disables automerge by default. The operator-approved
+exception is the grouped Herdr TUI/Core source-pin PR: both architectures' versions
+and checksums advance together after CI. No other app opts into automerge. Normal Renovate PR
 limits can spread an initial backlog across multiple daily runs; inspect the
 Dependency Dashboard for pending updates and lookup failures.
 
@@ -24,7 +26,7 @@ Dependency Dashboard for pending updates and lookup failures.
 | Helm charts | ArgoCD sources under `argocd/`, including OCI charts and Renovate itself |
 | Runtime and backup images | Kubernetes manifests in app directories, including Gerrit and Langfuse; existing digests remain pinned |
 | Helm runtime overrides | Helm-values extraction plus scoped Hindsight control-plane and Langfuse web/worker regex managers; explicit overrides must be reviewed with chart proposals |
-| Herdr | Extracted for inventory but updates disabled: build/smoke-test an approved commit image and select its digest manually for init and runtime containers; there is no latest-tag policy |
+| Herdr | Custom HTTP datasources group legacy TUI/Core version and SHA256 pins for AMD64/ARM64, with Herdr-only PR automerge after CI. The tested main image workflow advances both deployment digests. Ordinary custom-image proposals remain disabled; no latest-tag policy. See [automatic release policy](../herdr/AUTO-UPDATES.md). |
 | Immich, kube-vip and Vaultwarden values tags | Custom regex managers provide the image repository omitted from values |
 | K3s | Custom regex manager tracks `k3s_version` in the Ansible inventory through `k3s-io/k3s` GitHub releases, including `+k3s` revision updates |
 
@@ -75,13 +77,37 @@ Review proposed chart and server image versions together; a chart's appVersion
 label does not override an explicitly pinned image. An earlier stale Vaultwarden
 pin caused client login compatibility problems. Review release notes and app
 runbooks before merging any upgrade, then review the ArgoCD diff and explicitly
-sync that app. Renovate updates Git; it does not deploy cluster workloads.
+sync that app, except for Herdr's explicitly approved automatic pipeline.
+Renovate itself updates Git; Herdr's image publisher and scoped ArgoCD automated
+sync perform its deployment. Other Applications retain manual sync.
 
 The chart pin was verified against the
 [official release](https://github.com/renovatebot/helm-charts/releases/tag/renovate-46.447.1).
 It runs Renovate 44.255.1. Use that same version for configuration/extraction
 validation. Runs use the AMD64 worker, bounded memory, a 30-minute deadline and
 no automatic Job retry. Investigate a failed run before authorizing another.
+
+### Failure reporting
+
+The self-hosted runner sets `exitCodeForErrors: true` and JSON info logs.
+Renovate 44.255.1 otherwise logs a repository `external-host-error` with an
+internal exitCode of 7 but can still exit the process with 0. Kubernetes then
+marks the Job successful even though lookup/update processing did not complete.
+Do not disable host-error detection or ignore a dependency to manufacture success.
+
+Reproduce the native behavior with an isolated, credential-free synthetic Git
+fixture and the reserved `.invalid` registry (no GitHub writes):
+
+```bash
+python3 renovate/check-error-exit.py /absolute/path/to/pinned/renovate
+```
+
+This must observe repository error 7 in both cases, process exit0 with the option
+disabled and process exit7 with it enabled. The normal repository unit tests also
+guard the declared error/logging option, schedule and zero-retry contract.
+An actual failed run now becomes a failed Kubernetes Job; inspect the existing
+`KubeJobFailed` Prometheus rule as well as structured repository results. Preserve
+failed Jobs/log evidence and investigate before a separately authorized run.
 
 ## GitHub Token
 
@@ -155,3 +181,7 @@ Confirm the Job completes, lookup/authentication errors are resolved, and the
 GitHub Dependency Dashboard and expected update proposals appear. Do not treat
 an empty PR list as proof that all apps are current. Record local validation and
 live rollout results separately.
+Inspect the structured `Repository finished` result and process termination in
+addition to Job status. Retain raw logs privately and report only projected
+error category, affected public package/host, exit code and outcome. A natural
+schedule firing is not proof that repository processing succeeded.

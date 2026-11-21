@@ -1,36 +1,121 @@
 name: Build Herdr image
 on:
+  pull_request:
+    paths:
+      - herdr/image/**
+      - herdr/publish_tested_image.py
+      - verification/tests/test_herdr*.py
+      - .github/workflows/herdr-image.yml
+  push:
+    branches: [main]
+    paths:
+      - herdr/image/**
+      - herdr/publish_tested_image.py
+      - verification/tests/test_herdr*.py
+      - .github/workflows/herdr-image.yml
   workflow_dispatch:
   workflow_call:
 permissions:
   contents: read
-  packages: write
 concurrency:
   group: herdr-image-${{ github.ref }}
   cancel-in-progress: false
 jobs:
   image:
+    name: Herdr image smoke tests
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 35
+    outputs:
+      archive_sha256: ${{ steps.archive.outputs.archive_sha256 }}
+      image_id: ${{ steps.archive.outputs.image_id }}
+    env:
+      IMAGE: ghcr.io/benkim0414/hermes-herdr:${{ github.sha }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Test wrapper and source
+        run: |
+          python3 -m unittest discover -s verification/tests -p 'test_herdr*.py' -v
+          bash -n herdr/image/herdr.sh
+          bash -n herdr/image/smoke-test.sh
+      - name: Verify GitOps structure and no-prune policy
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BASE: ${{ github.event.before }}
+        run: |
+          python3 verification/bootstrap.py
+          base="${PR_BASE:-${PUSH_BASE:-origin/main}}"
+          if [[ "$base" =~ ^0+$ ]]; then base=origin/main; fi
+          verification/venv/bin/python scripts/verify.py --all --base "$base"
+      - name: Build and smoke test
+        run: |
+          docker build --build-arg TARGETARCH=amd64 -t "$IMAGE" herdr/image
+          docker run --rm --entrypoint /usr/local/bin/herdr "$IMAGE" --version
+          docker run --rm --entrypoint /usr/local/bin/hc "$IMAGE" --version
+          docker run --rm --entrypoint kubectl "$IMAGE" version --client
+          bash herdr/image/smoke-test.sh "$IMAGE"
+      - name: Archive the exact tested image
+        id: archive
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        run: |
+          docker save "$IMAGE" | gzip -1 > verification/cache/herdr-image.tar.gz
+          read -r archive_sha256 _ < <(sha256sum verification/cache/herdr-image.tar.gz)
+          printf 'archive_sha256=%s\n' "$archive_sha256" >> "$GITHUB_OUTPUT"
+          printf 'image_id=%s\n' "$(docker image inspect "$IMAGE" --format '{{.Id}}')" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        with:
+          name: herdr-image-${{ github.sha }}
+          path: verification/cache/herdr-image.tar.gz
+          if-no-files-found: error
+          retention-days: 1
+  publish:
+    name: Publish tested Herdr image and deployment digest
+    needs: [image]
+    if: github.repository == 'benkim0414/homelab' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      packages: write
+    env:
+      IMAGE: ghcr.io/benkim0414/hermes-herdr:${{ github.sha }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
-      - name: Test wrapper and source
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: herdr-image-${{ github.sha }}
+      - name: Verify and load the tested artifact
+        env:
+          ARCHIVE_SHA256: ${{ needs.image.outputs.archive_sha256 }}
+          EXPECTED_IMAGE_ID: ${{ needs.image.outputs.image_id }}
         run: |
-          python3 -m unittest discover -s verification/tests -p test_herdr.py -v
-          bash -n herdr/image/herdr.sh
-      - name: Build and smoke test
-        run: |
-          docker build --build-arg TARGETARCH=amd64 -t "ghcr.io/benkim0414/hermes-herdr:${GITHUB_SHA}" herdr/image
-          docker run --rm --entrypoint /usr/local/bin/herdr "ghcr.io/benkim0414/hermes-herdr:${GITHUB_SHA}" --version
-          docker run --rm --entrypoint kubectl "ghcr.io/benkim0414/hermes-herdr:${GITHUB_SHA}" version --client
-          bash herdr/image/smoke-test.sh "ghcr.io/benkim0414/hermes-herdr:${GITHUB_SHA}"
+          [[ "$ARCHIVE_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          printf '%s  %s\n' "$ARCHIVE_SHA256" herdr-image.tar.gz | sha256sum --check -
+          gzip --decompress --stdout herdr-image.tar.gz | docker load
+          test "$(docker image inspect "$IMAGE" --format '{{.Id}}')" = "$EXPECTED_IMAGE_ID"
       - name: Publish tested image
+        id: publish
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-          docker push "ghcr.io/benkim0414/hermes-herdr:${GITHUB_SHA}"
-          docker image inspect "ghcr.io/benkim0414/hermes-herdr:${GITHUB_SHA}" --format '{{index .RepoDigests 0}}' >> "$GITHUB_STEP_SUMMARY"
+          docker push "$IMAGE"
+          published=$(docker image inspect "$IMAGE" --format '{{index .RepoDigests 0}}')
+          [[ "$published" =~ ^ghcr.io/benkim0414/hermes-herdr@sha256:[0-9a-f]{64}$ ]]
+          printf 'digest=%s\n' "${published#*@}" >> "$GITHUB_OUTPUT"
+          printf '%s\n' "$published" >> "$GITHUB_STEP_SUMMARY"
+      - name: Commit only the tested deployment digest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DIGEST: ${{ steps.publish.outputs.digest }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: python3 herdr/publish_tested_image.py --source-sha "$GITHUB_SHA" --digest "$DIGEST" --run-url "$RUN_URL"
+      - name: Log out of registry
+        if: always()
+        run: |
           docker logout ghcr.io

@@ -16,6 +16,46 @@ test_empty_automated_block_rejected if {
     count(result) == 1
 }
 
+approved_herdr := {
+    "apiVersion": "argoproj.io/v1alpha1", "kind": "Application",
+    "metadata": {"name": "herdr", "namespace": "argocd"},
+    "spec": {
+        "project": "default",
+        "source": {"repoURL": "https://github.com/benkim0414/homelab.git", "targetRevision": "main", "path": "herdr"},
+        "destination": {"server": "https://kubernetes.default.svc", "namespace": "herdr"},
+        "syncPolicy": {"automated": {"enabled": true, "prune": false, "selfHeal": false, "allowEmpty": false}}
+    }
+}
+
+test_approved_herdr_auto_sync_allowed if {
+    result := deny with input as object.union(empty_input, {"applications": [approved_herdr]})
+    count(result) == 0
+}
+
+test_other_app_cannot_borrow_herdr_auto_sync if {
+    other := object.union(approved_herdr, {"metadata": {"name": "hermes", "namespace": "argocd"}})
+    result := deny with input as object.union(empty_input, {"applications": [other]})
+    count(result) == 1
+}
+
+test_herdr_prune_self_heal_and_empty_sync_are_rejected if {
+    every setting in ["prune", "selfHeal", "allowEmpty"] {
+        changed := object.union(approved_herdr.spec.syncPolicy.automated, {setting: true})
+        spec := object.union(approved_herdr.spec, {"syncPolicy": {"automated": changed}})
+        candidate := object.union(approved_herdr, {"spec": spec})
+        result := deny with input as object.union(empty_input, {"applications": [candidate]})
+        count(result) == 1
+    }
+}
+
+test_herdr_auto_sync_cannot_target_other_source if {
+    source := object.union(approved_herdr.spec.source, {"path": "hermes"})
+    spec := object.union(approved_herdr.spec, {"source": source})
+    candidate := object.union(approved_herdr, {"spec": spec})
+    result := deny with input as object.union(empty_input, {"applications": [candidate]})
+    count(result) == 1
+}
+
 test_secret_payload_rejected if {
     secret := {"apiVersion": "v1", "kind": "Secret", "metadata": {"name": "fixture"}, "stringData": {"password": "fake"}}
     result := deny with input as object.union(empty_input, {"committed": [secret]})
