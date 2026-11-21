@@ -27,7 +27,7 @@ spec:
           type: RuntimeDefault
       initContainers:
         - name: verify-restored-state
-          image: ghcr.io/benkim0414/hermes-herdr@sha256:b77ffeb13ec3b0355803009b5b70cba78817121c9bd6c69c237a592c1641d765
+          image: ghcr.io/benkim0414/hermes-herdr@sha256:117aaa65593d5f7cc2665b856fc02f8d67eebd49cdb07b63f681dd651ce974af
           command: [python3, -B, -c]
           args:
             - |
@@ -67,7 +67,7 @@ spec:
       containers:
         - name: herdr
           # Only the tested image workflow advances the init/runtime digest pair.
-          image: ghcr.io/benkim0414/hermes-herdr@sha256:b77ffeb13ec3b0355803009b5b70cba78817121c9bd6c69c237a592c1641d765
+          image: ghcr.io/benkim0414/hermes-herdr@sha256:117aaa65593d5f7cc2665b856fc02f8d67eebd49cdb07b63f681dd651ce974af
           securityContext:
             runAsUser: 0
             allowPrivilegeEscalation: false
