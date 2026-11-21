@@ -1,0 +1,15 @@
+{
+  "credential_access": false,
+  "originals_verified": true,
+  "output_sha256": {
+    "gateway/session_commands.py": "63b4e3555b000a7a92d013ca7d97475410fb3ebb34b0267057258de475a85e6f",
+    "gateway/session_policy.py": "7b65d7662cb86f481a1fa7fb53947b2dc4cfed8cfcfce7a93f2df961474ebc8b",
+    "hermes_cli/plugin_session.py": "962e1251eedd80363f461b1a874f0bc5690544abc75fd507f564c5d2c9a2595d",
+    "hermes_cli/plugins_context.py": "6f88654a7dd3a39b71e226963412611b38a83aa896680d2e6c2826a743172e79"
+  },
+  "persistent_writes": false,
+  "restart": false,
+  "runtime_image_probe": "PASS",
+  "scope": "historical-four-module-overlay",
+  "superseded_by": "SAFETY-FIX-VERIFICATION.json"
+}

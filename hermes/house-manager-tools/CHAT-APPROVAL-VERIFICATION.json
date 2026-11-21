@@ -1,0 +1,116 @@
+{
+  "scope": "historical-local-source-only-before-runtime-fix",
+  "superseded_by": "RUNTIME-READINESS.json",
+  "unit_tests": {
+    "counts": {
+      "component": 83,
+      "connector": 17,
+      "plugin": 25,
+      "flow": 1
+    },
+    "tests_run": 126,
+    "passed": true
+  },
+  "isolated_ha": {
+    "approval_transport": "hermes_command",
+    "deployment": false,
+    "device_calls": 0,
+    "exact_id_preserved": true,
+    "ha_version": "2026.11.1",
+    "network_calls": 0,
+    "no_expiry_after_3650_days": true,
+    "services": [
+      {
+        "data": {
+          "id": "house_manager_general_fbf1ce596bc6427ea0dd577989288790"
+        },
+        "locked": false,
+        "service": "reload"
+      },
+      {
+        "data": {
+          "entity_id": "automation.synthetic_managed_lamp"
+        },
+        "locked": true,
+        "service": "turn_on"
+      },
+      {
+        "data": {
+          "entity_id": "automation.synthetic_managed_lamp",
+          "stop_actions": false
+        },
+        "locked": true,
+        "service": "turn_off"
+      },
+      {
+        "data": {
+          "id": "house_manager_general_fbf1ce596bc6427ea0dd577989288790"
+        },
+        "locked": true,
+        "service": "reload"
+      },
+      {
+        "data": {
+          "entity_id": "automation.synthetic_managed_lamp",
+          "stop_actions": false
+        },
+        "locked": true,
+        "service": "turn_off"
+      },
+      {
+        "data": {
+          "id": "house_manager_general_fbf1ce596bc6427ea0dd577989288790"
+        },
+        "locked": true,
+        "service": "reload"
+      }
+    ],
+    "states_preserved": [
+      "off",
+      "on"
+    ],
+    "status": "PASS",
+    "unrelated_config_and_runtime_preserved": true
+  },
+  "source_verification": {
+    "verified_at": "2026-11-20T03:03:04.888597+00:00",
+    "new_files_checked": 29,
+    "whitespace": "pass",
+    "source_sha256": {
+      "hermes/house-manager-tools/chat_approval_plugin/__init__.py": "47ed290d7aad4e5e808d6cf5ff70b5a1fee7c999d0c5d9ca6a30e27387c82dd6",
+      "hermes/house-manager-tools/chat_approval_plugin/plugin.yaml": "ece5a64eeb68adab1ce5e27668cc86961e8d05b7f7b5f311dac9afd1948b0d26",
+      "hermes/house-manager-tools/custom_components/house_manager_general/__init__.py": "610cb1761ec6bc8aa7ead185ea592e5a154e0fd7dbd4e056a4a57c247b8f9948",
+      "hermes/house-manager-tools/custom_components/house_manager_general/chat.py": "b5f96e8c8e6e4e3aa54b3735c68f2b3afc509c24ac101a429eb11e8827a60743",
+      "hermes/house-manager-tools/custom_components/house_manager_general/discord.py": {
+        "sha256": "2edb53ee83fede39236c45586b9c4c452508af7694ee94b9b372bb137fc56d91"
+      },
+      "hermes/house-manager-tools/custom_components/house_manager_general/engine.py": "8aa3b723dbe8c2d0514dbbcd6ca6adface2d7cc64b2afd017c4f89d9248db877",
+      "hermes/house-manager-tools/custom_components/house_manager_general/manifest.json": "d974219ef666b5e4976250e07140899c771a7005b1efcbb0b31710fd5bd66a07",
+      "hermes/house-manager-tools/custom_components/house_manager_general/native.py": "5608979b9e878f014e66ba8284b300ae9d15388cc0e5bc8717084b48f1a3cb25",
+      "hermes/house-manager-tools/custom_components/house_manager_general/policy.py": "cb259a3ab3f16dcf49443a690586aedd78eed9df7cd87f47723d1cdc2aeb27ea",
+      "hermes/house-manager-tools/custom_components/house_manager_general/runtime.py": "cf26ea6feadc82f547034e371d5beaf6c61a6b04382764c97ec62a91b7783249",
+      "hermes/house-manager-tools/general_connector_v3.py": "b2668dc8ae34413fd882f2c836d151557ccdd51a24a9a5e6efd5ca03c9f19043",
+      "hermes/house-manager-tools/test_chat_approval_flow.py": "5e4e109ec210aa3fd5b026ca2d6f92905c79aa7a79f5d8ee353c0b34d5e65863",
+      "hermes/house-manager-tools/test_chat_approval_plugin.py": "55448130b88681b75914ab7fb090a2563417e6cdb94a0e3e752cae5e7677d649",
+      "hermes/house-manager-tools/test_edit_connector.py": "8befc57ce2704495d1c5083c792f26f952c456d14c48469af5653dcc9463cef6",
+      "hermes/house-manager-tools/test_general_connector_v3.py": "72dbaa7e30cea2c5d241fdd5fdbff591b470d7a7995f6e06e855850d6d49a78b",
+      "hermes/house-manager-tools/tests_general/isolated_edit_runtime.py": "bc445520a500356ce79051f688fc78e4afb9586d39b06b1b100333c40ea1e48a",
+      "hermes/house-manager-tools/tests_general/test_chat_approval.py": "e53a590483e06a652f1d6e55111e236d84ecd236cd62925e2fc01f4a26fd1693",
+      "hermes/house-manager-tools/tests_general/test_edit_general.py": "51d49e7f358ef741b265fe228397aa74298a89bcb9d865044c706482a77b86a5",
+      "hermes/house-manager-tools/tests_general/test_manager_native.py": "42854d6114da5c44b1338bed58d3a9fd437efa3604fdde96ffa2bad568298f07",
+      "hermes/house-manager-tools/tests_general/test_native_general.py": "d2846fa123d034e1c3825f30f28b5b43ae220948ecfee04a4b792085ce9bde9b",
+      "hermes/house-manager-tools/tests_general/test_no_expiry.py": "de9b38c07dff5611f22ddc9127962bac7d677b32e579ac6096f82bc9df06cd41",
+      "hermes/house-manager-tools/tests_general/test_policy.py": "edc3276ce577f86ccacfb6663647124d2083c611f998d1fd7e7e88fc8c4747d4",
+      "hermes/house-manager-tools/tests_general/test_runtime_general.py": "2ffed369215656ecf67699f8fcc222accf679a30619429fd390c84410c29ccac",
+      "hermes/house-manager-tools/tests_general/test_worker_general.py": "7805f870d83600986c6c560f8fea16d6c3b9cb956ef66bbcde6760cfd2ff030a"
+    }
+  },
+  "deployed": false,
+  "committed": false,
+  "live_automation_changes": false,
+  "blockers": [
+    "Installed Hermes v0.23.2 unified command dispatch lacks detailed session-surface context; plugin denies ambiguous local context.",
+    "Separate credential enrollment and reviewed HA restart not authorized or performed.",
+    "Actual Bot Chat and TUI confirmation rendering and isolation remain unverified."
+  ]
+}

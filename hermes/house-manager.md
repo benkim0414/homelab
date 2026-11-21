@@ -12,6 +12,20 @@
 
 This section supersedes the historical bootstrap state below.
 
+- Bot/TUI approval support is prepared in
+  [the chat-approval runbook](house-manager-tools/CHAT-APPROVALS.md), not deployed.
+  It adds a trusted slash command with native confirmation and a separately
+  enrolled non-admin approval identity. The model-facing bot credential cannot
+  approve; Discord approval remains available. Live authentication enrollment,
+  a reviewed HA restart and both-surface acceptance are still required. The
+  installed Hermes command path also lacks reliable detailed-surface context;
+  the plugin deliberately refuses that path. A SHA-locked downstream fix and
+  credential-free init overlay are now prepared and tested locally, not deployed.
+  Operator-private enrollment is now complete: non-secret receipt readback and
+  fresh scoped HA authentication verify the distinct non-admin/non-owner approver.
+  Publication, fresh checkpoints, rollout and live UI acceptance remain pending. The
+  preparation does not modify any automation or enable an integration/schedule.
+
 - On 2026-11-14, the operator selected GPT-6 Luna to reduce subscription usage.
   The live profile now uses `openai-codex` / `gpt-6-luna`, set through the
   profile-scoped Hermes CLI. Configuration readback confirmed the model, and a

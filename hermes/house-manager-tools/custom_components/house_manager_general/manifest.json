@@ -1,0 +1,9 @@
+{
+  "domain": "house_manager_general",
+  "name": "House manager general controls and human approval",
+  "version": "0.4.0",
+  "documentation": "https://github.com/benkim0414/homelab",
+  "codeowners": [],
+  "dependencies": ["http", "config", "automation"],
+  "iot_class": "local_push"
+}

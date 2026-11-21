@@ -1,0 +1,9 @@
+manifest_version: 1
+name: house-manager-chat-approval
+version: 0.1.0
+kind: standalone
+description: Human-only local confirmation of exact house-manager automation proposals
+requires_env:
+  - HOUSE_MANAGER_APPROVAL_TOKEN
+provides_tools: []
+provides_hooks: []
