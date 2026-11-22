@@ -3,7 +3,7 @@
 `hermes-browser-amd64.json` is an OCI seccomp profile for the non-root, capability-free
 browser on the amd64 `k3s-05` worker. It is not a cluster default. Install it with
 [`browser-seccomp.yml`](../browser-seccomp.yml) before deploying
-[`hermes/browser.yaml`](../../hermes/browser.yaml).
+[`hermes/profiles/house-manager/browser.yaml`](../../hermes/profiles/house-manager/browser.yaml).
 
 Source: [Playwright v1.64.1 profile](https://raw.githubusercontent.com/microsoft/playwright/v1.64.1/utils/docker/seccomp_profile.json),
 SHA256 `cc3e61cabda6bbc1e53e54d27ba4d55a9d3be829b6dd1a596f4a7b31b1cc7849`.

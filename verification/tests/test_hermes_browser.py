@@ -17,7 +17,7 @@ except ImportError:
     yaml = None
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE = Path(os.environ.get('HERMES_BROWSER_SOURCE', ROOT / 'hermes/browser-server.py'))
+SOURCE = Path(os.environ.get('HERMES_BROWSER_SOURCE', ROOT / 'hermes/profiles/house-manager/browser-server.py'))
 try:
     import aiohttp
     from aiohttp.test_utils import TestClient, TestServer
@@ -29,9 +29,9 @@ except ImportError:
 class BrowserManifestTests(unittest.TestCase):
     def test_embedded_source_and_rollout_checksums_match(self):
         source = SOURCE.read_bytes()
-        cm = yaml.safe_load((ROOT / 'hermes/browser-configmap.yaml').read_text())
+        cm = yaml.safe_load((ROOT / 'hermes/profiles/house-manager/browser-configmap.yaml').read_text())
         self.assertEqual(cm['data']['browser-server.py'], source.decode())
-        deployment = next(yaml.safe_load_all((ROOT / 'hermes/browser.yaml').read_text()))
+        deployment = next(yaml.safe_load_all((ROOT / 'hermes/profiles/house-manager/browser.yaml').read_text()))
         annotations = deployment['spec']['template']['metadata']['annotations']
         self.assertEqual(annotations['checksum/server'], hashlib.sha256(source).hexdigest())
         profile = (ROOT / 'k3s-ansible/files/hermes-browser-amd64.json').read_bytes()

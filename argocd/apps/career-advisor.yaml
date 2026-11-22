@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://github.com/benkim0414/homelab.git
     targetRevision: main
-    path: career-advisor
+    path: hermes/profiles/career-advisor
     directory:
       include: resources.yaml
   destination:

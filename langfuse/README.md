@@ -324,7 +324,7 @@ working tracing.
 
 Create Secret `hermes-langfuse` in namespace `hermes`, keys `public-key` and
 `secret-key`, through the approved private input/sealing workflow. Its encrypted
-manifest is `hermes/langfuse-sealed-secret.yaml`, selected by the Hermes Application.
+manifest is `hermes/profiles/house-manager/langfuse-sealed-secret.yaml`, selected by the Hermes Application.
 Server credentials and the cluster client Secret are now unsealed. Client
 provisioning was published through PR #96; do not rerun the helper over the
 existing ciphertext. The following is the original private provisioning command,
@@ -338,7 +338,7 @@ Enter only the `hermes-cluster` key pair, with secret-key confirmation. The
 helper authenticates a read-only GET to the fixed private HTTPS project endpoint,
 requires the single returned project to be `hermes-cluster`, refuses redirects,
 then reuses strict sealing and atomic no-overwrite ciphertext publication. It
-writes only `hermes/langfuse-sealed-secret.yaml` at mode 0600. No plaintext files,
+writes only `hermes/profiles/house-manager/langfuse-sealed-secret.yaml` at mode 0600. No plaintext files,
 credential arguments, existing Secret reads or cluster apply are supported. Do
 not rerun the six-server bootstrap. Review/publish the client ciphertext and
 verify unsealing before consuming it; root registration must include the new
@@ -403,12 +403,12 @@ and restarted successfully. New post-restart private scoped setup spans passed
 v2 readback with empty input/output. See the scoped-source record above for the
 remaining real agent-turn, persistence/outage and desktop acceptance gates.
 
-`hermes/deployment.yaml` supplies a common cluster project key pair to the process.
+`hermes/profiles/house-manager/deployment.yaml` supplies a common cluster project key pair to the process.
 Both selected profiles share this trusted-pod credential boundary; future profiles
 are not automatically enrolled. Enable the plugin only on the allowlist. The
 launch environment sets the internal URL, metadata capture, `homelab-cluster`,
 service name `hermes-cluster` and sample rate 1. Do not replace the writable PVC
-config with `hermes/configmap.yaml`; that file is only an absent-file seed.
+config with `hermes/profiles/house-manager/configmap.yaml`; that file is only an absent-file seed.
 
 Run the actual installed CLI as application UID 10000, not as root.
 `s6-setuidgid` was not found on the live image's PATH. A verified alternative is

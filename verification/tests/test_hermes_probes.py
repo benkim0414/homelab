@@ -10,9 +10,9 @@ from unittest.mock import patch
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
-DATA = yaml.safe_load((ROOT / 'hermes/configmap.yaml').read_text())['data']
+DATA = yaml.safe_load((ROOT / 'hermes/profiles/house-manager/configmap.yaml').read_text())['data']
 PROBE = types.ModuleType('hermes_healthcheck')
-exec(compile(DATA['healthcheck.py'], 'hermes/configmap.yaml:healthcheck.py', 'exec'), PROBE.__dict__)
+exec(compile(DATA['healthcheck.py'], 'hermes/profiles/house-manager/configmap.yaml:healthcheck.py', 'exec'), PROBE.__dict__)
 
 
 class HermesProbeTests(unittest.TestCase):

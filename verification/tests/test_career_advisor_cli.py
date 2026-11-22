@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 class CareerAdvisorCliTests(unittest.TestCase):
     def setUp(self):
-        self.resources = list(yaml.safe_load_all((ROOT / 'career-advisor/resources.yaml').read_text()))
+        self.resources = list(yaml.safe_load_all((ROOT / 'hermes/profiles/career-advisor/resources.yaml').read_text()))
         self.deployment = self.resources[2]
         self.pod = self.deployment['spec']['template']['spec']
         self.container = self.pod['containers'][0]
@@ -42,7 +42,7 @@ class CareerAdvisorCliTests(unittest.TestCase):
     def test_manual_gitops(self):
         app = yaml.safe_load((ROOT / 'argocd/apps/career-advisor.yaml').read_text())
         self.assertEqual(app['spec']['source']['targetRevision'], 'main')
-        self.assertEqual(app['spec']['source']['path'], 'career-advisor')
+        self.assertEqual(app['spec']['source']['path'], 'hermes/profiles/career-advisor')
         self.assertEqual(app['spec']['source']['directory']['include'], 'resources.yaml')
         self.assertEqual(app['spec']['destination']['namespace'], 'career-advisor')
         self.assertNotIn('automated', app['spec']['syncPolicy'])

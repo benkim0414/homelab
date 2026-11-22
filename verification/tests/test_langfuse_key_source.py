@@ -9,7 +9,7 @@ import unittest
 from unittest import mock
 
 
-SOURCE = Path(__file__).resolve().parents[2] / "hermes/langfuse-key-source.py"
+SOURCE = Path(__file__).resolve().parents[2] / "hermes/profiles/house-manager/langfuse-key-source.py"
 spec = importlib.util.spec_from_file_location("langfuse_key_source", SOURCE)
 assert spec is not None and spec.loader is not None
 source = importlib.util.module_from_spec(spec)

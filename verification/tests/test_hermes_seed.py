@@ -7,9 +7,9 @@ import unittest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
-DATA = yaml.safe_load((ROOT / 'hermes/configmap.yaml').read_text())['data']
+DATA = yaml.safe_load((ROOT / 'hermes/profiles/house-manager/configmap.yaml').read_text())['data']
 DEPLOYMENT = next(doc for doc in yaml.safe_load_all(
-    (ROOT / 'hermes/deployment.yaml').read_text()) if doc['kind'] == 'Deployment')
+    (ROOT / 'hermes/profiles/house-manager/deployment.yaml').read_text()) if doc['kind'] == 'Deployment')
 
 
 class HermesSeedTests(unittest.TestCase):

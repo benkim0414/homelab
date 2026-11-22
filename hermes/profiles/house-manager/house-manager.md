@@ -13,7 +13,7 @@
 This section supersedes the historical bootstrap state below.
 
 - Bot/TUI approval support is prepared in
-  [the chat-approval runbook](house-manager-tools/CHAT-APPROVALS.md), not deployed.
+  [the chat-approval runbook](tools/CHAT-APPROVALS.md), not deployed.
   It adds a trusted slash command with native confirmation and a separately
   enrolled non-admin approval identity. The model-facing bot credential cannot
   approve; Discord approval remains available. Live authentication enrollment,
