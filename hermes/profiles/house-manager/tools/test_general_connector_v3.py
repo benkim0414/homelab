@@ -190,7 +190,7 @@ class ConnectorTests(unittest.TestCase):
         responses = [json.loads(line) for line in output.getvalue().splitlines()]
         self.assertEqual([r['id'] for r in responses], [1, 2, 3, 4, 5])
         self.assertEqual(responses[0]['result']['serverInfo']['name'], 'house-manager-general-v3')
-        self.assertEqual(len(responses[1]['result']['tools']), 7)
+        self.assertEqual(len(responses[1]['result']['tools']), 12)
         self.assertIs(responses[2]['result']['isError'], False)
         self.assertIs(responses[3]['result']['isError'], True)
         self.assertNotIn('secret-value', output.getvalue())
@@ -199,7 +199,7 @@ class ConnectorTests(unittest.TestCase):
         proc = subprocess.run([sys.executable, str(PATH)], input=json.dumps(calls[2])+chr(10), text=True, capture_output=True, timeout=5)
         self.assertEqual(proc.returncode, 0)
         self.assertEqual(proc.stderr, '')
-        self.assertEqual(len(json.loads(proc.stdout)['result']['tools']), 7)
+        self.assertEqual(len(json.loads(proc.stdout)['result']['tools']), 12)
         for raw in [b'[]\n', b'{broken}\n', b'{"jsonrpc":"2.0","id":1,"id":2,"method":"ping"}\n', b'x' * (c.MAX_REQUEST + 1)]:
             output = io.StringIO()
             c.serve(io.BytesIO(raw), output, client)
@@ -381,12 +381,14 @@ class ConnectorTests(unittest.TestCase):
             with self.subTest(change=change), self.assertRaises(ValueError):
                 c.validate(c.SPEC_SCHEMA, dict(spec, **change))
 
-    def test_seven_strict_tools(self):
+    def test_twelve_strict_tools(self):
         self.assertTrue(PATH.exists(), 'v3 connector is missing')
         import general_connector_v3 as c
         self.assertEqual({t['name'] for t in c.TOOLS}, {
             'get_home_capabilities', 'control_home_device',
-            'propose_home_automation', 'get_home_proposal', 'list_managed_home_automations', 'get_managed_home_automation', 'propose_home_automation_edit'})
+            'propose_home_automation', 'get_home_proposal', 'list_managed_home_automations', 'get_managed_home_automation', 'propose_home_automation_edit',
+            'set_managed_home_automation_state', 'get_home_diagnostics', 'check_home_configuration',
+            'get_home_workload_health', 'restart_home_assistant'})
         for tool in c.TOOLS:
             self.assertIs(tool['inputSchema']['additionalProperties'], False)
         self.assertIn('oneOf', c.ACTION_SCHEMA)

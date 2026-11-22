@@ -125,7 +125,7 @@ class NativeBoundary:
                 attrs = json.loads(json.dumps(attrs, allow_nan=False))
             except (ValueError, TypeError):
                 continue
-            inventory[key] = {'entity_id':key, 'state':state.state if state else 'unavailable', 'attributes':attrs, 'registry_fingerprint':fp, 'name':entry.name or entry.original_name or key, 'area':area.name if area else None, 'device_name':(device.name_by_user or device.name) if device else None}
+            inventory[key] = {'entity_id':key, 'state':state.state if state else 'unavailable', 'attributes':attrs, 'registry_fingerprint':fp, 'platform':entry.platform, 'name':entry.name or entry.original_name or key, 'area':area.name if area else None, 'device_name':(device.name_by_user or device.name) if device else None}
         return {'version':3, 'ha_version':import_module('homeassistant.const').__version__, 'time_zone':self.hass.config.time_zone, 'inventory':inventory, 'supported_actions':copy.deepcopy(SUPPORTED_ACTIONS)}
 
 NATIVE_PATH = '/api/config/automation/config/{config_key}'
@@ -151,7 +151,11 @@ def discover_native_view(routes, native_type):
 
 def validate_settings(value):
     keys = {'bot_user_id','discord_token','discord_channel_id','discord_user_id'}
-    if not isinstance(value, dict) or set(value) not in (keys, keys | {'chat_approver_user_id'}) or not all(isinstance(v,str) and v for v in value.values()):
+    optional = {'chat_approver_user_id', 'standing_permissions'}
+    if (not isinstance(value, dict) or not keys <= set(value)
+            or set(value) - keys - optional
+            or not all(isinstance(v,str) and v for k,v in value.items() if k != 'standing_permissions')
+            or 'standing_permissions' in value and type(value['standing_permissions']) is not bool):
         raise ApprovalError('invalid_settings')
     if not re.fullmatch('[0-9a-f]{32}', value['bot_user_id']) or any(re.fullmatch('[0-9]{1,25}',value[k]) is None for k in ['discord_channel_id','discord_user_id']) or len(value['discord_token']) > 256 or any(c.isspace() for c in value['discord_token']):
         raise ApprovalError('invalid_settings')

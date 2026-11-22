@@ -14,6 +14,19 @@ def message():
     return {'id':'101','type':19,'channel_id':'33','author':{'id':'22'},'timestamp':'2026-11-13T00:02:00+00:00','edited_timestamp':None,'message_reference':{'message_id':'100','channel_id':'33'},'content':f"APPROVE {DOC['id']} {DOC['sha256']}"}
 
 class WorkerTests(unittest.IsolatedAsyncioTestCase):
+    async def test_poll_skips_every_already_approved_record_without_discord_preview(self):
+        for approval in ({'source':'standing_policy'}, {'message_id':'101'}, {'source':'chat'}):
+            record = {'status':'awaiting_approval', 'proposal':copy.deepcopy(DOC),
+                      'preview':{'source':'standing_policy'}, 'approval':approval}
+            before = copy.deepcopy(record)
+            manager = NS(records={DOC['id']:record})
+            # No clock, lock, or REST methods: poll must exit before any I/O.
+            worker = ApprovalWorker(manager, NS(), SETTINGS)
+            worker._poll_scans[DOC['id']] = ('100', None, '100')
+            await worker.poll(DOC['id'])
+            self.assertEqual(record, before)
+            self.assertNotIn(DOC['id'], worker._poll_scans)
+
     def test_binding_rejects_every_untrusted_message_dimension(self):
         self.assertTrue(approval_matches(message(), DOC, PREVIEW, SETTINGS))
         for key, value in [('author',{'id':'99'}),('author',{'id':'22','bot':True}),('channel_id','99'),('webhook_id','777'),('edited_timestamp','2026-11-13T00:03:00Z'),('timestamp','2026-11-13T00:00:00Z'),('message_reference',{'message_id':'99','channel_id':'33'}),('content',f"APPROVE {DOC['id']} {'c'*64}"),('content','yes'),('id','90')]:

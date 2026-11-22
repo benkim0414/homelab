@@ -28,7 +28,8 @@ async def setup(hass, config):
         records = validate_records(await store.async_load())
         # Persist crash-recovery tombstones before exposing requests or worker.
         await store.async_save(records)
-        manager = Manager(NativeBoundary(hass,settings,view,store),settings['bot_user_id'],records)
+        manager = Manager(NativeBoundary(hass,settings,view,store),settings['bot_user_id'],records,
+                          standing_permissions=settings.get('standing_permissions', False))
         worker = ApprovalWorker(manager, DiscordREST(settings['discord_token']), settings)
         register_views(hass,manager,settings.get('chat_approver_user_id'))
         hass.data[DOMAIN] = manager
@@ -132,6 +133,50 @@ def register_views(hass, manager, chat_approver_user_id=None):
 
     for cls in [Capabilities,Action,Proposals,Status,Managed,ManagedItem,Edits]:
         hass.http.register_view(cls())
+    if getattr(manager, 'standing_permissions', False):
+        from datetime import datetime, timezone
+        from .management import Management
+        management = Management(hass, manager.bot_user_id)
+        check_lock = asyncio.Lock()
+
+        class Diagnostics(View):
+            url = '/api/house_manager_general/diagnostics'
+            name = 'api:house_manager_general:diagnostics'
+            requires_auth = True
+            async def get(self, request):
+                return await respond(lambda:management.request(request.get('hass_user'),
+                                                               {'operation':'diagnostics'}))
+
+        class ManagedState(View):
+            url = '/api/house_manager_general/managed-state'
+            name = 'api:house_manager_general:managed_state'
+            requires_auth = True
+            async def post(self, request):
+                async def operation():
+                    user = request.get('hass_user')
+                    manager.authorize(user)
+                    return await manager.set_managed_state(user, await read_body(request))
+                return await respond(operation)
+
+        class CheckConfig(View):
+            url = '/api/house_manager_general/check-config'
+            name = 'api:house_manager_general:check_config'
+            requires_auth = True
+            async def post(self, request):
+                async def operation():
+                    # Bind exactly the active non-admin operational bot, not a
+                    # body-supplied identity. Do not return configuration/errors.
+                    management._authorize(request.get('hass_user'))
+                    if await read_body(request) != {}:
+                        raise ApprovalError('invalid_request')
+                    async with check_lock:
+                        checker = import_module('homeassistant.config').async_check_ha_config_file
+                        result = await checker(hass)
+                        return {'valid':result is None, 'checked_at':datetime.now(timezone.utc).isoformat()}
+                return await respond(operation)
+
+        for cls in [Diagnostics, ManagedState, CheckConfig]:
+            hass.http.register_view(cls())
     if chat_approver_user_id is not None:
         from .chat import ChatApprovals
         adapter = ChatApprovals(manager, chat_approver_user_id)

@@ -185,9 +185,13 @@ def _climate(service, data, attrs):
 
 
 def _confirmation(domain, service, data, item):
-    if domain == 'climate':
-        return (service in ('turn_on', 'set_temperature', 'set_preset_mode')
-                or (service == 'set_hvac_mode' and data['hvac_mode'] != 'off'))
+    # Production inventory always supplies platform. Missing legacy fixture
+    # metadata retains the immediate-control contract, not standing authority.
+    if 'platform' in item and (type(item['platform']) is not str
+                              or item['platform'] not in {'lifx', 'smartthings', 'dyson_local'}):
+        return True
+    if domain == 'climate' and service == 'set_hvac_mode' and data['hvac_mode'] == 'off':
+        return False
     if service in ('turn_off', 'media_stop', 'media_pause'):
         return False
     if domain == 'select' and data['option'].casefold() in ('off', 'stop', 'pause'):
@@ -213,11 +217,20 @@ def _confirmation(domain, service, data, item):
             return True
     metadata = ' '.join(str(item.get(key, '')) for key in
                         ('entity_id', 'name', 'device_name')).casefold().replace('_', ' ')
+    # Dyson exposes heating through a separate climate entity; its fan presets
+    # may advertise only Auto/Normal. Those presets do not prove retained heat
+    # has been cleared. Off/zero-speed safety commands already returned above.
+    if (domain == 'fan' and service in ('turn_on', 'set_percentage', 'set_preset_mode')
+            and re.search(r'\bhot\b', metadata)):
+        return True
     dangerous = any(word in metadata for word in
                     ('dryer', 'washer', 'washing', 'oven', 'cook', 'heat', 'boiler',
                      'kettle', 'stove', 'furnace', 'radiator', 'laundry', 'tumble'))
-    if domain in ('select', 'switch', 'number', 'fan') and dangerous:
+    if dangerous:
         return True
+    if domain == 'climate':
+        return (service in ('turn_on', 'set_temperature', 'set_preset_mode')
+                or (service == 'set_hvac_mode' and data['hvac_mode'] != 'off'))
     if domain in ('select', 'switch', 'number'):
         accessory = any(word in metadata for word in ('light', 'lamp', 'night', 'focus', 'continuous monitoring'))
         purifier = 'purifier' in metadata or 'dyson pure hot + cool link' in metadata
@@ -307,6 +320,89 @@ def validate_spec(spec, inventory):
     return {'alias': spec['title'], 'mode': 'single', 'triggers': triggers,
             'conditions': conditions,
             'actions': [validate_action(a, inventory)['action'] for a in spec['actions']]}
+
+
+def _standing_native_shape(config, inventory):
+    """Accept only the exact native form emitted by our constrained compiler."""
+    _keys(config, ('id', 'alias', 'mode', 'triggers', 'conditions', 'actions'),
+          ('initial_state',))
+    _require(type(config['id']) is str and re.fullmatch(r'house_manager_general_[0-9a-f]{32}', config['id']))
+    _require(config.get('initial_state') is None and config['mode'] == 'single')
+    spec = {'title': config['alias'], 'triggers': [], 'conditions': [],
+            'actions': copy.deepcopy(config['actions'])}
+    _require(type(config['triggers']) is list and type(config['conditions']) is list)
+    for trigger in config['triggers']:
+        _require(type(trigger) is dict and 'trigger' in trigger)
+        converted = copy.deepcopy(trigger)
+        converted['type'] = converted.pop('trigger')
+        if 'for' in converted:
+            _keys(converted['for'], ('seconds',))
+            converted['for_seconds'] = converted.pop('for')['seconds']
+        spec['triggers'].append(converted)
+    for condition in config['conditions']:
+        _require(type(condition) is dict and 'condition' in condition)
+        converted = copy.deepcopy(condition)
+        converted['type'] = converted.pop('condition')
+        spec['conditions'].append(converted)
+    expected = dict(validate_spec(spec, inventory), id=config['id'])
+    actual = {key: value for key, value in config.items() if key != 'initial_state'}
+    _require(hash_json(actual) == hash_json(expected))
+
+
+def standing_safe(kind, payload, inventory):
+    """Stricter authority for persisted routines, not immediate device controls.
+
+    Direct integration enrollment is a bounded trust assumption: it cannot prove
+    absence of downstream physical effects or other HA automations reacting to a
+    device change. Unknown/proxy integrations never inherit standing authority.
+    Malformed inputs fail closed; proposal validation remains independently required.
+    """
+    try:
+        if kind not in ('automation', 'edit'):
+            return False
+        if kind == 'edit':
+            _payload(kind, payload, inventory)
+            _standing_native_shape(payload['before'], inventory)
+            _standing_native_shape(payload['after'], inventory)
+            spec = payload['spec']
+        else:
+            spec = payload
+        validate_spec(spec, inventory)
+        for action in spec['actions']:
+            checked = validate_action(action, inventory)
+            item = inventory[action['target']['entity_id']]
+            platform = item.get('platform')
+            if type(platform) is not str or platform not in {'lifx', 'smartthings', 'dyson_local'}:
+                return False
+            if checked['confirmation_required']:
+                return False
+            domain, service = action['action'].split('.')
+            data = action.get('data', {})
+            stopping = (service in ('turn_off', 'media_stop', 'media_pause')
+                        or domain == 'climate' and service == 'set_hvac_mode' and data['hvac_mode'] == 'off'
+                        or domain == 'select' and data['option'].casefold() in ('off', 'stop', 'pause')
+                        or domain == 'fan' and (
+                            service in ('turn_on', 'set_percentage') and data.get('percentage') == 0
+                            or service == 'set_preset_mode' and data['preset_mode'].casefold() in ('off', 'stop', 'pause')))
+            if stopping:
+                continue
+            metadata = ' '.join(str(item.get(key, '')) for key in
+                                ('entity_id', 'name', 'device_name')).casefold().replace('_', ' ')
+            if any(word in metadata for word in
+                   ('dryer', 'washer', 'washing', 'oven', 'cook', 'heat', 'warm', 'hot',
+                    'boiler', 'kettle', 'stove', 'furnace', 'radiator', 'laundry', 'tumble',
+                    'lock', 'alarm', 'garage', 'gate', 'valve', 'pump', 'gas', 'smoke')):
+                return False
+            if domain == 'fan' and service in ('turn_on', 'set_percentage', 'set_preset_mode'):
+                attrs = item['attributes']
+                modes = attrs.get('preset_modes', [])
+                heating_capable = any(type(mode) is str and re.search(r'heat|warm', mode.casefold())
+                                      for mode in [attrs.get('preset_mode')] + (modes if type(modes) is list else []))
+                if heating_capable and data.get('preset_mode') not in ('auto', 'ventilation'):
+                    return False
+        return True
+    except (ValueError, TypeError, KeyError, RecursionError):
+        return False
 
 
 def _json_types(value):
