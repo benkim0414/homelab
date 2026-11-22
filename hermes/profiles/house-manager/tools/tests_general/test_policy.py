@@ -161,7 +161,9 @@ class PolicyTests(unittest.TestCase):
 
     def test_discovered_devices_preserve_ventilation_and_accessories(self):
         cases = [
-            ('fan', 'Dyson Pure Hot + Cool Link', 'turn_on', {}, {'supported_features': 59}, False),
+            # Fan Auto/Normal attributes cannot prove this device's separate
+            # climate entity has not retained heating.
+            ('fan', 'Dyson Pure Hot + Cool Link', 'turn_on', {}, {'supported_features': 59}, True),
             ('fan', 'Air purifier', 'turn_on', {}, {'supported_features': 56}, False),
             ('fan', 'Air purifier', 'set_preset_mode', {'preset_mode': 'sleep'},
              {'supported_features': 56, 'preset_modes': ['auto', 'low', 'medium', 'high', 'sleep']}, False),

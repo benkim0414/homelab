@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Scoped v3 JSON-line MCP connector. HA enforces inventory and human approval.
+"""Scoped JSON-line MCP connector. HA enforces inventory and standing policy.
 
 Only literal, single-entity actions and time/state automation forms are exposed.
 No general HA route, service, approval, template, or device-test interface exists.
+Fixed authenticated diagnostics/config-check/workload-health/restart operations
+are additive; no Kubernetes credential is supplied to this connector.
 HA_MCP_TOKEN must be an operator-provisioned non-admin bot credential; this client
 cannot infer account privileges from an opaque token. HA enforces the bot identity.
 
@@ -12,8 +14,9 @@ triggers, state/time conditions, at most 20 actions/10 triggers/10 conditions.
 No transition/effects, relative changes, area/device targets, templates, raw YAML,
 scripts or arbitrary extra service parameters are exposed. Existing routines can
 only be edited when verified v3-owned, using exact target/base-hash discovery and
-a complete typed spec followed by independent human approval through Discord or
-the separately enrolled trusted local /house-approve command. MCP cannot approve.
+a complete typed spec. The HA standing policy executes only safe routines;
+hazardous/untrusted requests retain independent human approval through Discord
+or the separately enrolled local /house-approve command. MCP cannot approve.
 New automation create/edit proposals have explicit expires_at=null; device actions
 and legacy finite proposals retain exact 900-second expiry. Null never renews an
 existing proposal: its original immutable hash and ledger status remain binding.
@@ -30,6 +33,7 @@ import re
 import urllib.request
 
 BASE_URL = 'http://home-assistant.home-assistant.svc.cluster.local:8123/api/house_manager_general'
+OPERATIONS_URL = 'http://ha-operations.hermes.svc.cluster.local:8080'
 MAX_REQUEST = 65536
 MAX_RESPONSE = 1048576
 ID_PATTERN = r'^house_manager_general_[0-9a-f]{32}$'
@@ -99,14 +103,20 @@ SPEC_SCHEMA = obj({
 HASH_SCHEMA = {'type':'string', 'pattern':r'^[0-9a-f]{64}$'}
 TARGET_SCHEMA = {'type':'string', 'pattern':ID_PATTERN}
 EDIT_SCHEMA = obj({'target_id':TARGET_SCHEMA, 'base_config_hash':HASH_SCHEMA, 'spec':SPEC_SCHEMA})
+STATE_SCHEMA = obj({'target_id':TARGET_SCHEMA, 'base_config_hash':HASH_SCHEMA, 'enabled':BOOL})
 TOOLS = []
 for name, description, schema, readonly in [
     ('get_home_capabilities', 'Read fresh inventory, supported actions and approval readiness. No device testing.', obj({}), True),
     ('control_home_device', 'Request one literal device action. HA may accept a service call or queue independent Discord human approval. Accepted is NOT verified physical state. No retries or device testing.', obj({'action': ACTION_SCHEMA}), False),
-    ('propose_home_automation', 'Preview a daily time/state routine with literal actions; independent human approval through Discord or the separately enrolled trusted local /house-approve command is required before saving and enabling. New proposals have no time expiry but still require fresh bindings/policy. This tool cannot approve.', obj({'spec': SPEC_SCHEMA}), False),
+    ('propose_home_automation', 'Create and enable a typed routine under server-enforced standing permission when every action is low-risk. Hazardous routines queue independent human approval. Verify the returned status; this tool cannot grant human approval. Never submit duplicates after uncertainty.', obj({'spec': SPEC_SCHEMA}), False),
     ('list_managed_home_automations', 'Read verified v3-owned native routines and drift/unavailable entries. Does not adopt or run routines.', obj({}), True),
     ('get_managed_home_automation', 'Read one verified v3-owned routine, exact native config, base hash and current on/off state.', obj({'target_id':TARGET_SCHEMA}), True),
-    ('propose_home_automation_edit', 'Preview replacement of one verified owned routine using a COMPLETE typed spec and the exact discovered base_config_hash. Preserves ID and current on/off state; no time expiry for new proposals, but refuses base-config/state/binding drift. Independent human approval through Discord or the separately enrolled trusted local /house-approve command required; cannot approve, delete or force-trigger.', EDIT_SCHEMA, False),
+    ('propose_home_automation_edit', 'Edit a verified owned routine with a COMPLETE typed spec and exact base hash, preserving ID/on-off state. Safe edits use server standing permission; hazardous edits queue independent human approval. Refuses drift. Cannot delete, force-trigger or approve.', EDIT_SCHEMA, False),
+    ('set_managed_home_automation_state', 'Enable or disable one verified owned routine using its exact base hash. Server standing policy and fresh action/binding checks gate enabling; hazardous enabling is refused. No force-trigger or stopping running actions. Read back state.', STATE_SCHEMA, False),
+    ('get_home_diagnostics', 'Read sanitized HA diagnostic counts. No logs, credentials, arbitrary attributes or configuration values.', obj({}), True),
+    ('check_home_configuration', 'Run the native HA configuration check; return only valid boolean and timestamp, never raw errors or secrets. Does not restart.', obj({}), True),
+    ('get_home_workload_health', 'Read fixed HA StatefulSet/pod health through the authenticated scoped broker. No logs, exec, Secrets or other workloads.', obj({}), True),
+    ('restart_home_assistant', 'Request recoverable restart of the existing HA StatefulSet after a fresh native configuration check and rollout guards. Briefly interrupts HA. No image/storage/replica changes. Acceptance is NOT rollout success; follow with workload-health reads. Never blindly retry.', obj({}), False),
     ('get_home_proposal', 'Read proposal/status/evidence. Historical receipts are not fresh runtime state. Does not approve or test devices.', obj({'proposal_id': {'type': 'string', 'pattern': ID_PATTERN}}), True),
 ]:
     TOOLS.append({'name': name, 'description': description, 'inputSchema': schema,
@@ -136,7 +146,7 @@ def validate(schema, value, depth=0):
             raise ValueError('Expected finite number')
     elif kind and type(value) is not types[kind]:
         raise ValueError('Invalid input type')
-    if 'const' in schema and value != schema['const']:
+    if 'const' in schema and (type(value) is not type(schema['const']) or value != schema['const']):
         raise ValueError('Invalid literal')
     if 'enum' in schema and value not in schema['enum']:
         raise ValueError('Unsupported literal')
@@ -201,7 +211,9 @@ class HAClient:
     def _request(self, method, path, payload=None):
         import urllib.request
         import urllib.error
-        fixed = {('GET', '/capabilities'), ('POST', '/action'), ('POST', '/proposals'), ('GET','/managed'), ('POST','/edits')}
+        fixed = {('GET', '/capabilities'), ('POST', '/action'), ('POST', '/proposals'), ('GET','/managed'), ('POST','/edits'),
+                 ('POST','/managed-state'), ('GET','/diagnostics'), ('POST','/check-config'),
+                 ('POST','/workload-health'), ('POST','/workload-restart')}
         if ((method, path) not in fixed
                 and not (method == 'GET' and any(path.startswith(prefix)
                          and re.fullmatch(ID_PATTERN, path[len(prefix):]) for prefix in ('/proposals/', '/managed/')))):
@@ -209,9 +221,12 @@ class HAClient:
         raw = None if payload is None else json.dumps(payload, allow_nan=False).encode('utf-8')
         if raw is not None and len(raw) > MAX_REQUEST:
             raise ValueError('Request exceeds limit')
-        request = urllib.request.Request(BASE_URL + path, data=raw, headers=self._headers, method=method)
+        urls = {'/workload-health':OPERATIONS_URL+'/v1/health',
+                '/workload-restart':OPERATIONS_URL+'/v1/restart'}
+        url = urls[path] if path in urls else BASE_URL + path
+        request = urllib.request.Request(url, data=raw, headers=self._headers, method=method)
         try:
-            with self._opener.open(request, timeout=10) as response:
+            with self._opener.open(request, timeout=30 if path == '/workload-restart' else 10) as response:
                 if response.status not in (200, 201, 202) or response.headers.get_content_type() != 'application/json':
                     raise ValueError('Unsupported response')
                 raw_reply = response.read(MAX_RESPONSE + 1)
@@ -247,6 +262,22 @@ class HAClient:
     def propose_edit(self, request):
         validate(EDIT_SCHEMA, request)
         return self._request('POST', '/edits', request)
+
+    def set_managed_state(self, request):
+        validate(STATE_SCHEMA, request)
+        return self._request('POST', '/managed-state', request)
+
+    def diagnostics(self):
+        return self._request('GET', '/diagnostics')
+
+    def check_config(self):
+        return self._request('POST', '/check-config', {})
+
+    def workload_health(self):
+        return self._request('POST', '/workload-health', {})
+
+    def restart(self):
+        return self._request('POST', '/workload-restart', {})
 
     def get_proposal(self, identifier):
         validate({'type': 'string', 'pattern': ID_PATTERN}, identifier)
@@ -288,6 +319,8 @@ def validate_capabilities(reply):
         raise ValueError('Unsupported HA timezone') from None
     if reply['time_zone'] != 'Australia/Melbourne':
         raise ValueError('Unsupported HA timezone')
+    if 'standing_permissions' in reply and type(reply['standing_permissions']) is not bool:
+        raise ValueError('Invalid standing permission evidence')
     supported_services(reply.get('supported_actions'))
     for identifier, entry in reply['inventory'].items():
         validate(ENTITY, identifier)
@@ -442,6 +475,38 @@ def validate_status(reply, identifier):
     return reply
 
 
+def validate_standing_result(reply, args, client, *, editing):
+    expected = 'verified_edit' if editing else 'verified_enabled'
+    if (type(reply) is not dict or reply.get('status') != expected
+            or reply.get('confirmation_required') is not False
+            or reply.get('authorization') != {'source':'standing_policy', 'policy_id':'routine_automations_v1'}):
+        raise ValueError('Unverified standing result; no automatic retry')
+    validate(TARGET_SCHEMA, reply.get('id'))
+    validate(HASH_SCHEMA, reply.get('config_hash'))
+    timestamp(reply.get('verified_at'))
+    observed = validate_status(client.get_proposal(reply['id']), reply['id'])
+    payload = observed['proposal']['payload']
+    spec = args['spec']
+    normalized_spec = dict(spec, conditions=spec.get('conditions', []),
+                           actions=[dict(action, data=action.get('data', {})) for action in spec['actions']])
+    if (observed['status'] != expected or observed['entity_id'] != reply.get('entity_id')
+            or observed['evidence']['config_hash'] != reply['config_hash']
+            or 'runtime_state' in reply and reply['runtime_state'] != observed.get('runtime_state')
+            or (payload['spec'] if editing else payload) != normalized_spec
+            or editing and (payload['target_id'] != args['target_id']
+                            or reply.get('target_id') != args['target_id']
+                            or reply.get('runtime_state') != observed.get('runtime_state')
+                            or payload['base_config_hash'] != args['base_config_hash'])):
+        raise ValueError('Standing readback mismatch; no automatic retry')
+    evidence = observed['evidence'].get('approval')
+    if (type(evidence) is not dict or evidence.get('source') != 'standing_policy'
+            or evidence.get('policy_id') != 'routine_automations_v1'
+            or evidence.get('sha256') != observed['proposal']['sha256']):
+        raise ValueError('Missing standing authorization evidence')
+    timestamp(evidence.get('timestamp'))
+    return observed
+
+
 def handle_tool(name, args, client=None):
     tool = next((item for item in TOOLS if item['name'] == name), None)
     if tool is None:
@@ -454,6 +519,54 @@ def handle_tool(name, args, client=None):
         client = HAClient(os.environ.get('HA_MCP_TOKEN', ''))
     if name == 'get_home_capabilities':
         return validate_capabilities(client.get_capabilities())
+    if name == 'get_home_diagnostics':
+        reply = client.diagnostics()
+        schema = obj({'ha_version':text(40), 'entity_count':number(0,1000000,True),
+                      'unavailable_count':number(0,1000000,True), 'unknown_count':number(0,1000000,True),
+                      'enrolled_helper_count':number(0,100,True),
+                      'entries':{'type':'array','maxItems':30,'items':obj({'entry_id':text(128),'domain':text(80),'state':text(80)})}})
+        validate(schema, reply)
+        return reply
+    if name == 'check_home_configuration':
+        reply = client.check_config()
+        validate(obj({'valid':BOOL,'checked_at':text(80)}), reply)
+        timestamp(reply['checked_at'])
+        return reply
+    if name == 'get_home_workload_health':
+        reply = client.workload_health()
+        health = obj({'workload':{'const':'home-assistant'}, 'kind':{'const':'StatefulSet'},
+                      'desired_replicas':number(0,100,True), 'ready_replicas':number(0,100,True),
+                      'updated_replicas':number(0,100,True), 'generation_observed':BOOL,
+                      'revision_converged':BOOL, 'pod_present':BOOL, 'pod_running':BOOL,
+                      'pod_terminating':BOOL, 'pod_ready':BOOL,
+                      'containers':{'type':'array','maxItems':20,'items':obj({'ready':BOOL,
+                          'restart_count':number(0,1000000,True),'waiting':BOOL,'terminated':BOOL})}})
+        validate(obj({'ok':{'const':True},'health':health}), reply)
+        return reply
+    if name == 'restart_home_assistant':
+        reply = client.restart()
+        validate(obj({'ok':{'const':True},'restart_requested':{'const':True},
+                      'annotation_verified':{'const':True}, 'rollout_verified':{'const':False},
+                      'config_check_verified':{'const':True},'config_checked_at':text(80)}), reply)
+        timestamp(reply['config_checked_at'])
+        return reply
+    if name == 'set_managed_home_automation_state':
+        reply = client.set_managed_state(args)
+        observed = validate_managed(client.get_managed(args['target_id']), args['target_id'])
+        if (type(reply) is not dict or reply.get('status') != 'verified_state'
+                or reply.get('receipt_type') != 'managed_state'
+                or reply.get('target_id') != args['target_id']
+                or reply.get('owner_record_id') != observed['owner_record_id']
+                or reply.get('config_hash') != args['base_config_hash']
+                or reply.get('confirmation_required') is not False
+                or reply.get('authorization') != {'source':'standing_policy','policy_id':'routine_automations_v1'}
+                or observed['config_hash'] != args['base_config_hash']
+                or observed['runtime_state'] != ('on' if args['enabled'] else 'off')
+                or reply.get('runtime_state') != observed['runtime_state']
+                or reply.get('entity_id') != observed['entity_id']):
+            raise ValueError('Automation state unverified; no automatic retry')
+        timestamp(reply.get('verified_at'))
+        return {'response':observed, 'device_state_verified':False}
     if name == 'get_home_proposal':
         reply = validate_status(client.get_proposal(args['proposal_id']), args['proposal_id'])
         return {'response': reply, 'device_state_verified': False}
@@ -473,14 +586,20 @@ def handle_tool(name, args, client=None):
         return {'response':reply, 'device_state_verified':False}
     if name in ('propose_home_automation', 'propose_home_automation_edit'):
         caps = validate_capabilities(client.get_capabilities())
-        if not caps['approval_ready']:
+        if not caps['approval_ready'] and not caps.get('standing_permissions',False):
             raise ValueError('Independent human approval unavailable')
         for action in args['spec']['actions']:
             check_action(action, caps)
         for item in args['spec']['triggers'] + args['spec'].get('conditions', []):
             if item['type'] == 'state' and item['entity_id'] not in caps['inventory']:
                 raise ValueError('Unknown state entity')
-        reply = validate_queue(client.propose_edit(args) if name == 'propose_home_automation_edit' else client.propose(args['spec']))
+        reply = client.propose_edit(args) if name == 'propose_home_automation_edit' else client.propose(args['spec'])
+        if type(reply) is dict and reply.get('status') == 'queued':
+            reply = validate_queue(reply)
+        elif caps.get('standing_permissions') is True:
+            reply = validate_standing_result(reply, args, client, editing=name == 'propose_home_automation_edit')
+        else:
+            raise ValueError('Unexpected immediate result; no automatic retry')
         return {'response': reply, 'device_state_verified': False}
     if name == 'control_home_device':
         caps = validate_capabilities(client.get_capabilities())

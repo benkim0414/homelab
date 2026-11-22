@@ -10,7 +10,7 @@ spec:
     targetRevision: main
     path: hermes/profiles/house-manager
     directory:
-      include: '{namespace.yaml,configmap.yaml,deployment.yaml,storage.yaml,network-policy.yaml,tailscale-ingress.yaml,dashboard-sealed-secret.yaml,langfuse-sealed-secret.yaml,langfuse-key-source.yaml,runtime-context.yaml,backup-*.yaml,browser*.yaml,herdr-rbac.yaml,herdr-legacy-storage.yaml}'
+      include: '{namespace.yaml,configmap.yaml,deployment.yaml,storage.yaml,network-policy.yaml,tailscale-ingress.yaml,dashboard-sealed-secret.yaml,langfuse-sealed-secret.yaml,langfuse-key-source.yaml,runtime-context.yaml,backup-*.yaml,browser*.yaml,herdr-rbac.yaml,herdr-legacy-storage.yaml,ha-operations.yaml}'
   destination:
     server: https://kubernetes.default.svc
     namespace: hermes

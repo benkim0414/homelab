@@ -1,7 +1,7 @@
 """Internal approval coordinator shared by isolated approval adapters.
 
-Only separately authenticated approval adapters invoke approve. Persisted pending
-and uncertain records are tombstones: no automatic retries after uncertain writes.
+Authenticated approval adapters and explicitly opted-in standing policy share the
+same execution path. Pending and uncertain records are never automatically retried.
 """
 import asyncio
 import copy
@@ -14,6 +14,7 @@ TIME_ZONE = 'Australia/Melbourne'
 ID = re.compile(r'house_manager_general_[0-9a-f]{32}')
 HEX = re.compile(r'[0-9a-f]{64}')
 CHAT_INTERACTION_SECONDS = 300
+STANDING_POLICY = 'routine_automations_v1'
 
 def native_hash(value):
     """HA annotates YAML dict/list/str subclasses; hash content, not annotations.
@@ -41,7 +42,10 @@ class ApprovalError(Exception):
         super().__init__(code)
 
 class Manager:
-    def __init__(self, boundary, bot_user_id, records, now=None):
+    def __init__(self, boundary, bot_user_id, records, now=None, *, standing_permissions=False):
+        if type(standing_permissions) is not bool:
+            raise ValueError('standing_permissions must be a boolean')
+        self.standing_permissions = standing_permissions
         self.boundary, self.bot_user_id = boundary, bot_user_id
         self.records = copy.deepcopy(records)
         self.now = now or (lambda: datetime.now(timezone.utc))
@@ -64,7 +68,8 @@ class Manager:
     async def capabilities(self, user):
         self.authorize(user)
         caps = await self._fresh()
-        return dict(caps, approval_ready=self.approval_ready)
+        return dict(caps, approval_ready=self.approval_ready,
+                    standing_permissions=self.standing_permissions)
 
     async def propose(self, user, body):
         self.authorize(user)
@@ -72,7 +77,7 @@ class Manager:
             raise ApprovalError('invalid_request')
         async with self.operation_lock:
             caps = await self._fresh()
-            return await self._queue('automation', body['spec'], caps)
+            return await self._submit('automation', body['spec'], caps)
 
     def _owner(self, target):
         if not isinstance(target, str) or not ID.fullmatch(target):
@@ -86,6 +91,7 @@ class Manager:
                     or doc.get('kind') == 'edit' and doc.get('payload', {}).get('target_id') == target)
             if (owns and doc.get('version') == 3 and record.get('status') in ('verified_enabled', 'verified_edit')
                     and record.get('preview') and record.get('approval') and record.get('verified_at')
+                    and record.get('managed_state_operation', {}).get('status') not in ('pending', 'uncertain')
                     and isinstance(record.get('config_hash'), str) and HEX.fullmatch(record['config_hash'])):
                 owners.append((key, record))
         if len(owners) != 1:
@@ -106,6 +112,85 @@ class Manager:
         await self._fresh()
         async with self.operation_lock, self.boundary.lock:
             return await self._managed(target)
+
+    async def _enable_check(self, owner, current):
+        caps = await self._fresh()
+        try:
+            doc = p.validate_proposal(copy.deepcopy(owner['proposal']), caps['inventory'],
+                                      expected_hash=owner['proposal']['sha256'], now=self.now())
+            if not self._standing_safe(doc['kind'], doc['payload'], caps['inventory']):
+                raise ApprovalError('approval_required', 409)
+            config = (doc['payload']['after'] if doc['kind'] == 'edit' else
+                      dict(p.validate_spec(doc['payload'], caps['inventory']), id=doc['id']))
+            if p.hash_json(config) != current['config_hash']:
+                raise ApprovalError('native_config_changed', 409)
+        except (ValueError, TypeError, KeyError):
+            raise ApprovalError('invalid_proposal', 409) from None
+
+    async def set_managed_state(self, user, body):
+        """Toggle an owned definition, never trigger it; uncertain writes consume authority."""
+        self.authorize(user)
+        if (not isinstance(body, dict) or set(body) != {'target_id', 'base_config_hash', 'enabled'}
+                or type(body['enabled']) is not bool
+                or not isinstance(body['base_config_hash'], str) or not HEX.fullmatch(body['base_config_hash'])):
+            raise ApprovalError('invalid_request')
+        async with self.operation_lock, self.boundary.lock:
+            if not self.standing_permissions:
+                raise ApprovalError('standing_permissions_required', 403)
+            await self._fresh()
+            current = await self._managed(body['target_id'])
+            if current['config_hash'] != body['base_config_hash']:
+                raise ApprovalError('native_config_changed', 409)
+            owner = self.records[current['owner_record_id']]
+            if body['enabled']:
+                await self._enable_check(owner, current)
+            desired = 'on' if body['enabled'] else 'off'
+            evidence = {'source':'standing_policy', 'policy_id':STANDING_POLICY}
+            operation = {'status':'pending', 'target_id':body['target_id'],
+                         'config_hash':current['config_hash'], 'runtime_state':desired,
+                         'authorization':evidence, 'timestamp':self.now().isoformat()}
+            owner['managed_state_operation'] = operation
+            try:
+                await self.boundary.save(copy.deepcopy(self.records))
+                # Fresh identity/config/state gates after persistence and before dispatch.
+                await self._fresh()
+                if not self.standing_permissions:
+                    raise ApprovalError('standing_permissions_required', 403)
+                latest = await self._exact(body['target_id'], current['config_hash'])
+                if latest['entity_id'] != current['entity_id'] or latest['state'] != current['runtime_state']:
+                    raise ApprovalError('runtime_state_changed', 409)
+                if body['enabled']:
+                    await self._enable_check(owner, current)
+                if latest['state'] != desired:
+                    if body['enabled']:
+                        await self.boundary.enable(current['entity_id'])
+                    else:
+                        await self.boundary.disable(current['entity_id'])
+                loaded = await self._exact(body['target_id'], current['config_hash'])
+                if loaded['entity_id'] != current['entity_id'] or loaded['state'] != desired:
+                    raise ApprovalError('runtime_state_changed', 409)
+                if body['enabled']:
+                    await self._enable_check(owner, current)
+                receipt = {'receipt_type':'managed_state', 'status':'verified_state',
+                           'target_id':body['target_id'], 'owner_record_id':current['owner_record_id'],
+                           'entity_id':loaded['entity_id'], 'config_hash':current['config_hash'],
+                           'runtime_state':desired, 'verified_at':self.now().isoformat(),
+                           'confirmation_required':False, 'authorization':evidence}
+                # The original create/edit receipt retains its original state
+                # meaning; this separate state-change receipt must not rewrite
+                # history (verified_enabled must never describe an off routine).
+                owner['managed_state_operation'] = copy.deepcopy(receipt)
+                await self.boundary.save(copy.deepcopy(self.records))
+                return receipt
+            except BaseException as exc:
+                owner['managed_state_operation'] = dict(operation, status='uncertain')
+                try:
+                    await self.boundary.save(copy.deepcopy(self.records))
+                except Exception:
+                    pass
+                if isinstance(exc, asyncio.CancelledError):
+                    raise
+                raise ApprovalError('uncertain_no_retry', 409) from None
 
     async def list_managed(self, user):
         self.authorize(user)
@@ -148,9 +233,11 @@ class Manager:
                     after = dict(before, **p.validate_spec(copy.deepcopy(body['spec']), caps['inventory']))
                 except (ValueError, TypeError, KeyError):
                     raise ApprovalError('invalid_proposal') from None
-                return await self._queue('edit', {'target_id':body['target_id'],
+                payload = {'target_id':body['target_id'],
                     'base_config_hash':body['base_config_hash'], 'before':before,
-                    'after':after, 'spec':body['spec'], 'runtime_state':current['runtime_state']}, caps)
+                    'after':after, 'spec':body['spec'], 'runtime_state':current['runtime_state']}
+            # Execution reacquires the native lock and rechecks ownership/base/state.
+            return await self._submit('edit', payload, caps)
 
     async def _edit(self, record, doc, expected_hash):
         payload = doc['payload']
@@ -252,6 +339,10 @@ class Manager:
             raise ApprovalError('not_found', 404)
         record = copy.deepcopy(self.records[identifier])
         result = {'id':identifier, 'status':record['status'], 'recorded_status':record['status'], 'proposal':record['proposal'], 'verified_at':record.get('verified_at'), 'observed_at':self.now().isoformat(), 'evidence':{'preview':record.get('preview'), 'approval':record.get('approval'), 'config_hash':record.get('config_hash')}}
+        result['evidence']['managed_state_operation'] = record.get('managed_state_operation')
+        if record.get('managed_state_operation', {}).get('status') in ('pending', 'uncertain'):
+            result.update(status='uncertain', runtime_state=None)
+            return result
         if record['status'] == 'superseded':
             result['superseded_by'] = record.get('superseded_by')
         if record['status'] in ('verified_enabled', 'verified_edit'):
@@ -270,8 +361,34 @@ class Manager:
                 result['runtime_state'] = None
         return result
 
-    async def _queue(self, kind, payload, caps):
-        if not self.approval_ready:
+    def _standing_safe(self, kind, payload, inventory):
+        return self.standing_permissions and p.standing_safe(kind, copy.deepcopy(payload), inventory)
+
+    async def _submit(self, kind, payload, caps):
+        """Only a new request may use standing authority; never drain old records."""
+        try:
+            standing = self._standing_safe(kind, payload, caps['inventory'])
+        except (ValueError, TypeError, KeyError):
+            raise ApprovalError('invalid_proposal') from None
+        queued = await self._queue(kind, payload, caps, standing=standing)
+        if not standing:
+            return queued
+        try:
+            result = await self._approve_locked(queued['id'], queued['sha256'])
+        except BaseException:
+            # Even rejection at the initial fresh gate consumes this standing
+            # attempt; never leave an interrupted policy receipt retryable.
+            self.records[queued['id']]['status'] = 'uncertain'
+            try:
+                await self.boundary.save(copy.deepcopy(self.records))
+            except Exception:
+                pass
+            raise
+        return dict(result, confirmation_required=False,
+                    authorization={'source':'standing_policy', 'policy_id':STANDING_POLICY})
+
+    async def _queue(self, kind, payload, caps, *, standing=False):
+        if not standing and not self.approval_ready:
             raise ApprovalError('approval_not_ready', 503)
         # Tombstones are never evicted; a full ledger requires operator review.
         if len(self.records) >= 1000:
@@ -285,6 +402,13 @@ class Manager:
         if doc['id'] in self.records:
             raise ApprovalError('operation_exists_no_retry', 409)
         self.records[doc['id']] = {'status':'queued', 'proposal':copy.deepcopy(doc)}
+        if standing:
+            evidence = {'source':'standing_policy', 'policy_id':STANDING_POLICY,
+                        'sha256':doc['sha256'], 'timestamp':self.now().isoformat()}
+            # No human message/identity is fabricated. Persisted interrupted
+            # records become tombstones under the existing runtime validator.
+            self.records[doc['id']].update(status='awaiting_approval',
+                preview=copy.deepcopy(evidence), approval=copy.deepcopy(evidence))
         self.last_proposal_at = self.now()
         try:
             await self.boundary.save(copy.deepcopy(self.records))
@@ -305,6 +429,11 @@ class Manager:
         caps = await self._fresh()
         try:
             validated = p.validate_proposal(copy.deepcopy(doc), caps['inventory'], expected_hash=expected_hash, now=self.now())
+            approval = self.records.get(doc['id'], {}).get('approval', {})
+            if approval.get('source') == 'standing_policy':
+                if (approval.get('policy_id') != STANDING_POLICY or approval.get('sha256') != expected_hash
+                        or not self._standing_safe(validated['kind'], validated['payload'], caps['inventory'])):
+                    raise ApprovalError('approval_required_no_dispatch', 409)
             if require_direct and p.validate_action(validated['payload'], caps['inventory'])['confirmation_required']:
                 raise ApprovalError('approval_required_no_dispatch', 409)
             return validated
@@ -320,83 +449,88 @@ class Manager:
         if not isinstance(identifier, str) or not ID.fullmatch(identifier):
             raise ApprovalError('invalid_identifier')
         async with self.operation_lock:
-            record = self.records.get(identifier)
-            if not record or record['status'] != 'awaiting_approval' or not record.get('preview'):
-                raise ApprovalError('operation_exists_no_retry', 409)
-            if chat_evidence is not None and (record.get('approval') or record['proposal'].get('kind') not in ('automation', 'edit')):
-                raise ApprovalError('operation_exists_no_retry', 409)
-            if chat_evidence is not None:
-                preview = record.get('chat_preview', {})
-                if (not preview or preview.get('interaction_id') != chat_evidence.get('interaction_id')
-                        or preview.get('author_id') != chat_evidence.get('author_id')
-                        or preview.get('sha256') != expected_hash):
-                    raise ApprovalError('chat_preview_mismatch', 409)
-                try:
-                    started = datetime.fromisoformat(preview['timestamp'])
-                    expires = datetime.fromisoformat(preview['expires_at'])
-                    valid = (started.tzinfo is not None and expires.tzinfo is not None
-                             and (expires-started).total_seconds() == CHAT_INTERACTION_SECONDS
-                             and started <= self.now() < expires)
-                except (KeyError, TypeError, ValueError):
-                    valid = False
-                if not valid:
-                    raise ApprovalError('chat_preview_expired', 409)
-            doc = await self._check(record['proposal'], expected_hash)
+            return await self._approve_locked(identifier, expected_hash, chat_evidence=chat_evidence)
+
+    async def _approve_locked(self, identifier, expected_hash, *, chat_evidence=None):
+        """Shared execution path; caller must hold operation_lock."""
+        assert self.operation_lock.locked()
+        record = self.records.get(identifier)
+        if not record or record['status'] != 'awaiting_approval' or not record.get('preview'):
+            raise ApprovalError('operation_exists_no_retry', 409)
+        if chat_evidence is not None and (record.get('approval') or record['proposal'].get('kind') not in ('automation', 'edit')):
+            raise ApprovalError('operation_exists_no_retry', 409)
+        if chat_evidence is not None:
+            preview = record.get('chat_preview', {})
+            if (not preview or preview.get('interaction_id') != chat_evidence.get('interaction_id')
+                    or preview.get('author_id') != chat_evidence.get('author_id')
+                    or preview.get('sha256') != expected_hash):
+                raise ApprovalError('chat_preview_mismatch', 409)
             try:
-                if chat_evidence is not None:
-                    record['approval'] = dict(copy.deepcopy(chat_evidence), sha256=expected_hash,
-                                              timestamp=self.now().isoformat())
-                record['status'] = 'pending'
-                await self.boundary.save(copy.deepcopy(self.records))
-                if doc['kind'] == 'action':
-                    await self._check(doc, expected_hash)
-                    await self.boundary.execute(copy.deepcopy(doc['payload']))
-                    record['status'] = 'executed'
-                    record['verified_at'] = self.now().isoformat()
-                    await self.boundary.save(copy.deepcopy(self.records))
-                    return {'id':identifier, 'status':'executed', 'device_state_verified':False}
-                if doc['kind'] == 'edit':
-                    return await self._edit(record, doc, expected_hash)
-                caps = await self._fresh()
-                config = dict(p.validate_spec(copy.deepcopy(doc['payload']), caps['inventory']), id=identifier)
-                record['config_hash'] = p.hash_json(config)
-                async with self.boundary.lock:
-                    await self.boundary.validate(copy.deepcopy(config))
-                    rows = await self.boundary.read()
-                    self._rows(rows)
-                    if any(row.get('id') == identifier for row in rows):
-                        raise ApprovalError('already_exists', 409)
-                    # Last authorization gate before persistence: fresh policy,
-                    # expiry, bindings and timezone under the native lock. Reload
-                    # can activate this definition before explicit turn_on.
-                    await self._check(doc, expected_hash)
-                    await self.boundary.write(rows + [config])
-                    if native_hash(await self.boundary.read()) != native_hash(rows + [config]):
-                        raise ApprovalError('uncertain', 409)
-                    # Pinned reload does not reacquire the native config lock.
-                    # Keep UI writers out from persistence through activation and
-                    # exact readback; detecting drift only after reload is too late.
-                    await self.boundary.reload(identifier)
-                    await self._check(doc, expected_hash)
-                    loaded = await self._exact(identifier, record['config_hash'])
-                    await self._check(doc, expected_hash)
-                    await self.boundary.enable(loaded['entity_id'])
-                    loaded = await self._exact(identifier, record['config_hash'])
-                    if loaded['state'] != 'on':
-                        raise ApprovalError('uncertain', 409)
-                record['status'] = 'verified_enabled'
+                started = datetime.fromisoformat(preview['timestamp'])
+                expires = datetime.fromisoformat(preview['expires_at'])
+                valid = (started.tzinfo is not None and expires.tzinfo is not None
+                         and (expires-started).total_seconds() == CHAT_INTERACTION_SECONDS
+                         and started <= self.now() < expires)
+            except (KeyError, TypeError, ValueError):
+                valid = False
+            if not valid:
+                raise ApprovalError('chat_preview_expired', 409)
+        doc = await self._check(record['proposal'], expected_hash)
+        try:
+            if chat_evidence is not None:
+                record['approval'] = dict(copy.deepcopy(chat_evidence), sha256=expected_hash,
+                                          timestamp=self.now().isoformat())
+            record['status'] = 'pending'
+            await self.boundary.save(copy.deepcopy(self.records))
+            if doc['kind'] == 'action':
+                await self._check(doc, expected_hash)
+                await self.boundary.execute(copy.deepcopy(doc['payload']))
+                record['status'] = 'executed'
                 record['verified_at'] = self.now().isoformat()
                 await self.boundary.save(copy.deepcopy(self.records))
-                return {'id':identifier, 'status':'verified_enabled', 'entity_id':loaded['entity_id'], 'config_hash':record['config_hash'], 'verified_at':record['verified_at']}
-            except BaseException as exc:
-                record['status'] = 'uncertain'
-                try:
-                    await self.boundary.save(copy.deepcopy(self.records))
-                except Exception:
-                    pass
-                if isinstance(exc, asyncio.CancelledError):
-                    raise
-                raise ApprovalError('uncertain', 409) from None
+                return {'id':identifier, 'status':'executed', 'device_state_verified':False}
+            if doc['kind'] == 'edit':
+                return await self._edit(record, doc, expected_hash)
+            caps = await self._fresh()
+            config = dict(p.validate_spec(copy.deepcopy(doc['payload']), caps['inventory']), id=identifier)
+            record['config_hash'] = p.hash_json(config)
+            async with self.boundary.lock:
+                await self.boundary.validate(copy.deepcopy(config))
+                rows = await self.boundary.read()
+                self._rows(rows)
+                if any(row.get('id') == identifier for row in rows):
+                    raise ApprovalError('already_exists', 409)
+                # Last authorization gate before persistence: fresh policy,
+                # expiry, bindings and timezone under the native lock. Reload
+                # can activate this definition before explicit turn_on.
+                await self._check(doc, expected_hash)
+                await self.boundary.write(rows + [config])
+                if native_hash(await self.boundary.read()) != native_hash(rows + [config]):
+                    raise ApprovalError('uncertain', 409)
+                # Pinned reload does not reacquire the native config lock.
+                # Keep UI writers out from persistence through activation and
+                # exact readback; detecting drift only after reload is too late.
+                await self.boundary.reload(identifier)
+                await self._check(doc, expected_hash)
+                loaded = await self._exact(identifier, record['config_hash'])
+                await self._check(doc, expected_hash)
+                await self.boundary.enable(loaded['entity_id'])
+                loaded = await self._exact(identifier, record['config_hash'])
+                if loaded['state'] != 'on':
+                    raise ApprovalError('uncertain', 409)
+            record['status'] = 'verified_enabled'
+            record['verified_at'] = self.now().isoformat()
+            await self.boundary.save(copy.deepcopy(self.records))
+            return {'id':identifier, 'status':'verified_enabled', 'entity_id':loaded['entity_id'], 'config_hash':record['config_hash'], 'verified_at':record['verified_at']}
+        except BaseException as exc:
+            record['status'] = 'uncertain'
+            try:
+                await self.boundary.save(copy.deepcopy(self.records))
+            except Exception:
+                pass
+            if isinstance(exc, asyncio.CancelledError):
+                raise
+            raise ApprovalError('uncertain', 409) from None
 
     async def _exact(self, identifier, config_hash):
         rows = await self.boundary.read()

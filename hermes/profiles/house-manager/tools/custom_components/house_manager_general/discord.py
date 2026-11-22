@@ -172,7 +172,7 @@ class ApprovalWorker:
 
     async def poll(self, identifier):
         record = self.manager.records[identifier]
-        if record['status'] != 'awaiting_approval':
+        if record['status'] != 'awaiting_approval' or record.get('approval'):
             self._poll_scans.pop(identifier, None)
             return
         if not _within_lifetime(record['proposal'], self.manager.now()):

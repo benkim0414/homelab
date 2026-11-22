@@ -1,0 +1,377 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ha-operations
+  namespace: hermes
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: hermes-ha-operations
+  namespace: home-assistant
+rules:
+- apiGroups:
+  - apps
+  resources:
+  - statefulsets
+  resourceNames:
+  - home-assistant
+  verbs:
+  - get
+  - patch
+- apiGroups:
+  - ''
+  resources:
+  - pods
+  resourceNames:
+  - home-assistant-0
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: hermes-ha-operations
+  namespace: home-assistant
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: hermes-ha-operations
+subjects:
+- kind: ServiceAccount
+  name: ha-operations
+  namespace: hermes
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ha-operations
+  namespace: hermes
+spec:
+  podSelector:
+    matchLabels:
+      app: ha-operations
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: hermes
+      podSelector:
+        matchLabels:
+          app: hermes
+    ports:
+    - protocol: TCP
+      port: 8080
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: home-assistant
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: home-assistant
+          app.kubernetes.io/instance: home-assistant
+    ports:
+    - protocol: TCP
+      port: 8123
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+  - to:
+    - ipBlock:
+        cidr: 10.43.0.1/32
+    - ipBlock:
+        cidr: 192.168.0.11/32
+    - ipBlock:
+        cidr: 192.168.0.12/32
+    - ipBlock:
+        cidr: 192.168.0.13/32
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 6443
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: hermes-to-ha-operations
+  namespace: hermes
+spec:
+  podSelector:
+    matchLabels:
+      app: hermes
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: ha-operations
+    ports:
+    - protocol: TCP
+      port: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ha-operations
+  namespace: hermes
+spec:
+  type: ClusterIP
+  selector:
+    app: ha-operations
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ha-operations
+  namespace: hermes
+data:
+  broker.py: "\"\"\"Fixed HA health/restart API. No shell, exec, logs, generic proxy\
+    \ or stored HA token.\"\"\"\nimport asyncio\nfrom datetime import datetime, timezone\n\
+    import json\nimport os\nfrom pathlib import Path\nimport re\nimport ssl\n\nfrom\
+    \ aiohttp import ClientSession, ClientTimeout, TraceConfig, web\n\nHA_WS = 'ws://home-assistant.home-assistant.svc.cluster.local:8123/api/websocket'\n\
+    HA_CHECK = 'http://home-assistant.home-assistant.svc.cluster.local:8123/api/house_manager_general/check-config'\n\
+    STS = '/apis/apps/v1/namespaces/home-assistant/statefulsets/home-assistant'\n\
+    POD = '/api/v1/namespaces/home-assistant/pods/home-assistant-0'\nSTAMP = 'house-manager.homelab/restarted-at'\n\
+    SA = Path('/var/run/secrets/kubernetes.io/serviceaccount')\nMAX_RESPONSE = 1048576\n\
+    \n\nclass Refused(Exception):\n    pass\n\n\nasync def no_redirect(*args):\n \
+    \   raise Refused('redirect_refused')\n\n\nasync def authenticate(session, token,\
+    \ bot_id):\n    \"\"\"Validate with HA itself, then bind exact non-admin identity;\
+    \ never decode JWTs.\"\"\"\n    async with asyncio.timeout(12):\n        async\
+    \ with session.ws_connect(HA_WS, max_msg_size=65536, heartbeat=None) as ws:\n\
+    \            if (await ws.receive_json()).get('type') != 'auth_required':\n  \
+    \              raise Refused('authentication_unavailable')\n            await\
+    \ ws.send_json({'type': 'auth', 'access_token': token})\n            if (await\
+    \ ws.receive_json()).get('type') != 'auth_ok':\n                raise Refused('authentication_denied')\n\
+    \            await ws.send_json({'id': 1, 'type': 'auth/current_user'})\n    \
+    \        result = await ws.receive_json()\n            user = result.get('result')\n\
+    \            if (result.get('id') != 1 or result.get('type') != 'result'\n   \
+    \                 or result.get('success') is not True or not isinstance(user,\
+    \ dict)\n                    or user.get('id') != bot_id or user.get('is_admin')\
+    \ is not False\n                    or user.get('is_owner') is not False):\n \
+    \               raise Refused('authentication_denied')\n\n\nasync def check_config(session,\
+    \ token):\n    \"\"\"Call only HA's authenticated read-only native config validation\
+    \ facade.\"\"\"\n    async with asyncio.timeout(30):\n        async with session.post(HA_CHECK,\
+    \ data=b'{}',\n                headers={'Authorization': 'Bearer ' + token, 'Content-Type':\
+    \ 'application/json'},\n                allow_redirects=False, timeout=ClientTimeout(total=30,\
+    \ connect=5)) as response:\n            if response.status != 200:\n         \
+    \       raise Refused('config_check_unavailable')\n            body = bytearray()\n\
+    \            async for chunk in response.content.iter_chunked(4096):\n       \
+    \         body.extend(chunk)\n                if len(body) > 4096:\n         \
+    \           raise Refused('config_check_unavailable')\n            try:\n    \
+    \            return json.loads(body)\n            except (ValueError, UnicodeError):\n\
+    \                raise Refused('config_check_unavailable') from None\n\n\ndef\
+    \ validate_check(result, now):\n    if (not isinstance(result, dict) or set(result)\
+    \ != {'valid', 'checked_at'}\n            or type(result.get('valid')) is not\
+    \ bool\n            or not isinstance(result.get('checked_at'), str)):\n     \
+    \   raise Refused('config_check_unavailable')\n    if result['valid'] is not True:\n\
+    \        raise Refused('config_invalid')\n    try:\n        checked_at = datetime.fromisoformat(result['checked_at'])\n\
+    \        offset = checked_at.utcoffset()\n        if offset is None or offset.total_seconds()\
+    \ != 0:\n            raise ValueError()\n        age = (now - checked_at).total_seconds()\n\
+    \        if not -5 <= age <= 60:\n            raise ValueError()\n    except (ValueError,\
+    \ TypeError, OverflowError):\n        raise Refused('config_check_unavailable')\
+    \ from None\n    return checked_at.isoformat()\n\n\nclass Kubernetes:\n    def\
+    \ __init__(self, session):\n        self.session = session\n        self.context\
+    \ = ssl.create_default_context(cafile=str(SA / 'ca.crt'))\n\n    async def __call__(self,\
+    \ method, path, payload=None):\n        if (method, path) not in {('GET', STS),\
+    \ ('PATCH', STS), ('GET', POD)}:\n            raise Refused('unsupported_operation')\n\
+    \        # Read each time: the projected token rotates. It never enters responses/logs.\n\
+    \        headers = {'Authorization': 'Bearer ' + (SA / 'token').read_text().strip()}\n\
+    \        if payload is not None:\n            headers['Content-Type'] = 'application/json-patch+json'\n\
+    \        async with self.session.request(method, 'https://kubernetes.default.svc'\
+    \ + path,\n                headers=headers, data=None if payload is None else\
+    \ json.dumps(payload),\n                ssl=self.context, allow_redirects=False)\
+    \ as response:\n            if response.status not in (200, 201):\n          \
+    \      raise Refused('kubernetes_request_failed')\n            body = bytearray()\n\
+    \            async for chunk in response.content.iter_chunked(65536):\n      \
+    \          body.extend(chunk)\n                if len(body) > MAX_RESPONSE:\n\
+    \                    raise Refused('response_too_large')\n            return json.loads(body)\n\
+    \n\ndef summarize(sts, pod):\n    status = sts.get('status', {})\n    pstatus\
+    \ = pod.get('status', {})\n    # No raw metadata, configuration, conditions/messages,\
+    \ container args or logs.\n    return {'workload': 'home-assistant', 'kind': 'StatefulSet',\n\
+    \            'desired_replicas': sts['spec'].get('replicas'),\n            'ready_replicas':\
+    \ status.get('readyReplicas', 0),\n            'updated_replicas': status.get('updatedReplicas',\
+    \ 0),\n            'generation_observed': status.get('observedGeneration') ==\
+    \ sts['metadata']['generation'],\n            'revision_converged': status.get('currentRevision')\
+    \ == status.get('updateRevision'),\n            'pod_present': True,\n       \
+    \     'pod_running': pstatus.get('phase') == 'Running',\n            'pod_terminating':\
+    \ bool(pod['metadata'].get('deletionTimestamp')),\n            'pod_ready': any(c.get('type')\
+    \ == 'Ready' and c.get('status') == 'True'\n                             for c\
+    \ in pstatus.get('conditions', [])),\n            'containers': [{'ready': c.get('ready')\
+    \ is True,\n                            'restart_count': c.get('restartCount',\
+    \ 0),\n                            'waiting': 'waiting' in c.get('state', {}),\n\
+    \                            'terminated': 'terminated' in c.get('state', {})}\n\
+    \                           for c in pstatus.get('containerStatuses', [])]}\n\n\
+    \ndef restart_patch(sts, pod, now):\n    spec, meta, status = sts['spec'], sts['metadata'],\
+    \ sts.get('status', {})\n    strategy = spec.get('updateStrategy', {})\n    if\
+    \ (meta.get('deletionTimestamp') or spec.get('replicas') != 1\n            or\
+    \ strategy.get('type') != 'RollingUpdate'\n            or strategy.get('rollingUpdate',\
+    \ {}).get('partition', 0) != 0\n            or status.get('observedGeneration')\
+    \ != meta['generation']\n            or not status.get('currentRevision')\n  \
+    \          or status.get('currentRevision') != status.get('updateRevision')\n\
+    \            or status.get('updatedReplicas') != 1\n            or pod['metadata'].get('deletionTimestamp')\n\
+    \            or not any(o.get('kind') == 'StatefulSet' and o.get('name') == 'home-assistant'\n\
+    \                       and o.get('uid') == meta['uid'] and o.get('controller')\
+    \ is True\n                       for o in pod['metadata'].get('ownerReferences',\
+    \ []))):\n        raise Refused('unsafe_or_in_progress_rollout')\n    annotations\
+    \ = dict(spec['template']['metadata'].get('annotations') or {})\n    if STAMP\
+    \ in annotations:\n        try:\n            last = datetime.fromisoformat(annotations[STAMP])\n\
+    \            if last.tzinfo is None or (now - last).total_seconds() < 300:\n \
+    \               raise Refused('restart_cooldown')\n        except (ValueError,\
+    \ TypeError):\n            raise Refused('invalid_restart_stamp') from None\n\
+    \    annotations[STAMP] = now.isoformat()\n    return [{'op': 'test', 'path':\
+    \ '/metadata/resourceVersion', 'value': meta['resourceVersion']},\n          \
+    \  {'op': 'test', 'path': '/metadata/uid', 'value': meta['uid']},\n          \
+    \  {'op': 'add', 'path': '/spec/template/metadata/annotations', 'value': annotations}]\n\
+    \n\ndef make_app(bot_id, authenticate_request, kube, config_check=None):\n   \
+    \ if re.fullmatch('[0-9a-f]{32}', bot_id) is None:\n        raise ValueError('Exact\
+    \ non-secret HA bot user ID required')\n    lock = asyncio.Lock()\n\n    @web.middleware\n\
+    \    async def boundary(request, handler):\n        try:\n            if (request.method\
+    \ != 'POST' or request.path not in ('/v1/health', '/v1/restart')\n           \
+    \         or request.query_string or 'Origin' in request.headers\n           \
+    \         or request.headers.get('Content-Type') != 'application/json'\n     \
+    \               or request.headers.get('Content-Encoding')\n                 \
+    \   or len(request.headers.getall('Authorization', [])) != 1):\n             \
+    \   raise Refused('invalid_request')\n            header = request.headers['Authorization']\n\
+    \            if not re.fullmatch(r'Bearer [A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+',\
+    \ header) or len(header) > 8192:\n                raise Refused('authentication_denied')\n\
+    \            if await request.read() != b'{}':\n                raise Refused('empty_object_required')\n\
+    \            await authenticate_request(header[7:], bot_id)\n            return\
+    \ await handler(request)\n        except Refused as error:\n            # All\
+    \ messages above are fixed constants. Never stringify upstream exceptions.\n \
+    \           return web.json_response({'ok': False, 'error': error.args[0]}, status=403)\n\
+    \        except Exception:\n            return web.json_response({'ok': False,\
+    \ 'error': 'operation_unavailable'}, status=503)\n\n    async def operate(request):\n\
+    \        async with lock:\n            sts = await kube('GET', STS)\n        \
+    \    pod = await kube('GET', POD)\n            if request.path == '/v1/health':\n\
+    \                return web.json_response({'ok': True, 'health': summarize(sts,\
+    \ pod)})\n            if config_check is None:\n                raise Refused('config_check_unavailable')\n\
+    \            # Fresh validation under the restart lock; never cache or borrow\
+    \ admin auth.\n            result = await config_check(request.headers['Authorization'][7:])\n\
+    \            checked_at = validate_check(result, datetime.now(timezone.utc))\n\
+    \            patch = restart_patch(sts, pod, datetime.now(timezone.utc))\n   \
+    \         await kube('PATCH', STS, patch)\n            # Never retry an ambiguous\
+    \ patch. Read exact target before claiming acceptance.\n            readback =\
+    \ await kube('GET', STS)\n            expected = patch[-1]['value'][STAMP]\n \
+    \           if (readback['metadata']['uid'] != sts['metadata']['uid']\n      \
+    \              or readback['spec']['template']['metadata']['annotations'].get(STAMP)\
+    \ != expected):\n                raise Refused('restart_not_verified')\n     \
+    \       return web.json_response({'ok': True, 'restart_requested': True,\n   \
+    \                                   'annotation_verified': True, 'rollout_verified':\
+    \ False,\n                                      'config_check_verified': True,\
+    \ 'config_checked_at': checked_at})\n\n    app = web.Application(middlewares=[boundary],\
+    \ client_max_size=16)\n    app.router.add_post('/v1/health', operate)\n    app.router.add_post('/v1/restart',\
+    \ operate)\n    return app\n\n\nasync def application():\n    trace = TraceConfig()\n\
+    \    trace.on_request_redirect.append(no_redirect)\n    session = ClientSession(timeout=ClientTimeout(total=15,\
+    \ connect=5),\n                            trust_env=False, trace_configs=[trace])\n\
+    \    try:\n        kube = Kubernetes(session)\n        async def auth(token, bot_id):\n\
+    \            await authenticate(session, token, bot_id)\n        async def config_check(token):\n\
+    \            return await check_config(session, token)\n        app = make_app(os.environ['HA_BOT_USER_ID'],\
+    \ auth, kube, config_check)\n    except BaseException:\n        await session.close()\n\
+    \        raise\n    async def cleanup(app):\n        await session.close()\n \
+    \   app.on_cleanup.append(cleanup)\n    return app\n\n\nif __name__ == '__main__':\n\
+    \    web.run_app(application(), host='0.0.0.0', port=8080, access_log=None,\n\
+    \                print=None, handler_cancellation=True)\n"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ha-operations
+  namespace: hermes
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ha-operations
+  template:
+    metadata:
+      labels:
+        app: ha-operations
+      annotations:
+        checksum/source: 67dd1a992eec1b8b5b5d07ba7e093f7e4a429ede30072eef836cb51203ec2664
+    spec:
+      serviceAccountName: ha-operations
+      nodeSelector:
+        kubernetes.io/hostname: k3s-05
+      automountServiceAccountToken: false
+      securityContext:
+        runAsUser: 10000
+        runAsGroup: 10000
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: broker
+        image: nousresearch/hermes-agent:v0.23.2@sha256:d6746a084e9341baada483e3d6210444d3c1aeb7c130f0915150065fb2851459
+        imagePullPolicy: IfNotPresent
+        command:
+        - /opt/hermes/.venv/bin/python
+        - -B
+        - /broker/broker.py
+        env:
+        - name: HA_BOT_USER_ID
+          value: 31aa5893f45b478b8a3bcc505bf5dc96
+        ports:
+        - name: http
+          containerPort: 8080
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 25m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+        readinessProbe:
+          tcpSocket:
+            port: http
+          periodSeconds: 10
+        volumeMounts:
+        - name: source
+          mountPath: /broker
+          readOnly: true
+        - name: api-access
+          mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+          readOnly: true
+      volumes:
+      - name: source
+        configMap:
+          name: ha-operations
+      - name: api-access
+        projected:
+          defaultMode: 292
+          sources:
+          - serviceAccountToken:
+              path: token
+              expirationSeconds: 3600
+          - configMap:
+              name: kube-root-ca.crt
+              items:
+              - key: ca.crt
+                path: ca.crt

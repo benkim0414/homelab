@@ -1,0 +1,163 @@
+# Input to render.py; not directly selected by the Hermes Application.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ha-operations
+  namespace: hermes
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: hermes-ha-operations
+  namespace: home-assistant
+rules:
+  - apiGroups: [apps]
+    resources: [statefulsets]
+    resourceNames: [home-assistant]
+    verbs: [get, patch]
+  - apiGroups: ['']
+    resources: [pods]
+    resourceNames: [home-assistant-0]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: hermes-ha-operations
+  namespace: home-assistant
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: hermes-ha-operations
+subjects:
+  - kind: ServiceAccount
+    name: ha-operations
+    namespace: hermes
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ha-operations
+  namespace: hermes
+spec:
+  podSelector:
+    matchLabels: {app: ha-operations}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: hermes}
+          podSelector:
+            matchLabels: {app: hermes}
+      ports: [{protocol: TCP, port: 8080}]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: home-assistant}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: home-assistant
+              app.kubernetes.io/instance: home-assistant
+      ports: [{protocol: TCP, port: 8123}]
+    - to:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: kube-system}
+          podSelector:
+            matchLabels: {k8s-app: kube-dns}
+      ports: [{protocol: UDP, port: 53}, {protocol: TCP, port: 53}]
+    # API ClusterIP and the read-only observed post-DNAT endpoints.
+    - to:
+        - ipBlock: {cidr: 10.43.0.1/32}
+        - ipBlock: {cidr: 192.168.0.11/32}
+        - ipBlock: {cidr: 192.168.0.12/32}
+        - ipBlock: {cidr: 192.168.0.13/32}
+      ports: [{protocol: TCP, port: 443}, {protocol: TCP, port: 6443}]
+---
+# Additive exception only; preserves Hermes's existing deny-by-default policy.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: hermes-to-ha-operations
+  namespace: hermes
+spec:
+  podSelector:
+    matchLabels: {app: hermes}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels: {app: ha-operations}
+      ports: [{protocol: TCP, port: 8080}]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ha-operations
+  namespace: hermes
+spec:
+  type: ClusterIP
+  selector: {app: ha-operations}
+  ports: [{name: http, port: 8080, targetPort: 8080}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ha-operations
+  namespace: hermes
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: ha-operations}
+  template:
+    metadata:
+      labels: {app: ha-operations}
+    spec:
+      serviceAccountName: ha-operations
+      # Avoid adding pressure to the ARM64 node hosting HA and Hermes.
+      nodeSelector:
+        kubernetes.io/hostname: k3s-05
+      automountServiceAccountToken: false
+      securityContext:
+        runAsUser: 10000
+        runAsGroup: 10000
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: broker
+          image: nousresearch/hermes-agent:v0.23.2@sha256:d6746a084e9341baada483e3d6210444d3c1aeb7c130f0915150065fb2851459
+          imagePullPolicy: IfNotPresent
+          command: [/opt/hermes/.venv/bin/python, -B, /broker/broker.py]
+          env:
+            - name: HA_BOT_USER_ID
+              value: '' # render.py requires the exact non-secret dedicated bot ID.
+          ports: [{name: http, containerPort: 8080}]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          resources:
+            requests: {cpu: 25m, memory: 64Mi}
+            limits: {cpu: 200m, memory: 128Mi}
+          readinessProbe:
+            tcpSocket: {port: http}
+            periodSeconds: 10
+          volumeMounts:
+            - {name: source, mountPath: /broker, readOnly: true}
+            - name: api-access
+              mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+              readOnly: true
+      volumes:
+        - name: source
+          configMap: {name: ha-operations}
+        - name: api-access
+          projected:
+            defaultMode: 0444
+            sources:
+              - serviceAccountToken:
+                  path: token
+                  expirationSeconds: 3600
+              - configMap:
+                  name: kube-root-ca.crt
+                  items: [{key: ca.crt, path: ca.crt}]

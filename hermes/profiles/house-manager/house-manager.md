@@ -8,7 +8,36 @@
 - Desktop backend: `https://hermes.tailbd291c.ts.net` (private Tailscale).
 - Profile was created fresh with `--no-skills --no-alias`, not cloned.
 
-## Current activation progress
+## Standing permission activation — 2026-11-22
+
+The operator approved routine HA standing permissions. Component 0.5.0 is now
+installed on the existing HA PVC with `standing_permissions: true`. Safe typed
+routine creation/owned editing and owned enable/disable no longer require an
+independent human approval for every change. Hazardous/untrusted operations
+retain their gates; native extra fields and retained-heating fan activation do
+not qualify for standing permission. The operational bot remains non-admin.
+
+The profile's protected instructions, connector and explicit filter now expose
+12 tools, including sanitized diagnostics, native configuration checks, fixed
+HA workload health and guarded restart. A separate non-root broker has RBAC only
+for the exact existing HA StatefulSet/pod, not Secrets, exec or other workloads.
+Authenticated native MCP reads and one real broker restart passed, followed by
+fresh readiness, revision and unchanged storage-identity checks. No production
+automation or device-control mutation was used for acceptance.
+
+This is **not full HA administrator access**. Dashboard/helper/integration edits
+remain unexposed pending safe capability implementation; no additional blanket
+permission is needed for work already inside the approved scope. Existing chats
+can retain old tools/instructions: use a fresh House manager conversation, not
+an in-place change to its cached prompt. The operator subsequently reported a
+successful fresh-chat read-only smoke test; the UI was not independently tested.
+
+See [permission scope](STANDING-PERMISSIONS.md),
+[active instruction source](SOUL-STANDING.md) and
+[verification/rollout record](../../../reports/2026-11-22-house-manager-standing-permissions.md).
+The following activation notes are historical and superseded where they conflict.
+
+## Earlier activation progress
 
 This section supersedes the historical bootstrap state below.
 
