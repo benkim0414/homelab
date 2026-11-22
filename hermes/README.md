@@ -44,7 +44,10 @@ The profile status records describe their original acceptance observations.
 Historical evidence retains original paths and identifiers. Repository directory
 names do not change paths inside containers or records of previous operations.
 
-No live rollout, restart or ArgoCD sync is part of this reorganization. Publication
-and reconciliation require their own authorization. Before any later sync,
-review the root Application path changes and each child's complete diff without
-pruning, force or replacement. Preserve all existing claim identities.
+The reorganization itself did not perform live rollout or sync. Subsequently,
+the user authorized scoped GitOps reconciliation. All three Applications were
+verified Synced/Healthy at the published layout revision, with original pods and
+claims preserved. See [the reconciliation record](GITOPS-RECONCILIATION.md).
+
+Future reconciliation still needs its own authorization and complete diff review
+without pruning, force or replacement. Preserve all existing claim identities.
