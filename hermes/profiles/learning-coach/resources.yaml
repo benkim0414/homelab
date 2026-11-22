@@ -1,0 +1,83 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: learning-coach
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: learning-coach-data
+  namespace: learning-coach
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: learning-coach
+  namespace: learning-coach
+  annotations:
+    homelab/display-name: Learning coach
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: learning-coach
+  template:
+    metadata:
+      labels:
+        app: learning-coach
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        fsGroup: 10000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: hermes
+          image: nousresearch/hermes-agent:v0.23.2@sha256:d6746a084e9341baada483e3d6210444d3c1aeb7c130f0915150065fb2851459
+          # Keep the official s6 entrypoint and its supported executable routing.
+          # No gateway, dashboard, exposed service or automatic model call.
+          args: [sleep, infinity]
+          workingDir: /opt/data
+          env:
+            - name: HERMES_HOME
+              value: /opt/data
+            - name: HERMES_WRITE_SAFE_ROOT
+              value: /opt/data
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+              add: [CHOWN, DAC_OVERRIDE, FOWNER, KILL, SETGID, SETUID]
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: '2'
+              memory: 2Gi
+          readinessProbe:
+            exec:
+              command: [/command/s6-setuidgid, hermes, /bin/test, -w, /opt/data]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - name: data
+              mountPath: /opt/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: learning-coach-data

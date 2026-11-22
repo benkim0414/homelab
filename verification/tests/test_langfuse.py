@@ -123,7 +123,7 @@ class LangfuseTests(unittest.TestCase):
             self.assertIn('Bucket creation not verified', result.stdout)
 
     def test_hermes_launch_configuration(self):
-        documents = list(yaml.safe_load_all((ROOT / 'hermes/deployment.yaml').read_text()))
+        documents = list(yaml.safe_load_all((ROOT / 'hermes/profiles/house-manager/deployment.yaml').read_text()))
         deployment = next(d for d in documents if d['kind'] == 'Deployment')
         container = next(c for c in deployment['spec']['template']['spec']['containers']
                          if c['name'] == 'hermes')
@@ -145,7 +145,7 @@ class LangfuseTests(unittest.TestCase):
         self.assertIn('langfuse-sealed-secret.yaml', include.strip('{}').split(','))
 
     def test_hermes_has_only_web_endpoint_exception(self):
-        policy = load('hermes/network-policy.yaml')
+        policy = load('hermes/profiles/house-manager/network-policy.yaml')
         rules = [r for r in policy['spec']['egress'] if any(
             p.get('namespaceSelector', {}).get('matchLabels', {}).get(
                 'kubernetes.io/metadata.name') == 'langfuse' for p in r.get('to', []))]

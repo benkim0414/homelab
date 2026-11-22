@@ -61,7 +61,7 @@ root, unprivileged server user, and strict SSH configuration in the manifests.
 `herdr-data` is prebound to PV/Longhorn volume `herdr-k3s-data`. The PV uses Retain
 and both resources disable ArgoCD prune/delete. The restored filesystem contains
 the writable home and root-owned SSH host keys. The migration source PVC
-`hermes/herdr-data` remains declared in `hermes/herdr-legacy-storage.yaml` for
+`hermes/herdr-data` remains declared in `hermes/profiles/house-manager/herdr-legacy-storage.yaml` for
 rollback; its existing Longhorn reclaim policy is Delete. Never delete it.
 The new volume must be restored before rollout; an empty filesystem must not be
 accepted as a successful migration. There is no recurring Herdr archive schedule.

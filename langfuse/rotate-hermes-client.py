@@ -98,7 +98,7 @@ def write_backup(directory, data):
 
 def rotate(root):
     """Return the old ciphertext backup path only after atomic replacement."""
-    directory = bootstrap.open_directory(root / 'hermes')
+    directory = bootstrap.open_directory(root / 'hermes/profiles/house-manager')
     staging = cache = verification = None
     try:
         fcntl.flock(directory, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -144,7 +144,7 @@ def rotate(root):
 def main(argv=None):
     parser = bootstrap.PrivateArgumentParser(description=(
         'Private hermes-cluster project key rotation only. Replaces only '
-        'hermes/langfuse-sealed-secret.yaml after HTTPS verification and strict '
+        'hermes/profiles/house-manager/langfuse-sealed-secret.yaml after HTTPS verification and strict '
         'sealing; retains old ciphertext in ignored verification/cache/rotation-*. '
         'No credential arguments, plaintext files, key revocation or cluster apply.'))
     args = list(sys.argv[1:] if argv is None else argv)

@@ -35,9 +35,9 @@ class RotationTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
-        for name in ('langfuse', 'hermes', 'verification/cache'):
+        for name in ('langfuse', 'hermes/profiles/house-manager', 'verification/cache'):
             (self.root / name).mkdir(parents=True)
-        self.target = self.root / 'hermes/langfuse-sealed-secret.yaml'
+        self.target = self.root / 'hermes/profiles/house-manager/langfuse-sealed-secret.yaml'
         self.original = ciphertext(b'OLD-FAKE-CIPHERTEXT')
         self.target.write_bytes(self.original)
         self.output = io.StringIO()

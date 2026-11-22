@@ -14,15 +14,16 @@ class Dumper(yaml.SafeDumper):
 
 
 Dumper.add_representer(Literal, lambda d, s: d.represent_scalar('tag:yaml.org,2002:str', s, style='|'))
-root = Path(__file__).resolve().parents[1]
-source = (root / 'hermes/browser-server.py').read_bytes()
+profile = Path(__file__).resolve().parent
+root = profile.parents[2]
+source = (profile / 'browser-server.py').read_bytes()
 config = {
     'apiVersion': 'v1', 'kind': 'ConfigMap',
     'metadata': {'name': 'hermes-browser', 'namespace': 'hermes'},
     'data': {'browser-server.py': Literal(source.decode())},
 }
-(root / 'hermes/browser-configmap.yaml').write_text(yaml.dump(config, Dumper=Dumper, sort_keys=False))
-path = root / 'hermes/browser.yaml'
+(profile / 'browser-configmap.yaml').write_text(yaml.dump(config, Dumper=Dumper, sort_keys=False))
+path = profile / 'browser.yaml'
 resources = list(yaml.safe_load_all(path.read_text()))
 annotations = resources[0]['spec']['template']['metadata'].setdefault('annotations', {})
 annotations['checksum/server'] = hashlib.sha256(source).hexdigest()

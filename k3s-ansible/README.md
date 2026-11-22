@@ -386,6 +386,6 @@ The isolated Hermes browser uses a workload-specific Localhost profile on
 `k3s-05`. [browser-seccomp.yml](browser-seccomp.yml) installs it without
 restarting K3s or changing other workloads. Read the
 [profile provenance](files/README.md) and
-[Hermes rollout procedure](../hermes/README.md#node-prerequisite-and-rollout)
+[Hermes rollout procedure](../hermes/profiles/house-manager/README.md#node-prerequisite-and-rollout)
 before an approved install or node rebuild. Do not run the general preparation
 or cluster-join playbooks to update this profile.

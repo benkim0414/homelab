@@ -26,8 +26,8 @@ class ClientSealingTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
         (self.root / 'langfuse').mkdir()
-        (self.root / 'hermes').mkdir()
-        self.target = self.root / 'hermes/langfuse-sealed-secret.yaml'
+        (self.root / 'hermes/profiles/house-manager').mkdir(parents=True)
+        self.target = self.root / 'hermes/profiles/house-manager/langfuse-sealed-secret.yaml'
         self.output = io.StringIO()
         self.captured = []
 

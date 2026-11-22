@@ -80,7 +80,7 @@ def main(argv=None):
     parser = bootstrap.PrivateArgumentParser(description=(
         'Private terminal only: verify the hermes-cluster project key pair over '
         'HTTPS, then seal it as hermes/hermes-langfuse. Writes only '
-        'hermes/langfuse-sealed-secret.yaml; refuses symlinks and existing files. '
+        'hermes/profiles/house-manager/langfuse-sealed-secret.yaml; refuses symlinks and existing files. '
         'No credential arguments, plaintext files or cluster apply.'))
     parser.parse_args(argv)
     if not sys.stdin.isatty() or not sys.stderr.isatty():
@@ -88,7 +88,7 @@ def main(argv=None):
     previous_umask = os.umask(0o077)
     directory = None
     try:
-        directory = bootstrap.open_directory(Path(__file__).absolute().parent.parent / 'hermes')
+        directory = bootstrap.open_directory(Path(__file__).absolute().parent.parent / 'hermes/profiles/house-manager')
         provision(directory)
     except ClientError as exc:
         raise SystemExit('Client provisioning failed: ' + REASONS.get(str(exc), 'validation failed') +

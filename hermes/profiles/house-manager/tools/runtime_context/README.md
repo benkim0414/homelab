@@ -102,12 +102,12 @@ is outside the protection this ContextVar fix can provide.
 From the worktree root (all fixture writes are ignored local public source):
 
 ```sh
-python3 hermes/house-manager-tools/runtime_context/capture_public_sources.py
-python3 hermes/house-manager-tools/runtime_context/capture_public_sources.py --upstream
-python3 hermes/house-manager-tools/test_runtime_context.py
-python3 hermes/house-manager-tools/runtime_context/render.py \
-  --source-root hermes/house-manager-tools/runtime_context/.test-state/installed \
-  --output-root hermes/house-manager-tools/runtime_context/.test-state/rendered
+python3 hermes/profiles/house-manager/tools/runtime_context/capture_public_sources.py
+python3 hermes/profiles/house-manager/tools/runtime_context/capture_public_sources.py --upstream
+python3 hermes/profiles/house-manager/tools/test_runtime_context.py
+python3 hermes/profiles/house-manager/tools/runtime_context/render.py \
+  --source-root hermes/profiles/house-manager/tools/runtime_context/.test-state/installed \
+  --output-root hermes/profiles/house-manager/tools/runtime_context/.test-state/rendered
 git diff --check
 ```
 

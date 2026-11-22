@@ -12,8 +12,8 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 MODULE = types.ModuleType('hermes_backup')
-SOURCE = yaml.safe_load((ROOT / 'hermes/backup-configmap.yaml').read_text())['data']['backup.py']
-exec(compile(SOURCE, 'hermes/backup-configmap.yaml:backup.py', 'exec'), MODULE.__dict__)
+SOURCE = yaml.safe_load((ROOT / 'hermes/profiles/house-manager/backup-configmap.yaml').read_text())['data']['backup.py']
+exec(compile(SOURCE, 'hermes/profiles/house-manager/backup-configmap.yaml:backup.py', 'exec'), MODULE.__dict__)
 VOLUME = 'pvc-d4c53ad4-a9a2-4d28-91a9-0c4e3c884383'
 
 

@@ -45,7 +45,10 @@ find('langfuse/clickhouse.yaml', 'clickhouse/clickhouse-server');
 assert.equal(find('langfuse/objectstore.yaml', 'chrislusf/seaweedfs').length, 2,
   'SeaweedFS server and initialization hook must both be extracted');
 find('monitoring/loki-values.yaml', 'docker.io/grafana/loki');
-for (const file of ['hermes/deployment.yaml', 'hermes/browser.yaml', 'hermes/backup-cronjob.yaml',
+for (const profile of ['learning-coach', 'career-advisor']) {
+  find(`hermes/profiles/${profile}/resources.yaml`, 'nousresearch/hermes-agent');
+}
+for (const file of ['hermes/profiles/house-manager/deployment.yaml', 'hermes/profiles/house-manager/browser.yaml', 'hermes/profiles/house-manager/backup-cronjob.yaml',
   'openclaw/deployment.yaml', 'openclaw/backup-cronjob.yaml', 'hindsight/api.yaml',
   'hindsight/pg-backup-cronjob.yaml']) {
   assert(rows.some(r => r.packageFile === file && r.datasource === 'docker' && r.currentDigest),

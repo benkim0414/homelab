@@ -48,7 +48,7 @@ jobs:
           verification/venv/bin/python -m unittest discover -s verification/tests -v
           verification/cache/bin/conftest verify --policy verification/policy
       - name: Test house-manager approval boundaries
-        working-directory: hermes/house-manager-tools
+        working-directory: hermes/profiles/house-manager/tools
         env:
           PYTHONDONTWRITEBYTECODE: "1"
         run: |
