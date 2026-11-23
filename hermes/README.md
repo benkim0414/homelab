@@ -28,6 +28,10 @@ Specialist memory integration, Gerrit publication, job submission, messaging,
 desktop delegation and additional channels remain deferred. Existing House
 manager capabilities are neither removed nor granted to the specialists.
 
+The specialists now have separate [scheduled backup policies](SPECIALIST-BACKUPS.md).
+See the [backup and Career advisor restore result](SPECIALIST-BACKUP-RESULT.md)
+for observed recovery checks, the corrected resume failure, and publication status.
+
 [shared/](shared/README.md) is reserved for genuinely shared repository material.
 There is no new shared runtime asset. The runtime-context overlay remains under
 House manager's `tools/runtime_context/` because it is specific to that role.

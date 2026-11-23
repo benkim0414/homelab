@@ -43,7 +43,7 @@ class CareerAdvisorCliTests(unittest.TestCase):
         app = yaml.safe_load((ROOT / 'argocd/apps/career-advisor.yaml').read_text())
         self.assertEqual(app['spec']['source']['targetRevision'], 'main')
         self.assertEqual(app['spec']['source']['path'], 'hermes/profiles/career-advisor')
-        self.assertEqual(app['spec']['source']['directory']['include'], 'resources.yaml')
+        self.assertEqual(app['spec']['source']['directory']['include'], '{resources.yaml,backup-*.yaml}')
         self.assertEqual(app['spec']['destination']['namespace'], 'career-advisor')
         self.assertNotIn('automated', app['spec']['syncPolicy'])
         self.assertNotIn('finalizers', app['metadata'])
