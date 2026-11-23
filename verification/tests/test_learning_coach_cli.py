@@ -41,7 +41,7 @@ class LearningCoachCliTests(unittest.TestCase):
         app = yaml.safe_load((ROOT / 'argocd/apps/learning-coach.yaml').read_text())
         self.assertEqual(app['spec']['source']['targetRevision'], 'main')
         self.assertEqual(app['spec']['source']['path'], 'hermes/profiles/learning-coach')
-        self.assertEqual(app['spec']['source']['directory']['include'], 'resources.yaml')
+        self.assertEqual(app['spec']['source']['directory']['include'], '{resources.yaml,backup-*.yaml}')
         self.assertNotIn('automated', app['spec']['syncPolicy'])
         self.assertNotIn('finalizers', app['metadata'])
 

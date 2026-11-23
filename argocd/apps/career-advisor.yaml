@@ -10,7 +10,7 @@ spec:
     targetRevision: main
     path: hermes/profiles/career-advisor
     directory:
-      include: resources.yaml
+      include: '{resources.yaml,backup-*.yaml}'
   destination:
     server: https://kubernetes.default.svc
     namespace: career-advisor
