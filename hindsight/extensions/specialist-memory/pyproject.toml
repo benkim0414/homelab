@@ -1,0 +1,13 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "homelab-hindsight-specialists"
+version = "0.1.0"
+description = "Local, fail-closed specialist policy for Hindsight 1.2.1"
+requires-python = ">=3.11"
+dependencies = ["hindsight-api-slim==1.2.1", "mcp==2.3.0"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/homelab_hindsight_specialists"]
