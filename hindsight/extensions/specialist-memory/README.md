@@ -1,9 +1,11 @@
 # Local specialist extension
 
-Local source and synthetic transport tests only. This package does not activate
+Local source, synthetic transport tests and isolated packaged acceptance. This package does not activate
 memory or change the deployed server. No live key/schema creation, memory
 migration, provider change, consent state, or operator-write service is included.
-Database-backed recall, durable saves and production container packaging remain untested.
+Real disposable-database saves/readback and HTTP/MCP recall passed on amd64.
+See [accepted evidence](../../../hermes/SPECIALIST-MEMORY-PACKAGED-ACCEPTANCE.json)
+and [results/limits](../../../hermes/SPECIALIST-MEMORY-PACKAGED-RESULT.md).
 
 The tenant and validator slots alone deliberately reject specialist access.
 Call `homelab_hindsight_specialists.ingress.create_guarded_app(memory, **kwargs)`
@@ -11,7 +13,9 @@ instead of the upstream `hindsight_api.api.create_app(memory, **kwargs)` when
 constructing a local test application. This public factory seam places the ASGI
 boundary outside both native HTTP and MCP routing. It does not monkeypatch
 upstream code, create a reverse proxy, start another service, or replace providers.
-Production entrypoint/image wiring is not included or authorized by this stage.
+The installed `hindsight-specialist-api` entrypoint constructs the complete
+native engine/lifespan behind this boundary. The digest-pinned Dockerfile includes
+only production code. Live entrypoint/image adoption remains unapproved.
 
 ## Fixed policy
 
@@ -41,6 +45,12 @@ operation names are denied. Internal worker contexts are accepted only without
 keys/identity claims in an allowlisted active schema. Upstream transport parsers
 cannot set `internal`; this is a trusted in-process worker boundary, not a public
 API flag. Key-bearing contexts never use the worker exception.
+
+An active server-owned content admission permits only the native own-bank
+profile dependency needed by document/recall attachment lookup. Identity, bank
+and extension key maps must match. Completion, failure or cancellation revokes
+this scope, including copies held by native MCP tasks. This is not general
+profile permission. Direct profile/config/admin APIs remain denied.
 
 The outer boundary permits only the exact own-bank REST recall path and native
 single-bank MCP protocol messages needed for `recall`. Unknown paths, other
@@ -75,8 +85,11 @@ its cache entry expires. Existing legacy requests keep their original scope.
 This contract is pinned to MCP SDK 2.3.0. No OAuth flow or separate credential
 service is added.
 
-Only optional operator keys can pass own-bank creation (`PUT`), own-bank retain
-(`POST .../memories`), or native MCP `retain`. These keys do not enable a
+Only optional operator keys can pass own-bank retain (`POST .../memories`),
+its native lazy bank creation, document readback, or native MCP `retain`.
+Boundary admission of bank `PUT` does not grant the profile-administration
+permission that native 1.2.1 also requires. That operation is not accepted here.
+These keys do not enable a
 specialist retain tool. They provide no automatic save approval: the human
 operator must approve the exact content and destination outside agent dispatch.
 No consent service, approval ledger or operator UI is introduced.
@@ -141,10 +154,11 @@ Relevant upstream sources under `hindsight-api-slim/hindsight_api/`:
 The boundary does not depend on proving that every upstream mutator calls a
 validator. Only the bounded read path reaches upstream for specialist keys.
 Extension-only loading still fails closed, without the required outer boundary.
-The test suite exercises successful HTTP and native MCP dispatch with synthetic
-empty recall results. It does not establish database-level behavior or provision
-the real specialist banks. Any audit writes or other internal side effects of
-database-backed recall require review before activation.
+Unit tests exercise native HTTP/MCP dispatch with explicitly synthetic backend
+fixtures. Separately, the [isolated validation runner](validation/README.md)
+exercised real disposable PostgreSQL storage, local embeddings and nonempty
+HTTP/MCP recall. It did not provision the production specialist banks. Production
+audit effects, real-provider behavior and operational rollout still need review.
 
 ## Local verification
 

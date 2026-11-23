@@ -1,0 +1,266 @@
+{
+  "passed": true,
+  "stage": "complete",
+  "checks": {
+    "model_integrity": true,
+    "image_owned_code": true,
+    "api_nonroot": true,
+    "native_no_llm_config": true,
+    "isolated_network": true,
+    "tenant_schemas": true,
+    "positive_client": true,
+    "database_fixture_rows": true,
+    "negative_client": true,
+    "persisted_content_unchanged": true,
+    "zero_observations": true,
+    "cleanup": true
+  },
+  "positive": {
+    "checks": {
+      "durable_documents": true,
+      "legacy_compatibility": true,
+      "mcp_recall": true,
+      "readonly_inventory": true,
+      "rest_recall": true,
+      "synchronous_retain": true
+    },
+    "counts": {
+      "documents": 3,
+      "mcp_recalls": 3,
+      "readonly_inventories": 2,
+      "rest_recalls": 3
+    },
+    "ok": true
+  },
+  "denials": {
+    "checks": {
+      "bank_arguments_denied": true,
+      "bank_header_denied": true,
+      "crossbank_paths_denied": true,
+      "own_recall_uncontaminated": true,
+      "readonly_mutations_denied": true,
+      "unknown_routes_tools_denied": true
+    },
+    "counts": {
+      "denials": 42,
+      "own_recalls": 2
+    },
+    "ok": true
+  },
+  "images": {
+    "api": "sha256:1e22376532760ec7c6e93cbfc09d722ac1c438cd98e6d030f1eac1a231d32883",
+    "database": "sha256:3e8b3adfd27b5707128f60956f62a793c3c9326ea8cfaf0eab7adccb5d700b21",
+    "architecture": "amd64"
+  },
+  "report_path": "/home/benkim0414/workspace/homelab/.worktrees/default-specialist-memory-packaging/verification/cache/packaged-runs/d357ca3d1a224387a8d899edc652f9b2/result.json",
+  "source_hashes": {
+    "__init__.py": "61c6e93439b554c65eb53421156c002e4bc1e9d88f9acedf10cf0634082b3ac0",
+    "ingress.py": "21d17f59d63023219434aee7a61197521c23efb4349d7ca40fb55f1cac5e9f48",
+    "server.py": "494e3668f36a52aab1d313cecbd8c1311d58094d2c3d0780a26777103141a859"
+  },
+  "subnet": "10.254.240.0/28",
+  "snapshots": {
+    "unchanged": true,
+    "documents": [
+      1,
+      1,
+      1
+    ]
+  },
+  "resources": [
+    {
+      "kind": "network",
+      "id": "525af1c304d676bb4921503bf6ee0c76da4bf4cdca155292c0ea5cec84f2adcf",
+      "name": "specialist-validation-ea2d5bc466944ccfb44b764bc76777b7",
+      "image": null,
+      "removed": true,
+      "failed": false
+    },
+    {
+      "kind": "volume",
+      "id": "specialist-validation-686e8eaedbbf497e83a5fe328574d7f5",
+      "name": "specialist-validation-686e8eaedbbf497e83a5fe328574d7f5",
+      "image": null,
+      "removed": true,
+      "failed": false
+    },
+    {
+      "kind": "container",
+      "id": "803bfe621d745d8aacd1caeaba9aeaded97b0912efa984239d8326397030c11b",
+      "name": "specialist-validation-0dad84f0fa524c7aa7edcb6010ae71ab",
+      "image": "sha256:3e8b3adfd27b5707128f60956f62a793c3c9326ea8cfaf0eab7adccb5d700b21",
+      "removed": true,
+      "failed": false
+    },
+    {
+      "kind": "container",
+      "id": "613aaf3bc26c1916f12cb82411d122ff53600cd8b7671d3ba658e487797f1391",
+      "name": "specialist-validation-7cca2e6585c842268d945690b2121e96",
+      "image": "sha256:1e22376532760ec7c6e93cbfc09d722ac1c438cd98e6d030f1eac1a231d32883",
+      "removed": true,
+      "failed": false
+    }
+  ],
+  "events": [
+    {
+      "stage": "inspect",
+      "exit_code": 0
+    },
+    {
+      "stage": "inspect",
+      "exit_code": 0
+    },
+    {
+      "stage": "inspect",
+      "exit_code": 0
+    },
+    {
+      "stage": "inspect",
+      "exit_code": 0
+    },
+    {
+      "stage": "inspect",
+      "exit_code": 0
+    },
+    {
+      "stage": "inspect",
+      "exit_code": 0
+    },
+    {
+      "stage": "inspect",
+      "exit_code": 0
+    },
+    {
+      "stage": "inspect",
+      "exit_code": 0
+    },
+    {
+      "stage": "inspect",
+      "exit_code": 0
+    },
+    {
+      "stage": "inspect",
+      "exit_code": 0
+    },
+    {
+      "stage": "inspect",
+      "exit_code": 0
+    },
+    {
+      "stage": "inspect",
+      "exit_code": 0
+    },
+    {
+      "stage": "inspect",
+      "exit_code": 0
+    },
+    {
+      "stage": "inspect",
+      "exit_code": 0
+    },
+    {
+      "stage": "inspect",
+      "exit_code": 0
+    },
+    {
+      "stage": "inspect",
+      "exit_code": 0
+    },
+    {
+      "stage": "inspect",
+      "exit_code": 0
+    },
+    {
+      "stage": "inspect",
+      "exit_code": 0
+    },
+    {
+      "stage": "inspect",
+      "exit_code": 0
+    },
+    {
+      "stage": "inspect",
+      "exit_code": 0
+    },
+    {
+      "stage": "inspect",
+      "exit_code": 0
+    },
+    {
+      "stage": "inspect",
+      "exit_code": 0
+    },
+    {
+      "stage": "inspect",
+      "exit_code": 0
+    },
+    {
+      "stage": "inspect",
+      "exit_code": 0
+    },
+    {
+      "stage": "inspect",
+      "exit_code": 0
+    },
+    {
+      "stage": "stop",
+      "exit_code": 0
+    },
+    {
+      "stage": "inspect",
+      "exit_code": 0
+    },
+    {
+      "stage": "remove",
+      "exit_code": 0
+    },
+    {
+      "stage": "inspect",
+      "exit_code": 1
+    },
+    {
+      "stage": "inspect",
+      "exit_code": 0
+    },
+    {
+      "stage": "stop",
+      "exit_code": 0
+    },
+    {
+      "stage": "inspect",
+      "exit_code": 0
+    },
+    {
+      "stage": "remove",
+      "exit_code": 0
+    },
+    {
+      "stage": "inspect",
+      "exit_code": 1
+    },
+    {
+      "stage": "inspect",
+      "exit_code": 0
+    },
+    {
+      "stage": "remove",
+      "exit_code": 0
+    },
+    {
+      "stage": "inspect",
+      "exit_code": 1
+    },
+    {
+      "stage": "inspect",
+      "exit_code": 0
+    },
+    {
+      "stage": "remove",
+      "exit_code": 0
+    },
+    {
+      "stage": "inspect",
+      "exit_code": 1
+    }
+  ]
+}

@@ -278,6 +278,22 @@ class IngressTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(r.status_code,403)
         self.assertEqual(self.calls,[])
 
+    async def test_operator_document_readback_is_exact_and_own_bank_only(self):
+        path = '/v1/default/banks/infinite-recursion/documents/acceptance-learning-001'
+        operator = {'Authorization':'Bearer fixture-learning-operator'}
+        r = await self.client.get(path,headers=operator)
+        self.assertEqual(r.status_code,200)
+        self.assertEqual(self.calls[-1][2],'user_learning_coach')
+        self.calls.clear()
+        for target, headers in ((path,self.headers),
+                                (path,{'Authorization':'Bearer fixture-career-operator'}),
+                                (path.replace('infinite-recursion','next-level'),operator),
+                                (path+'/extra',operator),
+                                (path+'?bank_id=next-level',operator)):
+            r = await self.client.get(target,headers=headers)
+            self.assertEqual(r.status_code,403)
+        self.assertEqual(self.calls,[])
+
     async def test_factory_rejects_mismatched_keys_and_other_server_versions(self):
         from homelab_hindsight_specialists.ingress import create_guarded_app
         engine = self.engine_fixture()
@@ -393,6 +409,231 @@ class IngressTests(unittest.IsolatedAsyncioTestCase):
             return RecallResult(results=[])  # Explicit fixture, not a production recall.
         engine.recall_async = recall
         return engine
+
+    def attachment_backend_fixture(self, engine):
+        """Synthetic store/backend only; keep native document/profile/attachment code."""
+        from contextlib import asynccontextmanager
+        from datetime import datetime, timezone
+        from unittest.mock import AsyncMock
+        conn = SimpleNamespace(fetch=AsyncMock(return_value=[]))
+        @asynccontextmanager
+        async def acquire():
+            yield conn
+        backend = SimpleNamespace(_wraps_backend=True, acquire=acquire, ops=object())
+        engine._backend = backend
+        engine._get_backend = AsyncMock(return_value=backend)
+        now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        document = dict(id='fixture-doc', bank_id='infinite-recursion',
+                        original_text='synthetic document', content_hash='fixture-hash',
+                        tags=[], retain_params=None, unit_count=0, world_count=0,
+                        experience_count=0, observation_count=0, created_at=now, updated_at=now)
+        store = SimpleNamespace(get_document_with_counts=AsyncMock(return_value=document))
+        self.profile_rows = AsyncMock(return_value=dict(
+            name='synthetic bank', disposition=dict(skepticism=3, literalism=3, empathy=3), mission='fixture'))
+        for target, value in (
+            ('hindsight_api.engine.memories.get_memories', lambda: store),
+            ('hindsight_api.engine.memory_engine.bank_utils.get_bank_profile_if_exists', self.profile_rows),
+        ):
+            fixture = patch(target, value)
+            fixture.start()
+            self.addCleanup(fixture.stop)
+        return conn
+
+    async def test_native_document_handler_internal_profile_dependency(self):
+        import httpx
+        from homelab_hindsight_specialists.ingress import create_guarded_app
+        engine = self.engine_fixture()
+        conn = self.attachment_backend_fixture(engine)
+        app = create_guarded_app(engine, initialize_memory=False)
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url='http://fixture.invalid') as client:
+            response = await client.get('/v1/default/banks/infinite-recursion/documents/fixture-doc',
+                                        headers={'Authorization':'Bearer fixture-learning-operator'})
+            self.assertEqual(response.status_code, 200, response.text)
+            self.assertEqual(response.json()['original_text'], 'synthetic document')
+        self.profile_rows.assert_awaited_once()
+        conn.fetch.assert_awaited_once()
+
+    async def test_profile_dependency_scope_is_bound_and_revoked(self):
+        import contextvars
+        from hindsight_api.models import RequestContext
+        from hindsight_api.extensions.operation_validator import BankReadContext
+        from homelab_hindsight_specialists.ingress import _ADMITTED
+        validator = self.policy.SpecialistOperationValidator(self.config)
+        snapshots = []
+        async def check(key, bank='infinite-recursion', operation='get_bank_profile', policy=validator):
+            ctx = RequestContext(api_key=key, internal=True, tenant_id='forged', api_key_id='forged')
+            return await policy.validate_bank_read(BankReadContext(bank, operation, ctx))
+        async def downstream(scope, receive, send):
+            admitted = _ADMITTED.get()
+            snapshots.append(contextvars.copy_context())
+            key = dict(scope['headers'])[b'authorization'].decode().removeprefix('Bearer ')
+            is_content = scope['path'].endswith('/memories/recall') or '/documents/' in scope['path']
+            self.assertEqual((await check(key)).allowed, is_content)
+            for operation in ('get_bank_config', 'get_bank_stats', 'future_read'):
+                self.assertFalse((await check(key, operation=operation)).allowed)
+            self.assertFalse((await check(key, bank='next-level')).allowed)
+            other_key = 'fixture-learning-operator' if key == 'fixture-learning' else 'fixture-learning'
+            self.assertFalse((await check(other_key)).allowed)
+            mismatched = self.policy.SpecialistOperationValidator({**self.config, 'career_advisor_api_key':'other-map'})
+            self.assertFalse((await check(key, policy=mismatched)).allowed)
+            for hook in ('validate_retain', 'validate_bank_write'):
+                ctx = SimpleNamespace(bank_id='infinite-recursion', request_context=RequestContext(api_key='fixture-learning'))
+                self.assertFalse((await getattr(validator, hook)(ctx)).allowed)
+            self.assertIs(_ADMITTED.get(), admitted)
+            await send({'type':'http.response.start', 'status':200, 'headers':[]})
+            await send({'type':'http.response.body', 'body':b'{}'})
+        self.boundary.app = downstream
+        for key in ('fixture-learning', 'fixture-learning-operator'):
+            headers = {'Authorization':'Bearer '+key}
+            response = await self.client.post('/v1/default/banks/infinite-recursion/memories/recall', headers=headers, json={'query':'fixture'})
+            self.assertEqual(response.status_code, 200)
+        headers = {'Authorization':'Bearer fixture-learning-operator'}
+        for method, suffix in (('GET','/documents/fixture-doc'), ('PUT',''), ('POST','/memories')):
+            response = await self.client.request(method, '/v1/default/banks/infinite-recursion'+suffix, headers=headers, json={})
+            self.assertEqual(response.status_code, 200)
+        for snapshot in snapshots:
+            # Run in a task created under a captured request context, proving
+            # lifetime revocation even when a downstream task copied the value.
+            import asyncio
+            result = await snapshot.run(asyncio.create_task, check('fixture-learning-operator'))
+            self.assertFalse(result.allowed)
+        self.assertIsNone(_ADMITTED.get())
+        for key in ('fixture-learning', 'fixture-learning-operator'):
+            self.assertFalse((await check(key)).allowed)
+        self.assertNotIn('get_bank_profile', self.policy.SAFE_BANK_READS)
+
+    async def test_dependency_scope_revoked_on_exception_and_cancellation(self):
+        import asyncio
+        import contextvars
+        from hindsight_api.models import RequestContext
+        from hindsight_api.extensions.operation_validator import BankReadContext
+        from homelab_hindsight_specialists.ingress import _ADMITTED
+        validator = self.policy.SpecialistOperationValidator(self.config)
+        snapshots = []
+        started = asyncio.Event()
+        async def downstream(scope, receive, send):
+            snapshots.append(contextvars.copy_context())
+            ctx = BankReadContext('infinite-recursion', 'get_bank_profile', RequestContext(api_key='fixture-learning'))
+            self.assertTrue((await validator.validate_bank_read(ctx)).allowed)
+            started.set()
+            if scope['path'].endswith('/memories/recall'):
+                await asyncio.Event().wait()
+            raise RuntimeError('synthetic handler failure')
+        self.boundary.app = downstream
+        task = asyncio.create_task(self.client.post('/v1/default/banks/infinite-recursion/memories/recall',
+                                                    headers=self.headers, json={'query':'fixture'}))
+        await asyncio.wait_for(started.wait(), 2)
+        task.cancel()
+        with self.assertRaises(asyncio.CancelledError):
+            await task
+        # Same identity, different request: exception cleanup also revokes.
+        async def failed(scope, receive, send):
+            snapshots.append(contextvars.copy_context())
+            raise RuntimeError('synthetic handler failure')
+        self.boundary.app = failed
+        with self.assertRaisesRegex(RuntimeError, 'synthetic handler failure'):
+            await self.client.post('/v1/default/banks/infinite-recursion/memories/recall',
+                                   headers=self.headers, json={'query':'fixture'})
+        self.assertIsNone(_ADMITTED.get())
+        for snapshot in snapshots:
+            ctx = BankReadContext('infinite-recursion', 'get_bank_profile', RequestContext(api_key='fixture-learning'))
+            result = await snapshot.run(asyncio.create_task, validator.validate_bank_read(ctx))
+            self.assertFalse(result.allowed)
+
+    async def test_direct_profile_config_and_cross_bank_reads_never_dispatch(self):
+        from hindsight_api.models import RequestContext
+        from hindsight_api.extensions.operation_validator import BankReadContext
+        validator = self.policy.SpecialistOperationValidator(self.config)
+        for key in ('fixture-learning', 'fixture-learning-operator', 'fixture-career', 'fixture-career-operator'):
+            headers = {'Authorization':'Bearer '+key}
+            own_bank = self.tenant.identify(key).bank
+            for suffix in ('', '/profile', '/config', '/stats', '/audit-logs'):
+                response = await self.client.get('/v1/default/banks/'+own_bank+suffix, headers=headers)
+                self.assertEqual(response.status_code, 403)
+            for bank in (own_bank, 'reserve-bank'):
+                result = await validator.validate_bank_read(BankReadContext(
+                    bank, 'get_bank_profile', RequestContext(api_key=key, internal=True, mcp_authenticated=True)))
+                self.assertFalse(result.allowed)
+            other = 'next-level' if own_bank == 'infinite-recursion' else 'infinite-recursion'
+            response = await self.client.get('/v1/default/banks/'+other+'/documents/fixture-doc', headers=headers)
+            self.assertEqual(response.status_code, 403)
+        self.assertEqual(self.calls, [])
+
+    async def test_native_http_recall_can_use_attachment_profile_dependency(self):
+        import httpx
+        from hindsight_api.engine.response_models import RecallResult
+        from homelab_hindsight_specialists.ingress import create_guarded_app
+        engine = self.engine_fixture()
+        conn = self.attachment_backend_fixture(engine)
+        completed = []
+        async def recall(bank_id, query, request_context, **kwargs):
+            await engine._authenticate_tenant(request_context)
+            await engine.attachments_for_documents(bank_id, ['fixture-doc'], request_context)
+            completed.append(bank_id)
+            return RecallResult(results=[])
+        engine.recall_async = recall
+        app = create_guarded_app(engine, initialize_memory=False)
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url='http://fixture.invalid') as client:
+            response = await client.post('/v1/default/banks/infinite-recursion/memories/recall', headers=self.headers, json={'query':'fixture'})
+            self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(completed, ['infinite-recursion'])
+        self.profile_rows.assert_awaited_once()
+        conn.fetch.assert_awaited_once()
+
+    async def test_native_stateful_mcp_recall_propagates_per_request_dependency_scope(self):
+        import asyncio
+        import contextvars
+        import httpx2
+        from mcp import ClientSession
+        from mcp.client.streamable_http import streamable_http_client
+        from hindsight_api.engine.response_models import RecallResult
+        from hindsight_api.extensions.operation_validator import BankReadContext
+        from hindsight_api.models import RequestContext
+        from homelab_hindsight_specialists.ingress import create_guarded_app, _ADMITTED
+        engine = self.engine_fixture()
+        conn = self.attachment_backend_fixture(engine)
+        completed, scopes, snapshots = [], [], []
+        async def recall(bank_id, query, request_context, **kwargs):
+            schema = await engine._authenticate_tenant(request_context)
+            admission = _ADMITTED.get()
+            self.assertEqual(admission[1], self.tenant.identify(request_context.api_key))
+            scopes.append(admission[2])
+            snapshots.append(contextvars.copy_context())
+            await engine.attachments_for_documents(bank_id, ['fixture-doc'], request_context)
+            cross = await engine._operation_validator.validate_bank_read(BankReadContext('next-level', 'get_bank_profile', request_context))
+            self.assertFalse(cross.allowed)
+            completed.append((bank_id, schema))
+            return RecallResult(results=[])
+        engine.recall_async = recall
+        app = create_guarded_app(engine, http_api_enabled=False, mcp_api_enabled=True, initialize_memory=False)
+        async with asyncio.timeout(20):
+            async with app.app.router.lifespan_context(app.app):
+                for key in ('fixture-learning', 'fixture-learning-operator'):
+                    async with httpx2.AsyncClient(transport=httpx2.ASGITransport(app=app), headers={'Authorization':'Bearer '+key}) as client:
+                        async with streamable_http_client('http://fixture.invalid/mcp/infinite-recursion', http_client=client) as streams:
+                            async with ClientSession(streams[0], streams[1]) as session:
+                                await session.initialize()
+                                # Initialization/listing must not grant the dependency;
+                                # two recalls must carry separate request admissions.
+                                await session.list_tools()
+                                for _ in range(2):
+                                    result = await session.call_tool('recall', {'query':'fixture'})
+                                    self.assertFalse(result.is_error)
+                                sid = next(s for s, v in app.sessions.items() if v.principal == self.tenant.identify(key)).decode()
+                                for tool in ('get_bank', 'update_bank'):
+                                    response = await client.post('http://fixture.invalid/mcp/infinite-recursion', headers={'Mcp-Session-Id':sid},
+                                        json={'jsonrpc':'2.0','id':999,'method':'tools/call','params':{'name':tool,'arguments':{}}})
+                                    self.assertEqual(response.status_code, 403)
+        self.assertEqual(completed, [('infinite-recursion','user_learning_coach')] * 4)
+        self.assertEqual(len({id(scope) for scope in scopes}), 4)
+        self.assertTrue(all(not scope.active for scope in scopes))
+        self.assertEqual(self.profile_rows.await_count, 4)
+        self.assertEqual(conn.fetch.await_count, 4)
+        self.assertIsNone(_ADMITTED.get())
+        for snapshot in snapshots:
+            ctx = BankReadContext('infinite-recursion', 'get_bank_profile', RequestContext(api_key='fixture-learning'))
+            result = await snapshot.run(asyncio.create_task, engine._operation_validator.validate_bank_read(ctx))
+            self.assertFalse(result.allowed)
 
     async def test_real_upstream_http_factory_permits_read_and_refuses_write(self):
         import httpx
