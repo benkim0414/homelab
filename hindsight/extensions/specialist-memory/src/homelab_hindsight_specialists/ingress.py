@@ -3,6 +3,7 @@ import asyncio
 from contextvars import ContextVar
 from dataclasses import dataclass
 import json
+import re
 from time import monotonic
 from typing import Any
 from hindsight_api.extensions.tenant import AuthenticationError
@@ -11,6 +12,13 @@ _ADMITTED: ContextVar[Any] = ContextVar('homelab_specialist_ingress', default=No
 MAX_BODY = 65536
 MAX_SESSIONS = 64
 SESSION_IDLE_TIMEOUT_SECONDS = 3600
+
+
+@dataclass
+class _ContentReadScope:
+    # Mutable lifetime survives ContextVar copies into native MCP tasks, but
+    # cannot authorize work after its admitting transport request has ended.
+    active: bool = True
 
 
 @dataclass
@@ -131,10 +139,14 @@ class SpecialistBoundary:
         if sid is not None and (not mcp or session is None or session.principal != principal):
             return await self.reject(send)
         initialize = False
+        content_read = False
         body = b''
         if mcp and method in ('GET', 'DELETE'):
             if method == 'DELETE' and sid is None:
                 return await self.reject(send)
+        elif (not principal.read_only and method == 'GET'
+              and re.fullmatch(re.escape(bank_root) + r'/documents/[A-Za-z0-9][A-Za-z0-9_.-]{0,127}', path)):
+            content_read = True  # Exact own-bank operator document readback.
         elif ((method == 'POST' and (mcp or path == bank_root + '/memories/recall'
                                     or (not principal.read_only and path == bank_root + '/memories')))
               or (not principal.read_only and method == 'PUT' and path == bank_root)):
@@ -173,11 +185,13 @@ class SpecialistBoundary:
                             raise Refused()
                         if params['name'] == 'recall' and not _query(args):
                             raise Refused()
+                        content_read = params['name'] == 'recall'
                     elif operation not in ('initialize', 'ping', 'tools/list', 'notifications/initialized', 'notifications/cancelled'):
                         raise Refused()
                 elif path.endswith('/memories/recall'):
                     if not _query(data):
                         raise Refused()
+                    content_read = True
                 elif 'bank_id' in data:
                     raise Refused()
             except (Refused, TimeoutError):
@@ -230,12 +244,15 @@ class SpecialistBoundary:
             scope['user'] = AuthenticatedUser(AccessToken(
                 token=key, client_id='homelab_' + principal.name,
                 subject=principal.schema, scopes=[]))
-        token = _ADMITTED.set((self.tenant, principal))
+        read_scope = _ContentReadScope() if content_read else None
+        token = _ADMITTED.set((self.tenant, principal, read_scope))
         if initialize:
             self.initializing += 1
         try:
             return await self.app(scope, replay, checked_send)
         finally:
+            if read_scope is not None:
+                read_scope.active = False
             if initialize:
                 self.initializing -= 1
             _ADMITTED.reset(token)

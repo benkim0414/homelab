@@ -1,0 +1,8 @@
+# Deny by default, including fixtures, clients, credentials and cached state.
+**
+!pyproject.toml
+!src/
+!src/homelab_hindsight_specialists/
+!src/homelab_hindsight_specialists/__init__.py
+!src/homelab_hindsight_specialists/ingress.py
+!src/homelab_hindsight_specialists/server.py

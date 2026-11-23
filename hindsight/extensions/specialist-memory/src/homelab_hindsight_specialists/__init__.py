@@ -158,6 +158,18 @@ class SpecialistOperationValidator(OperationValidatorExtension):
     async def validate_bank_read(self, ctx):
         identity = self._identity(ctx.request_context)
         if identity is not None and ctx.operation not in SAFE_BANK_READS:
+            # Native content handlers use the read-only profile helper to load
+            # attachment metadata. This is NOT general profile-read authority:
+            # require a live own-bank content admission from the same key map.
+            from .ingress import _ADMITTED, _ContentReadScope
+            admitted = _ADMITTED.get()
+            if (ctx.operation == 'get_bank_profile' and admitted is not None
+                    and len(admitted) == 3
+                    and isinstance(admitted[0], SpecialistTenantExtension)
+                    and admitted[0]._keys == self._auth._keys
+                    and admitted[1] == identity and ctx.bank_id == identity.bank
+                    and isinstance(admitted[2], _ContentReadScope) and admitted[2].active):
+                return self._read(ctx)
             return ValidationResult.reject("Operation not permitted", status_code=403)
         return self._read(ctx)
 
