@@ -69,11 +69,15 @@ on their original PVCs/volumes. The original manual Learning coach backup remain
 Completed. Its earlier test remains in its separate review worktree; do not copy
 or discard that unfinished worktree's changes.
 
-The backup manifests and Application include changes remain local and
-uncommitted. Live deployment was direct and limited to the new backup resources,
-not a sync against unpublished source. Publication and GitOps adoption remain
-pending. Career advisor restore resources are quarantined pending separately
-approved exact-resource cleanup. Memory integration remains a separate task.
+The backup manifests and Application includes were published by
+[PR 120](https://github.com/benkim0414/homelab/pull/120), merged as
+`5430aa6ee52d5c0122956ceca3d0b2f40b8f762e`. Both specialist Applications adopted
+the existing resources without pruning and were Synced/Healthy at that revision.
+Manual sync, production pods, templates, claims and volume identities remained
+unchanged. The Career advisor restore resources were subsequently removed with
+exact-UID cleanup and absence verification. All successful backups were preserved.
+See the execution record for timestamps and the deliberately untouched parent
+Application drift. Memory integration remains a separate task.
 
 Acceptance requires:
 

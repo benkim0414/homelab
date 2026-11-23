@@ -2,8 +2,44 @@
 
 Verified at `2026-11-23T00:12:10.383547+00:00`.
 Operational task 1 passed after correcting the initial resume failure described
-below. Repository publication and GitOps adoption remain pending. Task 2 memory
-integration is not included in this record.
+below. Publication, GitOps adoption and approved cleanup subsequently completed
+as recorded next. Task 2 memory integration is not included in this record.
+
+## Publication, adoption and cleanup
+
+[PR 120](https://github.com/benkim0414/homelab/pull/120) published the reviewed
+backup manifests, tests, Application includes and initial result. It merged as
+`5430aa6ee52d5c0122956ceca3d0b2f40b8f762e` after required CI passed. The merged
+commit's own `Verify` workflow also passed before live reconciliation.
+
+At `2026-11-23T00:27:53.427167+00:00`, both specialist Applications were
+**Synced/Healthy** at that revision, with manual sync preserved. A complete
+server-normalized raw-manifest preflight compared all 30 specialist resources
+and found no functional differences. A resource-filtered parent operation updated
+only the two specialist Application definitions. Each child then adopted its
+existing backup resources through a no-prune, no-force apply operation.
+All resource UIDs, production Pod UIDs/restart counts, Deployment templates,
+PVC identities and volume handles remained unchanged during adoption.
+The parent `apps` Application remains OutOfSync because unrelated drift was
+deliberately excluded. No broad root sync was performed.
+
+At `2026-11-23T00:28:49.494770+00:00`, separately approved cleanup deleted the
+Career advisor inspection Job and owned Pod, test PVC, retained PV, detached
+Longhorn clone, ConfigMap, NetworkPolicy and temporary namespace. Every explicit
+deletion used the recorded UID as an API precondition; absence was read back.
+No force deletion or finalizer bypass was used. All three production workloads
+remained Ready on their original claims and volumes.
+
+These backups were independently re-read as Completed with unchanged UIDs/URLs:
+
+- `learning-coach-20261123-000806-6740df06`.
+- `career-advisor-20261123-000914-24e26373`.
+- The original manual `lc-restore-20261122-092311`.
+- The initial completed `learning-coach-20261123-000447-84a8c62c`, whose Job failed
+  during resume before the correction.
+
+No source snapshot or backup was deleted as test cleanup. The original failure
+evidence remains preserved. The initial test observations below are historical.
 
 ## Deployed configuration
 
@@ -91,10 +127,10 @@ Observed result:
 Only `auth.json`, `.env`, and `auth.json.corrupt` were eligible for unlinking.
 Their values were not opened or printed. The inspector refused native named
 profiles and symlinked database files. It made no application-row queries.
-The clone is not declared comprehensively sanitized. It remains private and
-quarantined, pending separately approved exact-resource cleanup. Do not start
-Hermes against it, reuse copied OAuth, or infer full disaster recovery from this
-SQLite-integrity result. No login or model request was made.
+The clone was not declared comprehensively sanitized. It remained private and
+quarantined until the approved cleanup recorded above. Hermes never started
+against it and copied OAuth was not reused. Do not infer full disaster recovery
+from this SQLite-integrity result. No login or model request was made.
 
 ## Preservation, authority and local checks
 
@@ -118,14 +154,14 @@ Local verification passed:
 - Full render/schema/policy/secret verifier: 23 Applications, 561 resources.
 - Inspector synthetic tests: 3 passed with warnings treated as errors.
 
-Direct deployment used only the reviewed new backup manifests. The Application
-include changes remain local and uncommitted. No ArgoCD Application was patched
-or synced against unpublished files, and manual sync remains preserved. Publish
-and adopt these additions through the existing Applications only after separate
-publication authorization. No broad parent sync or pruning is required.
+The initial direct deployment used only the reviewed new backup manifests.
+Publication and GitOps adoption subsequently completed as recorded above.
+No ArgoCD Application was synced against unpublished source. Manual sync remains
+preserved, with no broad parent sync or pruning.
 
 Public operational evidence is retained in this worktree's ignored
 `verification/cache/specialist-{baseline,deployment}.json`,
 `career-restore-{state,resources}.json`, and the reviewed one-time operational
 scripts. These are not credential stores, backup schedules, or permission to
-repeat a restore. Preserve the worktree until its local deliverables are published.
+repeat a restore. They remain in the original
+`default-specialist-scheduled-backups` worktree. The source was published by PR 120.
