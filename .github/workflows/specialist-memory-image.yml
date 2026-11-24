@@ -1,0 +1,86 @@
+name: Publish specialist memory image
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact reviewed main revision to build, test and publish
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: specialist-memory-publication
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.repository == 'benkim0414/homelab' && github.ref == 'refs/heads/main' && inputs.expected_sha == github.sha
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ghcr.io/benkim0414/hindsight-specialist-memory:${{ github.sha }}-amd64
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Prepare isolated client and pinned model data
+        run: |
+          python3 -m venv verification/cache/native-venv
+          verification/cache/native-venv/bin/pip install 'mcp==2.3.0' httpx httpx2
+          mkdir -p verification/cache/publication
+          verification/cache/native-venv/bin/python -B hindsight/extensions/specialist-memory/validation/model_artifacts.py --directory verification/cache/specialist-models/bge-small-en-v1.5-5c38ec7
+          # These six hash-verified public files are mounted by container UID 1000.
+          models=verification/cache/specialist-models/bge-small-en-v1.5-5c38ec7
+          chmod 0755 "$models" "$models/onnx"
+          chmod 0644 "$models"/{config.json,special_tokens_map.json,tokenizer.json,tokenizer_config.json,vocab.txt,onnx/model.onnx}
+      - name: Real isolated acceptance
+        id: accepted
+        run: |
+          verification/cache/native-venv/bin/python -B hindsight/extensions/specialist-memory/validation/run.py > verification/cache/publication/acceptance.json
+          verification/cache/native-venv/bin/python -B - <<'PY'
+          import importlib.util, json, os, pathlib, sys
+          directory = pathlib.Path('hindsight/extensions/specialist-memory/validation').resolve()
+          sys.path.insert(0, str(directory))
+          spec = importlib.util.spec_from_file_location('packaged_acceptance', directory / 'run.py')
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          report = json.loads(pathlib.Path('verification/cache/publication/acceptance.json').read_text())
+          assert module.acceptance_is_valid(report)
+          assert report['images']['architecture'] == 'amd64'
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('image_id=' + report['images']['api'] + '\n')
+          PY
+      - name: Publish and verify registry copy
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE_ID: ${{ steps.accepted.outputs.image_id }}
+        run: |
+          set -euo pipefail
+          trap 'docker logout ghcr.io' EXIT
+          [[ "$IMAGE_ID" =~ ^sha256:[0-9a-f]{64}$ ]]
+          docker tag "$IMAGE_ID" "$IMAGE"
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker push "$IMAGE"
+          published=$(docker image inspect "$IMAGE" --format '{{index .RepoDigests 0}}')
+          [[ "$published" =~ ^ghcr.io/benkim0414/hindsight-specialist-memory@sha256:[0-9a-f]{64}$ ]]
+          docker pull "$published"
+          test "$(docker image inspect "$published" --format '{{.Id}}')" = "$IMAGE_ID"
+          export PUBLISHED="$published"
+          python3 - <<'PY'
+          import json, os, pathlib
+          result = {name: os.environ[name] for name in ('GITHUB_SHA', 'IMAGE_ID', 'PUBLISHED')}
+          result['platform'] = 'linux/amd64'
+          result['registry_readback_verified'] = True
+          pathlib.Path('verification/cache/publication/registry.json').write_text(json.dumps(result, indent=2) + '\n')
+          PY
+          printf '%s\n' "$published" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload bounded public evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: specialist-memory-publication-${{ github.sha }}
+          path: verification/cache/publication/*.json
+          if-no-files-found: ignore
+          retention-days: 7
