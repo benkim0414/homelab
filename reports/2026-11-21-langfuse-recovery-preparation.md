@@ -1772,3 +1772,13 @@ native engine rehearsal or a production trace acceptance result. Backup-looking
 messages emitted by repository unit fixtures were mocked test output, not new
 NAS backup executions. Remote PR publication and exact-head CI remain separate
 steps and must be read back before being reported as completed.
+
+Draft publication PR [#125](https://github.com/benkim0414/homelab/pull/125) was
+created from reviewed commit `0d1022bdd459a585c7d3c7ac3b0137eade05a82f` and its
+remote branch/head/file scope was read back. Initial exact-head
+[Verify run45324424126](https://github.com/benkim0414/homelab/actions/runs/45324424126)
+failed because the clean CI runner lacks `bwrap` for the generated native-age
+class setup. That failure is retained, not a passing native result. The class
+now explicitly skips unsupported Linux/architecture/bubblewrap/memfd hosts before
+downloads or generated-key setup, without any unsandboxed fallback or changes to
+production guards. Local native execution and clean-CI skips remain distinct.

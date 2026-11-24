@@ -279,6 +279,12 @@ their stated local regression proof; do not attach old live receipts to new
 helper hashes. Native opt-in tests depend on retained historical cache artifacts
 and are not clean-checkout native CI. Preserve missing/failed evidence as such.
 
+The generated native-age streaming class additionally requires Linux AMD64,
+`/usr/bin/bwrap` and memfd support. It explicitly skips before tool downloads or
+key generation when those prerequisites are absent, rather than dropping its
+sandbox. A clean CI run with such skips is not native-age execution proof; retain
+the separate local generated-native results and actual skip reasons.
+
 ## Read-only queue/transaction drain sample
 
 ```sh

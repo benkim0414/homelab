@@ -3,6 +3,8 @@
 Run: python3 -B -m unittest discover -s verification/tests
      -p test_langfuse_capture_stream.py -v
 All run directories/receipts are preserved in the ignored encryption cache.
+Native cases explicitly skip without Linux AMD64, bubblewrap and memfd support;
+they never fall back to running generated identities outside their sandbox.
 """
 import hashlib
 import importlib.util
@@ -36,6 +38,9 @@ capture = load('langfuse_capture_stream', ROOT / 'langfuse/recovery/capture_stre
 fixture = load('langfuse_encryption_fixture', ROOT / 'langfuse/recovery/fixture-encryption.py')
 
 
+@unittest.skipUnless(sys.platform == 'linux' and os.uname().machine == 'x86_64'
+                     and Path('/usr/bin/bwrap').is_file() and hasattr(os, 'memfd_create'),
+                     'native age integration requires Linux AMD64, /usr/bin/bwrap and memfd')
 class NativeCaptureTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
