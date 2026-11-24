@@ -1,15 +1,20 @@
 # Langfuse coordinated recovery proposal
 
-Status: proposed on 2026-11-18; not implemented or exercised. The operator approved
-publishing the resilience results and proceeding with next steps. This document
-makes the recovery scope reviewable; it does not authorize secret exports,
-production downtime, new storage, restore execution, schedules or retention pruning.
-Traces remain disposable until a coordinated restore passes.
+Status updated 2026-11-24: one separately authorized coordinated encrypted
+checkpoint and isolated four-store restore were executed and accepted with the
+evidence distinctions and limits recorded in the
+[first recovery-set record](RECOVERY-FIRST.md) and
+[chronological report](../reports/2026-11-21-langfuse-recovery-preparation.md).
+The [bounded helper sources and tests](recovery/README.md) preserve that procedure;
+they are not a general backup service or approval to rerun it.
 
-The [first recovery-set plan](RECOVERY-FIRST.md) records the 2026-11-20 read-only
-storage/capacity preflight, bounded proposed scope and remaining implementation,
-encryption, destination and execution-approval gates. Preparation is approved;
-no confidential capture, production pause or isolated restore has been performed.
+The proposal and gates below remain the recovery boundaries, not standing
+permission for secret exports, production downtime, new storage, restore writes,
+schedules or retention pruning. No schedule/retention automation was implemented.
+Retain the original accepted checkpoint and failed-attempt evidence. Secondary
+key custody is operator-reported; the later production smoke turn's successful
+model reply did not establish trace ingestion. Do not infer either proof from
+healthy volumes, successful CLI inference or the earlier isolated ingestion test.
 
 References: [application runbook](README.md), [resilience evidence](../reports/2026-11-18-langfuse-resilience.md),
 [NAS runbook](../nas/README.md), and [Sealed Secrets recovery](../docs/operations/sealed-secrets.md).
