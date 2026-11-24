@@ -41,6 +41,9 @@ jobs:
             --output "$source_dir/__init__.py" \
             https://raw.githubusercontent.com/NousResearch/hermes-agent/2237be355906fbe6065ce1815711eee52b2d646e/plugins/observability/langfuse/__init__.py
           printf '%s  %s\n' 75f0959a4152145a7c33591d6ddd3c4c8bfd53b29e0807f18abdc19bb8a485d1 "$source_dir/__init__.py" | sha256sum --check -
+      - name: Prepare pinned recovery encryption test tools
+        # Public checksum-verified executables only; no fixture keys or engines.
+        run: verification/venv/bin/python -B -c "import runpy; runpy.run_path('langfuse/recovery/fixture-encryption.py')['tools']()"
       - name: Test verifier and policies
         env:
           HERMES_TEST_CORE: ${{ github.workspace }}/verification/cache/hermes-langfuse-source

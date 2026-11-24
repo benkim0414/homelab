@@ -1782,3 +1782,11 @@ class setup. That failure is retained, not a passing native result. The class
 now explicitly skips unsupported Linux/architecture/bubblewrap/memfd hosts before
 downloads or generated-key setup, without any unsandboxed fallback or changes to
 production guards. Local native execution and clean-CI skips remain distinct.
+
+The follow-up Verify run45325174540 then exposed an implicit test-order dependency:
+the mandatory coordinator round trips expected the public age tools to have been
+prepared by the now-skipped bubblewrap class. CI now prepares only those existing
+checksum-pinned public executables explicitly before discovery. The coordinator
+tests still fail if real age/age-keygen are missing; they are not skipped or
+replaced with simulated encryption. No key generation occurs in the preparation
+step, and no production authentication or datastore execution is involved.
