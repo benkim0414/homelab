@@ -1,0 +1,127 @@
+{
+  "apiVersion": "apps/v1",
+  "kind": "Deployment",
+  "metadata": {
+    "name": "hindsight-api",
+    "namespace": "hindsight"
+  },
+  "spec": {
+    "template": {
+      "spec": {
+        "containers": [
+          {
+            "name": "api",
+            "image": "__PUBLISHED_IMAGE_DIGEST_REQUIRED__",
+            "command": [
+              "/app/api/.venv/bin/hindsight-specialist-api"
+            ],
+            "env": [
+              {
+                "name": "HINDSIGHT_API_TENANT_EXTENSION",
+                "value": "homelab_hindsight_specialists:SpecialistTenantExtension"
+              },
+              {
+                "name": "HINDSIGHT_API_OPERATION_VALIDATOR_EXTENSION",
+                "value": "homelab_hindsight_specialists:SpecialistOperationValidator"
+              },
+              {
+                "name": "HINDSIGHT_API_DATABASE_SCHEMA",
+                "value": "public"
+              },
+              {
+                "name": "HINDSIGHT_API_OPERATION_VALIDATOR_API_KEY",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "name": "hindsight-api-credentials",
+                    "key": "HINDSIGHT_API_TENANT_API_KEY",
+                    "optional": false
+                  }
+                }
+              },
+              {
+                "name": "HINDSIGHT_API_TENANT_LEARNING_COACH_API_KEY",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "name": "hindsight-specialist-memory-credentials",
+                    "key": "LEARNING_COACH_API_KEY",
+                    "optional": false
+                  }
+                }
+              },
+              {
+                "name": "HINDSIGHT_API_TENANT_CAREER_ADVISOR_API_KEY",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "name": "hindsight-specialist-memory-credentials",
+                    "key": "CAREER_ADVISOR_API_KEY",
+                    "optional": false
+                  }
+                }
+              },
+              {
+                "name": "HINDSIGHT_API_TENANT_OPERATOR_LEARNING_COACH_API_KEY",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "name": "hindsight-specialist-memory-credentials",
+                    "key": "OPERATOR_LEARNING_COACH_API_KEY",
+                    "optional": false
+                  }
+                }
+              },
+              {
+                "name": "HINDSIGHT_API_TENANT_OPERATOR_CAREER_ADVISOR_API_KEY",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "name": "hindsight-specialist-memory-credentials",
+                    "key": "OPERATOR_CAREER_ADVISOR_API_KEY",
+                    "optional": false
+                  }
+                }
+              },
+              {
+                "name": "HINDSIGHT_API_OPERATION_VALIDATOR_LEARNING_COACH_API_KEY",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "name": "hindsight-specialist-memory-credentials",
+                    "key": "LEARNING_COACH_API_KEY",
+                    "optional": false
+                  }
+                }
+              },
+              {
+                "name": "HINDSIGHT_API_OPERATION_VALIDATOR_CAREER_ADVISOR_API_KEY",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "name": "hindsight-specialist-memory-credentials",
+                    "key": "CAREER_ADVISOR_API_KEY",
+                    "optional": false
+                  }
+                }
+              },
+              {
+                "name": "HINDSIGHT_API_OPERATION_VALIDATOR_OPERATOR_LEARNING_COACH_API_KEY",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "name": "hindsight-specialist-memory-credentials",
+                    "key": "OPERATOR_LEARNING_COACH_API_KEY",
+                    "optional": false
+                  }
+                }
+              },
+              {
+                "name": "HINDSIGHT_API_OPERATION_VALIDATOR_OPERATOR_CAREER_ADVISOR_API_KEY",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "name": "hindsight-specialist-memory-credentials",
+                    "key": "OPERATOR_CAREER_ADVISOR_API_KEY",
+                    "optional": false
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
