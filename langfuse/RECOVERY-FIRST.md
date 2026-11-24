@@ -1,11 +1,33 @@
-# First Langfuse coordinated recovery set — scoped plan
+# First Langfuse coordinated recovery set — historical procedure and outcome
 
-Status: preparation approved on 2026-11-20; production capture, confidential
-exports, private-secret restoration, outage and restore rehearsal are **not yet
-execution-approved**. This plan narrows [BACKUP.md](BACKUP.md); it does not mark
-that proposal implemented or its recovery gates passed. Do not merge datastore
-PRs [#106](https://github.com/benkim0414/homelab/pull/106) or
-[#107](https://github.com/benkim0414/homelab/pull/107) on the strength of this document.
+Status updated 2026-11-24: the separately authorized, bounded coordinated capture
+and isolated four-store restore completed. Native/queue/object reconciliation and
+synthetic isolated ingestion/readback passed; original-owner login and old-trace
+UI readback were operator-confirmed, not an agent-inspected browser session.
+The three reviewed datastore PRs #106/#107/#111 were subsequently merged and
+manually rolled out with native checks and unchanged original claim bindings.
+See the [chronological evidence and limits](../reports/2026-11-21-langfuse-recovery-preparation.md).
+
+The dated baseline and proposal below are retained as history, not current
+execution instructions or standing authorization. In particular, the capture
+helpers deliberately retain the original image/identity baselines and can refuse
+today's upgraded installation. Do not rewrite their pins, replay old journals,
+repeat confidential exports, or recreate/delete recovery resources merely to
+make a preflight pass. A new operational attempt requires fresh review of its
+actual versions, identities, capacity and authorization. No schedule, retention
+automation or general backup framework was introduced.
+
+Publication safety review subsequently found a delayed watch-event admission
+race in the historical adapter. The publication copy now refuses live pause
+before intent/write because shared Pod/Deployment revision ordering has not
+been validated. Conditional generated tests are not production proof; see the
+[explicit live-execution limitation](recovery/README.md). This is not a new
+operationally admitted capture implementation or authorization to repeat the set.
+
+Secondary Vaultwarden key custody remains operator-reported. A later ordinary
+production CLI smoke turn returned successfully, but its production trace was
+not found by bounded readback; post-upgrade production ingestion is not accepted
+on that result. These limits do not rewrite the earlier isolated restore proof.
 
 ## Verified baseline — read-only preflight on 2026-11-20 AEDT
 

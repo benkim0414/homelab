@@ -46,6 +46,7 @@ jobs:
           HERMES_TEST_CORE: ${{ github.workspace }}/verification/cache/hermes-langfuse-source
         run: |
           verification/venv/bin/python -m unittest discover -s verification/tests -v
+          verification/venv/bin/python -B langfuse/recovery/pg-valkey-tests.py
           verification/cache/bin/conftest verify --policy verification/policy
       - name: Test house-manager approval boundaries
         working-directory: hermes/profiles/house-manager/tools

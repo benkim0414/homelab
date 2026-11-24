@@ -5,6 +5,26 @@ an installation; it does not establish that it is deployed or collecting traces.
 
 ## Implementation status
 
+### Current checkpoint (2026-11-24)
+
+One coordinated encrypted backup and isolated four-store restore completed;
+native/queue/object checks and isolated ingestion/readback passed, with owner
+login and old-trace UI readback separately operator-confirmed. Subsequently,
+#106/#107/#111 were merged and manually rolled out one at a time, preserving
+the four original claim bindings and manual sync. Native checks and private
+HTTPS health/readiness passed; the final Application was Synced/Healthy.
+See [the chronological record](../reports/2026-11-21-langfuse-recovery-preparation.md),
+[recovery boundaries](BACKUP.md), and [bounded helper sources](recovery/README.md).
+
+Do not infer current end-to-end tracing from those health checks or the older
+enrollment results: a later ordinary production CLI smoke turn returned the
+expected model reply, but bounded production trace readback found no matching
+observations. That smoke check remains unverified; no tracing setting or
+credential was changed to force a pass. Secondary Vaultwarden recovery-key
+custody also remains operator-reported. No schedule/retention automation exists.
+
+### Initial deployment and enrollment history (2026-11-17–18)
+
 Published through [PR #93](https://github.com/benkim0414/homelab/pull/93), merged
 as `e5db120844277b1a8e9437dc300035921b23b779` after green PR checks. The
 [main-branch Verify run](https://github.com/benkim0414/homelab/actions/runs/44189306576)
@@ -92,30 +112,31 @@ helper blindly over existing ciphertext, and do not rerun server bootstrap.
 | Namespace / Application / Helm release | `langfuse` |
 | Official Helm chart | `langfuse` `2.2.4` from `https://langfuse.github.io/langfuse-k8s` |
 | Web / worker | `docker.langfuse.com/langfuse/langfuse:4.77.0` / `docker.langfuse.com/langfuse/langfuse-worker:4.77.0` |
-| PostgreSQL | Chart dependency `postgres` `1.6.3`, image `postgres:18` |
-| Queue | Chart dependency `valkey` `0.9.4`, image `valkey/valkey:8.0`, persistent standalone, noeviction |
+| PostgreSQL | Chart dependency `postgres` `1.6.3`, image `postgres:18` (server 18.7, PGDG +5) |
+| Queue | Chart dependency `valkey` `0.9.4`, image `valkey/valkey:8.0` (8.0.13), persistent standalone, noeviction |
 | Object store | Raw all-in-one Deployment, image `chrislusf/seaweedfs:4.23`; bundled subchart disabled |
-| ClickHouse | Raw single-replica StatefulSet, `clickhouse/clickhouse-server:26.8.36.3` |
+| ClickHouse | Raw single-replica StatefulSet, `clickhouse/clickhouse-server:26.8.42.13` |
 | Workstation endpoint | `https://langfuse.tailbd291c.ts.net` |
 | Cluster endpoint | `http://langfuse-web.langfuse.svc.cluster.local:3000` |
 
 The tailnet suffix was verified through normal `tailscale status` metadata.
-The Langfuse ingress itself has not been created or verified. The Application
+The private ingress/HTTPS endpoint was verified during the recorded rollouts. The Application
 uses manual sync, no pruning or cascading deletion finalizer. All repository
 sources stay on `main`; chart 2.2.4 is an exact pin. All six runtime images and
 their init/hook uses are pinned to manifest-index digests. Anonymous registry
-reads verified the tag/index hashes and Linux AMD64/ARM64 support on 2026-11-17;
-this is not signature verification or native runtime validation. Do not substitute
+reads verified initial pins on 2026-11-17 and the three replacement pins on
+2026-11-24, including Linux AMD64/ARM64 support. Subsequent native runtime checks
+are recorded separately; digest equality is not signature verification. Do not substitute
 `latest` or upgrade PostgreSQL as part of a tracing setup.
 
 | Image | Manifest-index SHA-256 |
 | --- | --- |
 | Langfuse web 4.77.0 | `2b47d0ae63ae737996a58cc03536a73230c809a2371c230c9bea4b7653a0b6a0` |
 | Langfuse worker 4.77.0 | `1bc3597ff4c953e98ff9ee474a7d634e97664e4df298fdf20f13ecc834c89438` |
-| PostgreSQL 18 | `2ea8630df176ad090ec92136dee850397c5af8781e4bcf2e4162593691c61bbc` |
-| Valkey 8.0 | `04b9002ae24bbe66687fb025052ed9bcebb54f8da3937338eb718d98d362887f` |
+| PostgreSQL 18 (18.7, PGDG +5) | `eb63372c1e05c755f55fa30cbd07aecc443676fc6c0fa90b9002d01537841e1a` |
+| Valkey 8.0 (8.0.13) | `fcb69dfef81599baefeee6cdd0b8339b61b7983a8ee08d307e44844db5bd7047` |
 | SeaweedFS 4.23 | `c6d6fb84b081f1f09bb089184ff4b45d2f163a1bfa8b354d04cf400c6e06f242` |
-| ClickHouse 26.8.36.3 | `d426d2f612e1e189c90f9a3f8dcd85a03c6851273833817a296bb327e63aa7a7` |
+| ClickHouse 26.8.42.13 | `db658a280d1b427056eca37244fcf8939319969e9ca0552f6f3a46c97defac8f` |
 
 The chart's supported external ClickHouse configuration avoids introducing its
 alpha ClickHouse operator, Keeper and cert-manager dependencies. The raw instance
