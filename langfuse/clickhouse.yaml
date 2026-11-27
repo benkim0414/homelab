@@ -54,7 +54,7 @@ spec:
         seccompProfile: {type: RuntimeDefault}
       containers:
         - name: clickhouse
-          image: clickhouse/clickhouse-server:26.8.42.13@sha256:db658a280d1b427056eca37244fcf8939319969e9ca0552f6f3a46c97defac8f
+          image: clickhouse/clickhouse-server:26.8.49.6@sha256:0cf7c7f1d66943f0ca17062dd6e6a0f459eb58770e16d6957823837f3fe1bf66
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false
